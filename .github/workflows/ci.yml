@@ -52,7 +52,10 @@ jobs:
         # your repos use v6/v7/v8 of the action; pick one and keep it org-wide (v7 here)
         uses: golangci/golangci-lint-action@v7
         with:
-          version: ${{ env.lint-version }}
+          # version: ${{ env.lint-version }}
+          # Keep go-version and other vars in env -> that’s fine.
+          # For golangci-lint version, always hardcode v1.64.7 (or latest) in the job.
+          version: v1.64.7
           args: --timeout 7m
           only-new-issues: true # linter will report only problems introduced by the PR
           working-directory: ./
