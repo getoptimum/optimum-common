@@ -56,7 +56,7 @@ jobs:
           #version: ${{ env.lint-version }}
           #version: v1.64.7   #  correct format
           #version: 1.64.7
-          version: v2.4.0
+          version: latest
           args: --timeout 7m
           only-new-issues: true
 
