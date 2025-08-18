@@ -11,10 +11,10 @@ import (
 // Handles signature errors gracefully.
 // Returns an error for completely malformed tokens.
 func ParseUnverified(tokenString string) (*Claims, error) {
-	tok, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	tok, err := jwt.Parse(tokenString, func(_ *jwt.Token) (interface{}, error) {
 		// No key: we expect signature-related error.
 		return nil, nil
-	})
+	}) // token var unused
 	var mc jwt.MapClaims
 	if err != nil {
 		// Accept signature errors, still read claims.

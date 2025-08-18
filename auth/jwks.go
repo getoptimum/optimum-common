@@ -28,7 +28,7 @@ func NewVerifierFromDomain(domain, audience string, opt *VerifierOptions) (*Veri
 	jwksURL := fmt.Sprintf("https://%s/.well-known/jwks.json", domain)
 
 	opts := keyfunc.Options{
-		RefreshErrorHandler: func(err error) { /* log upstream */ },
+		RefreshErrorHandler: func(_ error) { /* log upstream */ }, // err var unused
 	}
 	// apply sensible defaults if nil/zero
 	if opt != nil {

@@ -1,8 +1,7 @@
-//Primary functions to cover
-//fromMap()
-//ParseUnverified()
-//Helper functions
-
+// Primary functions to cover
+// fromMap()
+// ParseUnverified()
+// Helper functions
 package auth
 
 import (
