@@ -53,7 +53,7 @@ jobs:
         uses: golangci/golangci-lint-action@v7
         with:
           # version: ${{ env.lint-version }} this line failed the CI/CD fix below
-          version: latest
+          version: 1.64.7
           args: --timeout 7m
           only-new-issues: true
 
