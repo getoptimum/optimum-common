@@ -1,4 +1,3 @@
-version: "1"
 run:
   timeout: 7m
   tests: true # includes *_test.go
