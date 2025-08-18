@@ -55,7 +55,8 @@ jobs:
           # version: ${{ env.lint-version }}
           # Keep go-version and other vars in env -> that’s fine.
           # For golangci-lint version, always hardcode v1.64.7 (or latest) in the job.
-          version: v1.64.7
+          # version: v1.64.7
+          version: v2.4.0
           args: --timeout 7m
           only-new-issues: true # linter will report only problems introduced by the PR
           working-directory: ./

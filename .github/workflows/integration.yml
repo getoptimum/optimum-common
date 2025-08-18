@@ -54,8 +54,9 @@ jobs:
         with:
           # version: ${{ env.lint-version }} this line failed the CI/CD fix below
           #version: ${{ env.lint-version }}
-          version: v1.64.7   #  correct format
+          #version: v1.64.7   #  correct format
           #version: 1.64.7
+          version: v2.4.0
           args: --timeout 7m
           only-new-issues: true
 
