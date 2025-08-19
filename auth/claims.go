@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // Claims is the single shared model used everywhere.
@@ -82,7 +82,7 @@ func toInt64(v interface{}) (int64, bool) {
 	case int:
 		return int64(t), true
 	case string:
-		var n = json.Number(t)
+		n := json.Number(t)
 		if i, err := n.Int64(); err == nil {
 			return i, true
 		}
@@ -103,6 +103,7 @@ func int64v(mc jwt.MapClaims, key string, def int64) int64 {
 	}
 	return def
 }
+
 func intv(mc jwt.MapClaims, key string, def int) int {
 	if v, ok := mc[key]; ok {
 		if i, ok := toInt64(v); ok {
@@ -111,12 +112,14 @@ func intv(mc jwt.MapClaims, key string, def int) int {
 	}
 	return def
 }
+
 func str(mc jwt.MapClaims, key, def string) string {
 	if v, ok := mc[key].(string); ok {
 		return v
 	}
 	return def
 }
+
 func boolv(mc jwt.MapClaims, key string, def bool) bool {
 	if v, ok := mc[key].(bool); ok {
 		return v

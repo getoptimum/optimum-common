@@ -3,10 +3,9 @@ package auth
 import (
 	"fmt"
 	"time"
-
-	"github.com/MicahParks/keyfunc"
-	jwt2 "github.com/golang-jwt/jwt"
-	"github.com/golang-jwt/jwt/v4"
+	// jwt5 depends on keyfuncv2 and prev versions have vulnerabilities
+	"github.com/MicahParks/keyfunc/v2"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // Verifier validates tokens with JWKS + (optional) iss/aud checks.
@@ -28,7 +27,7 @@ func NewVerifierFromDomain(domain, audience string, opt *VerifierOptions) (*Veri
 	jwksURL := fmt.Sprintf("https://%s/.well-known/jwks.json", domain)
 
 	opts := keyfunc.Options{
-		RefreshErrorHandler: func(err error) { /* log upstream */ },
+		RefreshErrorHandler: func(_ error) { /* TODO: log upstream */ },
 	}
 	// apply sensible defaults if nil/zero
 	if opt != nil {
@@ -58,7 +57,14 @@ func NewVerifierFromDomain(domain, audience string, opt *VerifierOptions) (*Veri
 // Verify parses & validates the token (signature, exp/nbf), then maps claims.
 // It enforces Issuer/Audience if set on the Verifier.
 func (v *Verifier) Verify(tokenStr string) (*Claims, error) {
-	tok, err := jwt.Parse(tokenStr, v.jwks.Keyfunc)
+	// Explicitly request MapClaims and validation
+	parser := jwt.NewParser(
+		jwt.WithValidMethods([]string{"RS256", "RS384", "RS512"}), // adjust to your algs
+		jwt.WithAudience(v.Audience),
+		jwt.WithIssuer(v.Issuer),
+	)
+
+	tok, err := parser.ParseWithClaims(tokenStr, jwt.MapClaims{}, v.jwks.Keyfunc)
 	if err != nil || !tok.Valid {
 		return nil, fmt.Errorf("jwt invalid: %w", ErrParsingToken)
 	}
@@ -68,38 +74,5 @@ func (v *Verifier) Verify(tokenStr string) (*Claims, error) {
 		return nil, ErrInvalidClaims
 	}
 
-	// Standard time checks (exp/nbf) via MapClaims.Valid
-	if err := mc.Valid(); err != nil {
-		return nil, fmt.Errorf("jwt time validity: %w", err)
-	}
-
-	// Issuer check (optional)
-	if v.Issuer != "" {
-		if iss, _ := mc["iss"].(string); iss != v.Issuer {
-			return nil, ErrInvalidIssuer
-		}
-	}
-	// Audience check (optional)
-	if v.Audience != "" {
-		if !validateAudience(mc["aud"], v.Audience) {
-			return nil, ErrInvalidAudience
-		}
-	}
-
-	return fromMap(jwt2.MapClaims(mc))
-}
-
-// validateAudience mirrors your proxy logic but framework-agnostic.
-func validateAudience(aud interface{}, expect string) bool {
-	switch a := aud.(type) {
-	case string:
-		return a == expect
-	case []interface{}:
-		for _, v := range a {
-			if s, ok := v.(string); ok && s == expect {
-				return true
-			}
-		}
-	}
-	return false
+	return fromMap(mc)
 }
