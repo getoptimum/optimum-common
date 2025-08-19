@@ -24,4 +24,6 @@ tools:
 	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.7
 
+check: test coverage lint vulcheck
+	@echo "✅ all checks passed"
 .PHONY: test coverage lint vulcheck tools
