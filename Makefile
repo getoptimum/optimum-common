@@ -26,4 +26,5 @@ tools:
 
 check: test coverage lint vulcheck
 	@echo "✅ all checks passed"
+all : tools check
 .PHONY: test coverage lint vulcheck tools
