@@ -1,5 +1,8 @@
 GO := go # so can subst. with tinygo
 
+# run before push
+all: test lint coverage vulcheck
+
 test: ## Run all tests with race detector and coverage
 	@echo "🧪 running tests..."
 	@$(GO) test ./... -race -covermode=atomic -coverprofile=coverage.out
@@ -20,7 +23,7 @@ vulcheck: ## Run govulncheck for vulnerabilities
 
 # NOTE: run before running vulcheck/lint commands
 tools: ## Install dev/CI tools (govulncheck, golangci-lint)
-	# for keeping dev and CI in sync.
+	@ # for keeping dev and CI in sync.
 	@echo "🔧 installing tools (optional locally)"
 	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.7
