@@ -20,8 +20,7 @@ type FlagDef struct {
 	EnvName string
 	// Usage describes the flag for help output.
 	Usage string
-	// Value points to the field in the configuration struct that should be
-	// populated.
+	// Value points to the field in the configuration struct that should be populated.
 	Value interface{}
 }
 
@@ -56,6 +55,16 @@ func Load(cfg interface{}, flagDefs []FlagDef) error {
 			fs.BoolVar(&v, fd.Name, false, fd.Usage)
 			parsed[i] = &v
 			defaults[i] = false
+		case *float64:
+			var v float64
+			fs.Float64Var(&v, fd.Name, 0, fd.Usage)
+			parsed[i] = &v
+			defaults[i] = float64(0)
+		case *float32:
+			var v float64
+			fs.Float64Var(&v, fd.Name, 0, fd.Usage)
+			parsed[i] = &v
+			defaults[i] = float64(0)
 		case *[]string:
 			var v []string
 			fs.Var(&stringSliceValue{val: &v}, fd.Name, fd.Usage)
@@ -78,6 +87,10 @@ func Load(cfg interface{}, flagDefs []FlagDef) error {
 			changed[i] = *parsed[i].(*int) != defaults[i].(int)
 		case *bool:
 			changed[i] = *parsed[i].(*bool) != defaults[i].(bool)
+		case *float64:
+			changed[i] = *parsed[i].(*float64) != defaults[i].(float64)
+		case *float32:
+			changed[i] = float64(*parsed[i].(*float64)) != defaults[i].(float64)
 		case *[]string:
 			changed[i] = len(*parsed[i].(*[]string)) != 0
 		}
@@ -118,6 +131,10 @@ func Load(cfg interface{}, flagDefs []FlagDef) error {
 			*ptr = *parsed[i].(*int)
 		case *bool:
 			*ptr = *parsed[i].(*bool)
+		case *float64:
+			*ptr = *parsed[i].(*float64)
+		case *float32:
+			*ptr = float32(*parsed[i].(*float64))
 		case *[]string:
 			*ptr = *parsed[i].(*[]string)
 		default:
@@ -144,6 +161,18 @@ func setValue(dest interface{}, val string) error {
 			return err
 		}
 		*ptr = b
+	case *float64:
+		f, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return err
+		}
+		*ptr = f
+	case *float32:
+		f, err := strconv.ParseFloat(val, 32)
+		if err != nil {
+			return err
+		}
+		*ptr = float32(f)
 	case *[]string:
 		if val == "" {
 			*ptr = []string{}

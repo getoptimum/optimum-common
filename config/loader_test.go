@@ -13,6 +13,7 @@ type testConfig struct {
 	Count   int      `yaml:"count"`
 	Enabled bool     `yaml:"enabled"`
 	Items   []string `yaml:"items"`
+	Ratio   float32  `yaml:"ratio"` // for testing floats
 }
 
 func writeTempYAML(t *testing.T, content string) string {
@@ -24,14 +25,16 @@ func writeTempYAML(t *testing.T, content string) string {
 }
 
 func TestLoad_Unmarshal(t *testing.T) {
-	yaml := "name: yaml\ncount: 1\nenabled: false\nitems: [a,b]"
+	yaml := "name: yaml\ncount: 1\nenabled: false\nitems: [a,b]\nratio: 0.5"
 	path := writeTempYAML(t, yaml)
+
 	cfg := testConfig{}
 	defs := []FlagDef{
 		{Name: "name", Value: &cfg.Name},
 		{Name: "count", Value: &cfg.Count},
 		{Name: "enabled", Value: &cfg.Enabled},
 		{Name: "items", Value: &cfg.Items},
+		{Name: "ratio", Value: &cfg.Ratio},
 	}
 	os.Args = []string{"cmd", "-config", path}
 	require.NoError(t, Load(&cfg, defs))
@@ -39,6 +42,7 @@ func TestLoad_Unmarshal(t *testing.T) {
 	require.Equal(t, 1, cfg.Count)
 	require.False(t, cfg.Enabled)
 	require.Equal(t, []string{"a", "b"}, cfg.Items)
+	require.InDelta(t, 0.5, cfg.Ratio, 0.0001)
 }
 
 func TestLoad_OverridePriority(t *testing.T) {
