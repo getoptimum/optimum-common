@@ -85,7 +85,6 @@ func deriveVersion(in string) string {
 // -----------------------------
 // Helpers
 // -----------------------------
-
 func stripBuildMeta(v string) string {
 	if i := strings.IndexByte(v, '+'); i >= 0 {
 		return v[:i]
