@@ -24,7 +24,6 @@ func TestDeriveVersion(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, deriveVersion(tc.in))
 		})
