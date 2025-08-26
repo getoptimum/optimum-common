@@ -6,43 +6,42 @@ import (
 	"strings"
 )
 
-type Info struct {
-	Version     string // e.g., v1.2.3, v1.2.3-rc1, or "dev"
-	CommitShort string // 7-char short hash or "unknown"
-}
+const defaultDevVersion = "dev"
+const defaultUnknownCommit = "unknown"
 
-// Get reads the runtime build info
-func Get() Info {
+func GetVersion() string {
 	bi, ok := debug.ReadBuildInfo()
 	if !ok || bi == nil {
-		return Info{Version: "dev", CommitShort: "unknown"}
+		return defaultDevVersion
 	}
-	v := deriveVersion(stripBuildMeta(bi.Main.Version))
+	v := DeriveVersion(bi.Main.Version)
 	if v == "" {
-		v = "dev"
+		return defaultDevVersion
 	}
-	rev := vcsRevision(bi)
-	short := short(rev)
-	if short == "" {
-		short = "unknown"
-	}
-	return Info{Version: v, CommitShort: short}
+	return v
 }
 
-// -----------------------------
-// Version parsing (RE2-safe)
-// -----------------------------
+func GetCommitHash() string {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok || bi == nil {
+		return defaultUnknownCommit
+	}
+	h := short(vcsRevision(bi))
+	if h == "" {
+		return defaultUnknownCommit
+	}
+	return h
+}
 
-// RE2‑compatible patterns (no (?:...))
 // precompiled patterns (RE2-compatible: no non-capturing groups)
 var (
-	// vX.Y.Z or vX.Y.Z-<prerelease>
+	// vX.Y.Z or vX.Y.Z-<prerelease> -> kept as-is
 	reExact = regexp.MustCompile(`^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$`)
 
-	// vX.Y.Z-<pre>.0.<14d>-<hash>
+	// vX.Y.Z-<pre>.0.<14d>-<hash> -> vX.Y.Z-<pre>
 	rePseudoWithPre = regexp.MustCompile(`^(v\d+\.\d+\.\d+-[0-9A-Za-z.-]+)\.0\.\d{14}-[0-9a-fA-F]+$`)
 
-	// vX.Y.Z-0.<14d>-<hash>
+	// vX.Y.Z-0.<14d>-<hash> ->  vX.Y.Z
 	rePseudoBase = regexp.MustCompile(`^(v\d+\.\d+\.\d+)-0\.\d{14}-[0-9a-fA-F]+$`)
 
 	// vX.Y.Z-YYYYMMDD-<hash>  (kept as-is; not a Go pseudo)
@@ -52,7 +51,7 @@ var (
 	rePurePseudo = regexp.MustCompile(`^v0\.0\.0-\d{14}-[0-9a-fA-F]+$`)
 )
 
-func deriveVersion(in string) string {
+func DeriveVersion(in string) string {
 	v := stripBuildMeta(in)
 
 	// explicit pseudo-forms first
@@ -65,7 +64,7 @@ func deriveVersion(in string) string {
 
 	// Pure pseudo without a base tag
 	if rePurePseudo.MatchString(v) {
-		return "dev"
+		return defaultDevVersion
 	}
 
 	// Unknown 8-digit date tail is preserved
@@ -79,7 +78,7 @@ func deriveVersion(in string) string {
 	}
 
 	// catch-all
-	return "dev"
+	return defaultDevVersion
 }
 
 // -----------------------------

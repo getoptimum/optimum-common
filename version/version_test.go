@@ -8,7 +8,6 @@ import (
 )
 
 func TestDeriveVersion(t *testing.T) {
-
 	cases := map[string]string{
 		// exact semver
 		"v1.2.3": "v1.2.3",
