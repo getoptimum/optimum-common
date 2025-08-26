@@ -23,10 +23,9 @@ vulcheck: ## Run govulncheck for vulnerabilities
 
 # NOTE: run before running vulcheck/lint commands
 tools: ## Install dev/CI tools (govulncheck, golangci-lint)
-	@ # for keeping dev and CI in sync.
 	@echo "🔧 installing tools (optional locally)"
 	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.7
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.1
 
 check: test coverage lint vulcheck ## Run tests, coverage, lint, and vuln check
 	@echo "✅ all checks passed"
