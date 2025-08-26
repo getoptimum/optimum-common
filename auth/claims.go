@@ -34,7 +34,7 @@ type LimitsDefaults struct {
 var defaultLimits LimitsDefaults
 
 // SetDefaultLimits globally sets fallbacks (optional).
-// If you don't call this, omitted limit claims remain zero.
+// If not set omitted limit claims remain zero.
 func SetDefaultLimits(d LimitsDefaults) { defaultLimits = d }
 
 // fromMap builds Claims from jwt.MapClaims and applies defaults.
