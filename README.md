@@ -15,9 +15,9 @@ This library will serve as the **shared SDK** for Optimum projects, consolidatin
  
 
 - **Rate Limiting**
-    - [ ] Pure functions for per-sec, per-hour, daily, and message-size checks
-    - [ ] `UsageData` type with pluggable storage (in-memory, file-backed)
-    - [ ] Shared test suite to ensure consistent enforcement
+    - [X] Pure functions for per-sec, per-hour, daily, and message-size checks
+    - [X] `UsageData` type with pluggable storage (in-memory, file-backed)
+    - [X] Shared test suite to ensure consistent enforcement
 
 - **API Models**
     - [ ] Define shared JSON request/response structs (e.g., `PublishRequest`, `SubscribeRequest`)
@@ -25,8 +25,7 @@ This library will serve as the **shared SDK** for Optimum projects, consolidatin
 
 - **Versioning**
     - [ ] Header constant for `X-CLI-Version`
-    - [ ] Helper to add version header from ldflags (`Version`, `CommitHash`)
-    - [ ] Middleware-agnostic validator for version checks
+    - [X] Helper to add get version/commit from buildinfo omitting ldflags (`Version`, `CommitHash`)
 
 - **HTTP Client Helpers**
     - [ ] JSON POST/GET helpers with auth header + version injection
