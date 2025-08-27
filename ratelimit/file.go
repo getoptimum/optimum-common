@@ -35,21 +35,18 @@ func NewFileUsage(path string) (*FileUsage, error) {
 	return fu, nil
 }
 
-// GetUsage implements UsageData.
-func (f *FileUsage) GetUsage() Usage {
+// WithUsage implements UsageData.WithUsage.
+func (f *FileUsage) WithUsage(fn func(Usage) (Usage, error)) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.usage
-}
-
-// SaveUsage implements UsageData.
-func (f *FileUsage) SaveUsage(u Usage) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	u, err := fn(f.usage)
 	f.usage = u
-	data, err := json.Marshal(f.usage)
-	if err != nil {
-		return err
+	data, werr := json.Marshal(f.usage)
+	if werr != nil {
+		return werr
 	}
-	return os.WriteFile(f.path, data, 0o600)
+	if werr = os.WriteFile(f.path, data, 0o600); werr != nil {
+		return werr
+	}
+	return err
 }

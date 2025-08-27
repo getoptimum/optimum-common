@@ -17,14 +17,14 @@ func NewMemoryUsage() *MemoryUsage {
 	return &MemoryUsage{usage: Usage{SecondStart: now, HourStart: now, DayStart: now}}
 }
 
-// GetUsage implements UsageData.
-func (m *MemoryUsage) GetUsage() Usage {
+func (m *MemoryUsage) WithUsage(fn func(Usage) (Usage, error)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.usage
+	u, err := fn(m.usage)
+	m.usage = u
+	return err
 }
 
-// SaveUsage implements UsageData.
 func (m *MemoryUsage) SaveUsage(u Usage) error {
 	m.mu.Lock()
 	m.usage = u
