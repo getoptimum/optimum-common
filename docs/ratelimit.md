@@ -1,5 +1,6 @@
 # Rate limiting
-NOTE: count-based limit not introduced
+NOTE: limits are byte based not message-count based
+
 The `ratelimit` package offers simple, testable helpers for enforcing message quotas.
 It tracks usage through a pluggable `UsageData` store that guarantees atomic updates
 by exposing a `WithUsage` callback. Two stores are provided:

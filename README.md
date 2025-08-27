@@ -9,9 +9,12 @@ This library will serve as the **shared SDK** for Optimum projects, consolidatin
 - **Auth**
     - [x] Centralize JWT claims model (`Claims`)
     - [x] Parsing helpers (`ParseUnverified`, JWKS verifier)
-    - [x] Remove duplicate parsing logic from CLI 
-    - [x] Remove duplicate parsing logic from Proxy
-    - [ ] Unit tests for claim parsing & coercion
+    - [x] Unit tests for claim parsing & coercion
+    - [x] Fuzz tests for `ParseUnverified`
+    - [x] Examples for parsing and verifying tokens
+    - [x] Documentation page
+    - [ ] Remove duplicate parsing logic from CLI 
+    - [ ] Remove duplicate parsing logic from Proxy
  
 
 - **Rate Limiting**
