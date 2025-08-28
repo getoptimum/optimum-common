@@ -1,6 +1,7 @@
 # Go toolchain (override with: make GO=/path/to/go)
 GO              ?= go
-PKGS          := ./...
+PKGS_ALL          := ./...
+PKGS_FOR_TESTS := $(shell $(GO) list ./... | grep -v '/examples')
 COVERPROFILE  ?= coverage.out
 COVERMODE     ?= atomic
 
@@ -13,9 +14,10 @@ GOLANGCI_VER  ?= v2.1.1
 # -------- Commands --------
 all: test lint coverage vulcheck ## Run tests, coverage, lint, and vuln check
 	@echo "✅ all checks passed"
+
 test: ## Run all tests with race detector and coverage
 	@echo "🧪 running tests..."
-	@$(GO) test $(PKGS) -race -covermode=$(COVERMODE) -coverprofile=$(COVERPROFILE)
+	@$(GO) test $(PKGS_FOR_TESTS) -race -covermode=$(COVERMODE) -coverprofile=$(COVERPROFILE)
 
 coverage: ## Show coverage summary
 	@echo "📈 coverage summary"
@@ -41,7 +43,7 @@ tidy: ## go mod tidy + verify
 	@$(GO) mod verify
 
 fmt: ## go fmt packages
-	@$(GO) fmt $(PKGS)
+	@$(GO) fmt $(PKGS_ALL)
 
 help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
