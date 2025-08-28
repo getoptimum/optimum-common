@@ -142,7 +142,30 @@ Benefits:
 - **Cross-project compatibility** — Same `Claims` type everywhere
 - **Centralized testing** — One test suite covers all usage
 
----
 
-**Bottom line:**  
-By replacing per-repo token parsers with `ParseUnverified`, Optimum removes duplication, reduces maintenance overhead, and guarantees consistent JWT parsing across all projects.
+
+# Project Current Tasks
+
+This document tracks the core development tasks.
+
+- [ ] Config loader
+    - support command-line flags
+    - support environment variables
+    - support YAML configuration files
+    - apply priority: flags > env vars > YAML
+- [x] Inject `Version` and `CommitHash` via helper function exposed by version module
+- [ ] Standard `AppLogger` interface
+    - accept structured fields
+    - provide uniform logging across modules
+- [ ] Common utility functions
+    - IP detection
+    - hashing helpers
+    - TTLMap
+    - file helpers
+- [ ] Example usage and integration guide
+    - document config loader and logger
+    - showcase utility helpers
+- [ ] Explore other important components
+    - optimum-p2p
+    - optimum-proxy
+    - optimum-gateway
