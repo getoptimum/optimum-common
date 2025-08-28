@@ -1,4 +1,3 @@
-// demonstrates usage of the ratelimit package
 package main
 
 import (

@@ -104,7 +104,7 @@ func runScenarioBurstBackoff(usage ratelimit.UsageData, cfg Limits, workers int,
 		wg.Add(1)
 		go func(id int) {
 			// Per-goroutine RNG (not shared). Seed mixed with id for variety.
-			r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(id)))
+			r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(id))) // #nosec G404 -- randomness is non-crypto
 
 			defer wg.Done()
 			n := 0
@@ -245,7 +245,7 @@ func runScenarioHitDaily(usage ratelimit.UsageData, cfg Limits, workers int) {
 		wg.Add(1)
 		go func(id int) {
 			// Per-goroutine RNG.
-			r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(id)))
+			r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(id))) // #nosec G404 -- randomness is non-crypto
 
 			defer wg.Done()
 			// Randomize payload sizes a bit to see 'CurrentUsage' climb

@@ -17,7 +17,7 @@ type FileUsage struct {
 // NewFileUsage creates or loads Usage from the given path.
 func NewFileUsage(path string) (*FileUsage, error) {
 	fu := &FileUsage{path: path}
-	if data, err := os.ReadFile(path); err == nil {
+	if data, err := os.ReadFile(path); err == nil { //nolint:gosec // path is provided by caller
 		_ = json.Unmarshal(data, &fu.usage)
 	} else if !os.IsNotExist(err) {
 		return nil, err
@@ -45,7 +45,8 @@ func (f *FileUsage) WithUsage(fn func(Usage) (Usage, error)) error {
 	if werr != nil {
 		return werr
 	}
-	if werr = os.WriteFile(f.path, data, 0o600); werr != nil {
+	werr = os.WriteFile(f.path, data, 0o600)
+	if werr != nil {
 		return werr
 	}
 	return err

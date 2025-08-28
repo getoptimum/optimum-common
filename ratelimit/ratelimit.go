@@ -40,58 +40,68 @@ func (e *LimitError) Type() string { return e.LimitType }
 // ResetAt returns the time when the limit window resets.
 func (e *LimitError) ResetAt() time.Time { return e.ResetTime }
 
-func CheckMessageSize(size, max int64) error {
-	if size > max {
+func CheckMessageSize(size, limit int64) error {
+	if size > limit {
 		return &LimitError{
-			Message:      fmt.Sprintf("message size exceeds limit of %d bytes", max),
+			Message:      fmt.Sprintf("message size exceeds limit of %d bytes", limit),
 			LimitType:    "message_size",
 			CurrentUsage: size,
-			Limit:        max,
+			Limit:        limit,
 		}
 	}
 	return nil
 }
 
-// TODO: fix code duplication below
-
-func CheckPerSecond(data UsageData, limit int, now time.Time) error {
+func checkWindow(
+	data UsageData,
+	limit int,
+	now time.Time,
+	startPtr func(*Usage) *time.Time,
+	countPtr func(*Usage) *int,
+	window time.Duration,
+	limitType, msgFmt string,
+) error {
 	return data.WithUsage(func(u Usage) (Usage, error) {
-		if now.Sub(u.SecondStart) >= time.Second {
-			u.SecondStart = now
-			u.SecondCount = 0
+		start := startPtr(&u)
+		count := countPtr(&u)
+		if now.Sub(*start) >= window {
+			*start = now
+			*count = 0
 		}
-		if u.SecondCount >= limit {
+		if *count >= limit {
 			return u, &LimitError{
-				Message:      fmt.Sprintf("per-second limit reached (%d/sec)", limit),
-				LimitType:    "per_second",
-				CurrentUsage: u.SecondCount,
+				Message:      fmt.Sprintf(msgFmt, limit),
+				LimitType:    limitType,
+				CurrentUsage: *count,
 				Limit:        limit,
-				ResetTime:    u.SecondStart.Add(time.Second),
+				ResetTime:    start.Add(window),
 			}
 		}
-		u.SecondCount++
+		*count++
 		return u, nil
 	})
 }
 
+func CheckPerSecond(data UsageData, limit int, now time.Time) error {
+	return checkWindow(
+		data, limit, now,
+		func(u *Usage) *time.Time { return &u.SecondStart },
+		func(u *Usage) *int { return &u.SecondCount },
+		time.Second,
+		"per_second",
+		"per-second limit reached (%d/sec)",
+	)
+}
+
 func CheckPerHour(data UsageData, limit int, now time.Time) error {
-	return data.WithUsage(func(u Usage) (Usage, error) {
-		if now.Sub(u.HourStart) >= time.Hour {
-			u.HourStart = now
-			u.HourCount = 0
-		}
-		if u.HourCount >= limit {
-			return u, &LimitError{
-				Message:      fmt.Sprintf("per-hour limit reached (%d/hour)", limit),
-				LimitType:    "per_hour",
-				CurrentUsage: u.HourCount,
-				Limit:        limit,
-				ResetTime:    u.HourStart.Add(time.Hour),
-			}
-		}
-		u.HourCount++
-		return u, nil
-	})
+	return checkWindow(
+		data, limit, now,
+		func(u *Usage) *time.Time { return &u.HourStart },
+		func(u *Usage) *int { return &u.HourCount },
+		time.Hour,
+		"per_hour",
+		"per-hour limit reached (%d/hour)",
+	)
 }
 
 func CheckDaily(data UsageData, size, limit int64, now time.Time) error {

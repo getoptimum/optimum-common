@@ -24,10 +24,9 @@ func (m *MemoryUsage) WithUsage(fn func(Usage) (Usage, error)) error {
 	m.usage = u
 	return err
 }
-
-func (m *MemoryUsage) SaveUsage(u Usage) error {
+func (m *MemoryUsage) SaveUsage(u *Usage) error {
 	m.mu.Lock()
-	m.usage = u
+	m.usage = *u
 	m.mu.Unlock()
 	return nil
 }

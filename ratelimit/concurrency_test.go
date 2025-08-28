@@ -53,8 +53,7 @@ func TestPerSecond_ConcurrentAllowsOverflow(t *testing.T) {
 	wg.Wait()
 
 	// With correct atomic update semantics, at most "limit" calls should succeed.
-	// The current implementation can allow more than "limit" successes — if so, we FAIL.
-	if successes > int32(limit) {
+	if int(successes) > limit {
 		t.Fatalf("per-second limit overflow: got %d successful calls, want <= %d", successes, limit)
 	}
 }
