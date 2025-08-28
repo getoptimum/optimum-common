@@ -41,6 +41,17 @@ if err := ratelimit.CheckPerSecond(store, 1, time.Now()); err != nil {
 }
 ```
 
+## Examples
+
+Several runnable programs live under [`examples/ratelimit`](../examples/ratelimit).
+Execute them with `go run`:
+
+```bash
+go run ./examples/ratelimit/basic        # basic size, per-second and daily checks
+go run ./examples/ratelimit/full         # adds per-hour limits
+go run ./examples/ratelimit/walkthrough  # step-by-step demonstration
+go run ./examples/ratelimit/concurrent   # concurrent stress test
+```
 
 ## Currently
 | Repo                      | Rate‑limiting logic | Notes                                                                                                                |
