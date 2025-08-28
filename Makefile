@@ -12,8 +12,7 @@ GOLANGCI_VER  ?= v2.1.1
 .DEFAULT_GOAL := help
 
 # -------- Commands --------
-all: test lint coverage vulcheck ## Run tests, coverage, lint, and vuln check
-	@echo "✅ all checks passed"
+all: tidy fmt test lint coverage vulcheck ## Run tests, coverage, lint, and vuln check
 
 test: ## Run all tests with race detector and coverage
 	@echo "🧪 running tests..."

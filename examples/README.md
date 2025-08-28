@@ -1,12 +1,10 @@
 # Examples
 
 This module ships with small runnable programs that demonstrate the
-packages in `optimum-common`. Each program lives in its own directory so
-multiple `main` packages do not conflict during builds.
+packages in `optimum-common`. 
+Each program lives in its own directory so multiple `main` packages do not conflict during builds.
 
 ## Running
-
-Use `go run` with the desired example directory. For example:
 
 ```bash
 # Authentication examples
@@ -24,6 +22,3 @@ go run ./examples/ratelimit/full
 go run ./examples/ratelimit/walkthrough
 go run ./examples/ratelimit/concurrent
 ```
-
-Each example prints output to illustrate the behaviour of the
-corresponding package.
