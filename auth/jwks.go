@@ -74,5 +74,5 @@ func (v *Verifier) Verify(tokenStr string) (*Claims, error) {
 		return nil, ErrInvalidClaims
 	}
 
-	return fromMap(mc)
+	return FromMap(mc)
 }

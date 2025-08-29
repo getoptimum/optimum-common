@@ -37,28 +37,28 @@ var defaultLimits LimitsDefaults
 // If not set omitted limit claims remain zero.
 func SetDefaultLimits(d LimitsDefaults) { defaultLimits = d }
 
-// fromMap builds Claims from jwt.MapClaims and applies defaults.
+// FromMap builds Claims from jwt.MapClaims and applies defaults.
 // Detailed desc:
 // Converts jwt.MapClaims into a Claims struct.
 // Handles missing fields by using defaults from SetDefaultLimits.
 // Falls back to Subject for ClientID if client_id is missing.
 // Parses iat and exp into time.Time
-func fromMap(mc jwt.MapClaims) (*Claims, error) {
+func FromMap(mc jwt.MapClaims) (*Claims, error) { // TODO: if should be exported
 	c := &Claims{
 		Subject:           str(mc, "sub", ""),
 		IsActive:          boolv(mc, "is_active", false),
-		MaxPublishPerHour: intv(mc, "max_publish_per_hour", defaultLimits.MaxPublishPerHour),
-		MaxPublishPerSec:  intv(mc, "max_publish_per_sec", defaultLimits.MaxPublishPerSec),
-		MaxMessageSize:    int64v(mc, "max_message_size", defaultLimits.MaxMessageSize),
-		DailyQuota:        int64v(mc, "daily_quota", defaultLimits.DailyQuota),
+		MaxPublishPerHour: numv[int](mc, "max_publish_per_hour", defaultLimits.MaxPublishPerHour),
+		MaxPublishPerSec:  numv[int](mc, "max_publish_per_sec", defaultLimits.MaxPublishPerSec),
+		MaxMessageSize:    numv[int64](mc, "max_message_size", defaultLimits.MaxMessageSize),
+		DailyQuota:        numv[int64](mc, "daily_quota", defaultLimits.DailyQuota),
 		ClientID:          str(mc, "client_id", ""),
-		LimitsSetAt:       int64v(mc, "limits_set_at", 0),
+		LimitsSetAt:       numv[int64](mc, "limits_set_at", 0),
 		Tier:              str(mc, "tier", ""),
 	}
 	if c.ClientID == "" && c.Subject != "" {
 		c.ClientID = c.Subject // fallback
 	}
-	// times (iat/exp) are NumericDate in JWT — commonly float
+	// convert iat/exp  NumericDate from JWT (float) to time
 	if iat, ok := mc["iat"]; ok {
 		if sec, ok := toInt64(iat); ok {
 			c.IssuedAt = time.Unix(sec, 0)
@@ -94,20 +94,15 @@ func toInt64(v interface{}) (int64, bool) {
 	return 0, false
 }
 
-// Note: in case many more field types added -> use generics
-func int64v(mc jwt.MapClaims, key string, def int64) int64 {
-	if v, ok := mc[key]; ok {
-		if i, ok := toInt64(v); ok {
-			return i
-		}
-	}
-	return def
+// numv generically extracts integer values from map claims with a default.
+type number interface {
+	~int | ~int64
 }
 
-func intv(mc jwt.MapClaims, key string, def int) int {
+func numv[T number](mc jwt.MapClaims, key string, def T) T {
 	if v, ok := mc[key]; ok {
 		if i, ok := toInt64(v); ok {
-			return int(i)
+			return T(i)
 		}
 	}
 	return def

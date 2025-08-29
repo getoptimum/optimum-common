@@ -1,27 +1,29 @@
-package auth
+package auth_test
 
 import (
 	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/getoptimum/optimum-common/auth"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFromMap_DefaultsAndFallback(t *testing.T) {
-	SetDefaultLimits(LimitsDefaults{MaxPublishPerHour: 10, MaxPublishPerSec: 5, MaxMessageSize: 2048, DailyQuota: 1000})
-	defer SetDefaultLimits(LimitsDefaults{})
+	auth.SetDefaultLimits(auth.LimitsDefaults{MaxPublishPerHour: 10, MaxPublishPerSec: 5, MaxMessageSize: 2048, DailyQuota: 1000})
+	defer auth.SetDefaultLimits(auth.LimitsDefaults{})
 
 	mc := jwt.MapClaims{
 		"sub": "alice",
 		"iat": float64(100),
 		"exp": float64(200),
 	}
-	c, err := fromMap(mc)
+	c, err := auth.FromMap(mc)
 	require.NoError(t, err)
 
 	require.Equal(t, "alice", c.Subject)
+	// if clientID not present  -> defaults to SubjectID
 	require.Equal(t, "alice", c.ClientID)
 	require.Equal(t, time.Unix(100, 0), c.IssuedAt)
 	require.Equal(t, time.Unix(200, 0), c.ExpiresAt)
@@ -46,7 +48,7 @@ func TestFromMap_Coercion(t *testing.T) {
 		"tier":                 "gold",
 	}
 
-	c, err := fromMap(mc)
+	c, err := auth.FromMap(mc)
 	require.NoError(t, err)
 
 	require.Equal(t, "bob", c.Subject)
@@ -66,12 +68,12 @@ func TestParseUnverified(t *testing.T) {
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "user"}).SignedString([]byte("secret"))
 	require.NoError(t, err)
 
-	c, err := ParseUnverified(token)
+	c, err := auth.ParseUnverified(token)
 	require.NoError(t, err)
 	require.Equal(t, "user", c.Subject)
 }
 
 func TestParseUnverified_Invalid(t *testing.T) {
-	_, err := ParseUnverified("not.a.jwt")
+	_, err := auth.ParseUnverified("not.a.jwt")
 	require.Error(t, err)
 }
