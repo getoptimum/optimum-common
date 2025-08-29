@@ -1,3 +1,5 @@
-*.out
-*.txt
 .env
+# for testing/debugging
+*.out
+*token.txt
+*.html
