@@ -61,6 +61,43 @@ help: ## Show help
 clean: ## Remove generated artifacts
 	@rm -f $(COVERPROFILE) coverage.html
 
+# --- Fuzzing ---
+# Note: no fuzzing in CI
+# Usage:
+#   make fuzz FUZZ=FuzzNewVerifierFromDomain PKG=./auth FUZZTIME=15s
+#   make fuzz-list
+#   make fuzz-all FUZZTIME=10s           # sequentially fuzz every Fuzz* found
+
+FUZZ        ?=
+PKG         ?= ./...
+FUZZTIME    ?= 15s
+
+fuzz: ## Run a single fuzz target (set FUZZ=FuzzName, optionally PKG=./pkg)
+	@if [ -z "$(FUZZ)" ]; then \
+		echo "❗ Set FUZZ=FuzzName (e.g., FuzzNewVerifierFromDomain) [PKG=./pkg]"; exit 2; \
+	fi
+	@echo "🐛 fuzzing $(FUZZ) in $(PKG) for $(FUZZTIME)..."
+	@$(GO) test -run=^$$ -fuzz=$(FUZZ) -fuzztime=$(FUZZTIME) $(PKG)
+
+fuzz-list: ## List discovered fuzz targets (Fuzz* functions) with their packages
+	@grep -R --include='*_test.go' -n 'func[[:space:]]\+Fuzz[[:alnum:]_]*\s*\(' . \
+	  | sed -E 's|^(.*)/([^/]+):[0-9]+:.*func[[:space:]]+(Fuzz[[:alnum:]_]+).*|\3\t./\2|' \
+	  | sort -u
+
+fuzz-all: ## Run all fuzz targets sequentially (short fuzz time recommended)
+	@targets=$$(grep -R --include='*_test.go' -n 'func[[:space:]]\+Fuzz[[:alnum:]_]*\s*\(' . \
+	  | sed -E 's|^(.*)/([^/]+):[0-9]+:.*func[[:space:]]+(Fuzz[[:alnum:]_]+).*|\3 ./\2|' \
+	  | sort -u); \
+	if [ -z "$$targets" ]; then echo "No fuzz targets found."; exit 0; fi; \
+	echo "🐛 Running all fuzz targets for $(FUZZTIME) each..."; \
+	status=0; \
+	while read -r name pkg; do \
+	  echo "——→ fuzz $$name in $$pkg"; \
+	  $(GO) test -run=^$$ -fuzz=$$name -fuzztime=$(FUZZTIME) $$pkg || status=$$?; \
+	done <<EOF \
+	$$targets \
+EOF ; exit $$status
+
 # -------- Deps / Phony --------
 $(COVERPROFILE):
 	@echo "No $(COVERPROFILE) found; run 'make test' first." >&2; exit 1

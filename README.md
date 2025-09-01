@@ -169,3 +169,17 @@ This document tracks the core development tasks.
     - optimum-p2p
     - optimum-proxy
     - optimum-gateway
+
+
+# TODOs:
+## Duplicated logic:
+```
+optimum-p2p/pkg/testutils/utils.go:     return os.Getenv("CI_RUN") != ""
+optimum-p2p/.github/workflows/ci.yml:        run: CI_RUN="true" make test
+
+optimum-gateway/internal/test_utils/test_utils.go:      return os.Getenv("CI_RUN") != ""
+optimum-gateway/.github/workflows/intergration.yml:        run: CI_RUN="true" make test
+
+optimum-proxy/pkg/testutils/utils.go:   return os.Getenv("CI_RUN") != ""
+optimum-proxy/.github/workflows/ci.yml:        run: CI_RUN="true" make test
+```
