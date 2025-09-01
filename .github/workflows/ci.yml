@@ -4,7 +4,6 @@ name: optimum-common CI
 env:
   go-version: "1.24.4"
   vuln-version: "v1.1.4"
-  lint-version: "v1.64.7" # kept for reference; action uses explicit version below
   GOPRIVATE: "github.com/getoptimum"
   GITHUB_TOKEN: ${{ secrets.OPT_ACCESS_TOKEN }}
 
@@ -61,8 +60,11 @@ jobs:
         run: |
           git config --global url."https://${{ secrets.OPT_ACCESS_TOKEN }}:@github.com/".insteadOf "https://github.com/"
 
+      - name: Go vet
+        run: go vet ./...
+
       - name: Run tests
-        run: CI_RUN="true" make test
+        run:  make test
 
       - name: Measure test coverage
         run: make coverage
