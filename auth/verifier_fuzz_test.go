@@ -12,15 +12,17 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+const testKID = "k1"
+
 func FuzzVerifierVerify(f *testing.F) {
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
 	// wrap the public key into jwks
 	jwks := keyfunc.NewGiven(map[string]keyfunc.GivenKey{
-		"k1": keyfunc.NewGivenRSA(&key.PublicKey, keyfunc.GivenKeyOptions{}),
+		testKID: keyfunc.NewGivenRSA(&key.PublicKey, keyfunc.GivenKeyOptions{}),
 	})
 	v := &Verifier{jwks: jwks}
 	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{"sub": "seed"})
-	tok.Header["kid"] = "k1"
+	tok.Header["kid"] = testKID
 	signed, _ := tok.SignedString(key)
 	// seed inputs
 	f.Add(signed)

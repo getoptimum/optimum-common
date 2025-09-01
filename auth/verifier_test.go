@@ -144,3 +144,54 @@ func TestNewVerifierFromDomain_FetchAndRefresh(t *testing.T) {
 	_, err = NewVerifierFromDomain("invalid.domain", "aud", nil)
 	require.Error(t, err)
 }
+
+// TestVerifier_HeaderAndSignatureFailures covers invalid signatures, unknown
+// key IDs and unsupported algorithms.
+func TestVerifier_HeaderAndSignatureFailures(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	jwks := keyfunc.NewGiven(map[string]keyfunc.GivenKey{
+		"k1": keyfunc.NewGivenRSA(&key.PublicKey, keyfunc.GivenKeyOptions{}),
+	})
+	v := &Verifier{jwks: jwks, Audience: "aud", Issuer: "iss"}
+
+	claims := jwt.MapClaims{
+		"sub": "alice",
+		"aud": "aud",
+		"iss": "iss",
+		"exp": time.Now().Add(time.Minute).Unix(),
+	}
+
+	t.Run("invalid signature", func(t *testing.T) {
+		tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		tok.Header["kid"] = "k1"
+		signed, err := tok.SignedString(key)
+		require.NoError(t, err)
+		// tamper with the signature
+		tampered := signed + "a"
+		_, err = v.Verify(tampered)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrParsingToken)
+	})
+
+	t.Run("unknown kid", func(t *testing.T) {
+		tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		tok.Header["kid"] = "k2"
+		signed, err := tok.SignedString(key)
+		require.NoError(t, err)
+		_, err = v.Verify(signed)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrParsingToken)
+	})
+
+	t.Run("unsupported alg", func(t *testing.T) {
+		tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tok.Header["kid"] = "k1"
+		signed, err := tok.SignedString([]byte("secret"))
+		require.NoError(t, err)
+		_, err = v.Verify(signed)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrParsingToken)
+	})
+}

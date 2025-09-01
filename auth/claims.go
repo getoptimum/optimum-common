@@ -51,7 +51,7 @@ func SetDefaultLimits(d LimitsDefaults) {
 // Handles missing fields by using defaults from SetDefaultLimits.
 // Falls back to Subject for ClientID if client_id is missing.
 // Parses iat and exp into time.Time
-func FromMap(mc jwt.MapClaims) (*Claims, error) { // TODO: whether should be exported
+func FromMap(mc jwt.MapClaims) (*Claims, error) {
 	defaultLimitsMu.RLock()
 	dl := defaultLimits
 	defaultLimitsMu.RUnlock()
