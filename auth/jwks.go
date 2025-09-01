@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
+	"log"
+	"net/http"
 	"time"
 	// jwt5 depends on keyfuncv2 and prev versions have vulnerabilities
 	"github.com/MicahParks/keyfunc/v2"
@@ -17,18 +20,21 @@ type Verifier struct {
 
 // VerifierOptions tune JWKS refresh behavior.
 type VerifierOptions struct {
-	RefreshInterval   time.Duration
-	RefreshRateLimit  time.Duration
-	RefreshTimeout    time.Duration
-	RefreshUnknownKID bool
+	RefreshInterval     time.Duration
+	RefreshRateLimit    time.Duration
+	RefreshTimeout      time.Duration
+	RefreshUnknownKID   bool
+	HTTPClient          *http.Client
+	RefreshErrorHandler func(error)
 }
 
+// NewVerifierFromDomain fetches the JWKS from
+// the given domain and constructs a Verifier.
+// JWKS refresh errors are surfaced via RefreshErrorHandler if set
+// or logged by default.
 func NewVerifierFromDomain(domain, audience string, opt *VerifierOptions) (*Verifier, error) {
 	jwksURL := fmt.Sprintf("https://%s/.well-known/jwks.json", domain)
-
-	opts := keyfunc.Options{
-		RefreshErrorHandler: func(_ error) { /* TODO: log upstream */ },
-	}
+	opts := keyfunc.Options{}
 	// apply sensible defaults if nil/zero
 	if opt != nil {
 		if opt.RefreshInterval > 0 {
@@ -41,6 +47,16 @@ func NewVerifierFromDomain(domain, audience string, opt *VerifierOptions) (*Veri
 			opts.RefreshTimeout = opt.RefreshTimeout
 		}
 		opts.RefreshUnknownKID = opt.RefreshUnknownKID
+
+		if opt.HTTPClient != nil {
+			opts.Client = opt.HTTPClient
+		}
+		if opt.RefreshErrorHandler != nil {
+			opts.RefreshErrorHandler = opt.RefreshErrorHandler
+		}
+	}
+	if opts.RefreshErrorHandler == nil {
+		opts.RefreshErrorHandler = func(err error) { log.Printf("jwks refresh error: %v", err) }
 	}
 
 	jwks, err := keyfunc.Get(jwksURL, opts)
@@ -62,11 +78,19 @@ func (v *Verifier) Verify(tokenStr string) (*Claims, error) {
 		jwt.WithValidMethods([]string{"RS256", "RS384", "RS512"}),
 		jwt.WithAudience(v.Audience),
 		jwt.WithIssuer(v.Issuer),
+		jwt.WithLeeway(30*time.Second),
 	)
 
 	tok, err := parser.ParseWithClaims(tokenStr, jwt.MapClaims{}, v.jwks.Keyfunc)
 	if err != nil || !tok.Valid {
-		return nil, fmt.Errorf("jwt invalid: %w", ErrParsingToken)
+		switch {
+		case errors.Is(err, jwt.ErrTokenInvalidIssuer):
+			return nil, fmt.Errorf("%w: %w", ErrInvalidIssuer, err)
+		case errors.Is(err, jwt.ErrTokenInvalidAudience):
+			return nil, fmt.Errorf("%w: %w", ErrInvalidAudience, err)
+		default:
+			return nil, fmt.Errorf("%w: %w", ErrParsingToken, err)
+		}
 	}
 
 	mc, ok := tok.Claims.(jwt.MapClaims)

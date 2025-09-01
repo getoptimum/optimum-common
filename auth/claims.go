@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -31,11 +32,18 @@ type LimitsDefaults struct {
 	DailyQuota        int64
 }
 
-var defaultLimits LimitsDefaults
+var (
+	defaultLimits   LimitsDefaults
+	defaultLimitsMu sync.RWMutex
+)
 
 // SetDefaultLimits globally sets fallbacks (optional).
 // If not set omitted limit claims remain zero.
-func SetDefaultLimits(d LimitsDefaults) { defaultLimits = d }
+func SetDefaultLimits(d LimitsDefaults) {
+	defaultLimitsMu.Lock()
+	defer defaultLimitsMu.Unlock()
+	defaultLimits = d
+}
 
 // FromMap builds Claims from jwt.MapClaims and applies defaults.
 // Detailed desc:
@@ -43,14 +51,18 @@ func SetDefaultLimits(d LimitsDefaults) { defaultLimits = d }
 // Handles missing fields by using defaults from SetDefaultLimits.
 // Falls back to Subject for ClientID if client_id is missing.
 // Parses iat and exp into time.Time
-func FromMap(mc jwt.MapClaims) (*Claims, error) { // TODO: if should be exported
+func FromMap(mc jwt.MapClaims) (*Claims, error) { // TODO: whether should be exported
+	defaultLimitsMu.RLock()
+	dl := defaultLimits
+	defaultLimitsMu.RUnlock()
+
 	c := &Claims{
 		Subject:           str(mc, "sub", ""),
 		IsActive:          boolv(mc, "is_active", false),
-		MaxPublishPerHour: numv[int](mc, "max_publish_per_hour", defaultLimits.MaxPublishPerHour),
-		MaxPublishPerSec:  numv[int](mc, "max_publish_per_sec", defaultLimits.MaxPublishPerSec),
-		MaxMessageSize:    numv[int64](mc, "max_message_size", defaultLimits.MaxMessageSize),
-		DailyQuota:        numv[int64](mc, "daily_quota", defaultLimits.DailyQuota),
+		MaxPublishPerHour: numv[int](mc, "max_publish_per_hour", dl.MaxPublishPerHour),
+		MaxPublishPerSec:  numv[int](mc, "max_publish_per_sec", dl.MaxPublishPerSec),
+		MaxMessageSize:    numv[int64](mc, "max_message_size", dl.MaxMessageSize),
+		DailyQuota:        numv[int64](mc, "daily_quota", dl.DailyQuota),
 		ClientID:          str(mc, "client_id", ""),
 		LimitsSetAt:       numv[int64](mc, "limits_set_at", 0),
 		Tier:              str(mc, "tier", ""),
