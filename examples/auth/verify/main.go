@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/getoptimum/optimum-common/auth"
+	"github.com/getoptimum/optimum-common/pkg/auth"
 )
 
 // This example starts a tiny HTTP server that verifies bearer tokens.

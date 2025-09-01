@@ -1,7 +1,7 @@
 # Authentication Integration
 
 The Optimum projects now share a single authentication implementation provided by
-[`optimum-common/examples/auth`](../examples/auth).
+[`optimum-common/examples/auth`](../../examples/auth).
 
 - A unified `Claims` model used by all services and clients.
 - `ParseUnverified` for reading JWTs without validating the signature (used by

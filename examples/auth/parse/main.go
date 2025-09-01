@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 
+	"github.com/getoptimum/optimum-common/pkg/auth"
 	"github.com/golang-jwt/jwt/v5"
-
-	"github.com/getoptimum/optimum-common/auth"
 )
 
 // This example shows how to inspect a token without verifying its signature.

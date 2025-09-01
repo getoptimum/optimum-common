@@ -3,7 +3,7 @@ package auth_test
 import (
 	"testing"
 
-	ocauth "github.com/getoptimum/optimum-common/auth"
+	ocauth "github.com/getoptimum/optimum-common/pkg/auth"
 	"github.com/golang-jwt/jwt/v5"
 )
 

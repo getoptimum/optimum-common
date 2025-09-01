@@ -5,21 +5,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/getoptimum/optimum-common/auth"
+	auth2 "github.com/getoptimum/optimum-common/pkg/auth"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFromMap_DefaultsAndFallback(t *testing.T) {
-	auth.SetDefaultLimits(auth.LimitsDefaults{MaxPublishPerHour: 10, MaxPublishPerSec: 5, MaxMessageSize: 2048, DailyQuota: 1000})
-	defer auth.SetDefaultLimits(auth.LimitsDefaults{})
+	auth2.SetDefaultLimits(auth2.LimitsDefaults{MaxPublishPerHour: 10, MaxPublishPerSec: 5, MaxMessageSize: 2048, DailyQuota: 1000})
+	defer auth2.SetDefaultLimits(auth2.LimitsDefaults{})
 
 	mc := jwt.MapClaims{
 		"sub": "alice",
 		"iat": float64(100),
 		"exp": float64(200),
 	}
-	c, err := auth.FromMap(mc)
+	c, err := auth2.FromMap(mc)
 	require.NoError(t, err)
 
 	require.Equal(t, "alice", c.Subject)
@@ -48,7 +48,7 @@ func TestFromMap_Coercion(t *testing.T) {
 		"tier":                 "gold",
 	}
 
-	c, err := auth.FromMap(mc)
+	c, err := auth2.FromMap(mc)
 	require.NoError(t, err)
 
 	require.Equal(t, "bob", c.Subject)
@@ -68,12 +68,12 @@ func TestParseUnverified(t *testing.T) {
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "user"}).SignedString([]byte("secret"))
 	require.NoError(t, err)
 
-	c, err := auth.ParseUnverified(token)
+	c, err := auth2.ParseUnverified(token)
 	require.NoError(t, err)
 	require.Equal(t, "user", c.Subject)
 }
 
 func TestParseUnverified_Invalid(t *testing.T) {
-	_, err := auth.ParseUnverified("not.a.jwt")
+	_, err := auth2.ParseUnverified("not.a.jwt")
 	require.Error(t, err)
 }

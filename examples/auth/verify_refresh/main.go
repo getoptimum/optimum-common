@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/getoptimum/optimum-common/auth"
+	"github.com/getoptimum/optimum-common/pkg/auth"
 )
 
 // This example shows advanced verifier usage with a custom JWKS refresh handler.

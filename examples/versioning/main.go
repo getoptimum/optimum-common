@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/getoptimum/optimum-common/version"
+	"github.com/getoptimum/optimum-common/pkg/version"
 )
 
 func main() {

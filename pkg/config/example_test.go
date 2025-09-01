@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	oc "github.com/getoptimum/optimum-common/config"
+	oc "github.com/getoptimum/optimum-common/pkg/config"
 )
 
 // Example demonstrating how a CLI application can load configuration
