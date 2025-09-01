@@ -43,7 +43,7 @@ if err := ratelimit.CheckPerSecond(store, 1, time.Now()); err != nil {
 
 ## Examples
 
-Several runnable programs live under [`examples/ratelimit`](../examples/ratelimit).
+Several runnable programs live under [`examples/ratelimit`](../../examples/ratelimit).
 Execute them with `go run`:
 
 ```bash

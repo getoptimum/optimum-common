@@ -3,7 +3,7 @@ package ratelimit_test
 import (
 	"testing"
 
-	"github.com/getoptimum/optimum-common/ratelimit"
+	"github.com/getoptimum/optimum-common/pkg/ratelimit"
 )
 
 func FuzzCheckMessageSize(f *testing.F) {

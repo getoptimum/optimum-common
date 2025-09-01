@@ -9,27 +9,27 @@ import (
 	"sync"
 	"time"
 
-	"github.com/getoptimum/optimum-common/ratelimit"
+	ratelimit2 "github.com/getoptimum/optimum-common/pkg/ratelimit"
 )
 
 func main() {
 	fmt.Println("=== SCENARIO 1: Burst + backoff on per-second (high hour/daily caps) ===")
 	{
-		usage := ratelimit.NewMemoryUsage()
+		usage := ratelimit2.NewMemoryUsage()
 		cfg := Limits{MaxMsgSize: 16, PerSecond: 3, PerHour: 10_000, DailyBytes: 1 << 30}
 		runScenarioBurstBackoff(usage, cfg, 6, 3*time.Second)
 	}
 
 	fmt.Println("\n=== SCENARIO 2: Hit per-hour quickly (very small hourly cap) ===")
 	{
-		usage := ratelimit.NewMemoryUsage()
+		usage := ratelimit2.NewMemoryUsage()
 		cfg := Limits{MaxMsgSize: 32, PerSecond: 1000, PerHour: 8, DailyBytes: 1 << 30}
 		runScenarioHitPerHour(usage, cfg, 4)
 	}
 
 	fmt.Println("\n=== SCENARIO 3: Hit daily quota (small daily bytes) ===")
 	{
-		usage := ratelimit.NewMemoryUsage()
+		usage := ratelimit2.NewMemoryUsage()
 		cfg := Limits{MaxMsgSize: 64, PerSecond: 1000, PerHour: 1000, DailyBytes: 200} // ~200 bytes
 		runScenarioHitDaily(usage, cfg, 5)
 	}
@@ -51,21 +51,21 @@ type sendResult struct {
 	info   string // optional note
 }
 
-func limiterChecks(usage ratelimit.UsageData, cfg Limits, msg []byte, now time.Time) error {
+func limiterChecks(usage ratelimit2.UsageData, cfg Limits, msg []byte, now time.Time) error {
 	// 1) Size
-	if err := ratelimit.CheckMessageSize(int64(len(msg)), cfg.MaxMsgSize); err != nil {
+	if err := ratelimit2.CheckMessageSize(int64(len(msg)), cfg.MaxMsgSize); err != nil {
 		return err
 	}
 	// 2) Per-second
-	if err := ratelimit.CheckPerSecond(usage, cfg.PerSecond, now); err != nil {
+	if err := ratelimit2.CheckPerSecond(usage, cfg.PerSecond, now); err != nil {
 		return err
 	}
 	// 3) Per-hour
-	if err := ratelimit.CheckPerHour(usage, cfg.PerHour, now); err != nil {
+	if err := ratelimit2.CheckPerHour(usage, cfg.PerHour, now); err != nil {
 		return err
 	}
 	// 4) Daily-bytes
-	if err := ratelimit.CheckDaily(usage, int64(len(msg)), cfg.DailyBytes, now); err != nil {
+	if err := ratelimit2.CheckDaily(usage, int64(len(msg)), cfg.DailyBytes, now); err != nil {
 		return err
 	}
 	return nil
@@ -75,8 +75,8 @@ func describeErr(prefix string, err error) string {
 	if err == nil {
 		return prefix + "OK"
 	}
-	if ratelimit.IsRateLimitError(err) {
-		var le *ratelimit.LimitError
+	if ratelimit2.IsRateLimitError(err) {
+		var le *ratelimit2.LimitError
 		if errors.As(err, &le) && le != nil {
 			// We assume LimitError exposes reset time and current usage stats.
 			return fmt.Sprintf("%sLIMIT: %v | resets at %s | current=%d limit=%d",
@@ -89,7 +89,7 @@ func describeErr(prefix string, err error) string {
 
 /* -------------------------- Scenario 1: Backoff --------------------------- */
 
-func runScenarioBurstBackoff(usage ratelimit.UsageData, cfg Limits, workers int, duration time.Duration) {
+func runScenarioBurstBackoff(usage ratelimit2.UsageData, cfg Limits, workers int, duration time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
@@ -138,9 +138,9 @@ func runScenarioBurstBackoff(usage ratelimit.UsageData, cfg Limits, workers int,
 
 					now := time.Now()
 					err := limiterChecks(usage, cfg, msg, now)
-					if err != nil && ratelimit.IsRateLimitError(err) {
+					if err != nil && ratelimit2.IsRateLimitError(err) {
 						// Backoff only for per-second (in this scenario we set hour/daily high).
-						var le *ratelimit.LimitError
+						var le *ratelimit2.LimitError
 						if errors.As(err, &le) && le != nil {
 							backoff := time.Until(le.ResetAt())
 							if backoff > 0 && backoff < time.Second {
@@ -171,8 +171,8 @@ func runScenarioBurstBackoff(usage ratelimit.UsageData, cfg Limits, workers int,
 			if success%10 == 0 {
 				fmt.Printf("[burst] sent ok total=%d\n", success)
 			}
-		case ratelimit.IsRateLimitError(r.err):
-			var le *ratelimit.LimitError
+		case ratelimit2.IsRateLimitError(r.err):
+			var le *ratelimit2.LimitError
 			errors.As(r.err, &le)
 			// We distinguish per-second by type/content; assuming the error exposes a name or limit window via fmt.Stringer or fields.
 			fmt.Println(describeErr(fmt.Sprintf("[burst w%02d m%03d] ", r.worker, r.n), r.err))
@@ -189,7 +189,7 @@ func runScenarioBurstBackoff(usage ratelimit.UsageData, cfg Limits, workers int,
 
 /* ------------------------- Scenario 2: Per-hour hit ----------------------- */
 
-func runScenarioHitPerHour(usage ratelimit.UsageData, cfg Limits, workers int) {
+func runScenarioHitPerHour(usage ratelimit2.UsageData, cfg Limits, workers int) {
 	var wg sync.WaitGroup
 	results := make(chan sendResult, 1024)
 
@@ -225,7 +225,7 @@ func runScenarioHitPerHour(usage ratelimit.UsageData, cfg Limits, workers int) {
 			ok++
 			continue
 		}
-		if ratelimit.IsRateLimitError(r.err) {
+		if ratelimit2.IsRateLimitError(r.err) {
 			fmt.Println(describeErr(fmt.Sprintf("[hour  w%02d m%03d] ", r.worker, r.n), r.err))
 			hourErrs++
 		} else {
@@ -237,7 +237,7 @@ func runScenarioHitPerHour(usage ratelimit.UsageData, cfg Limits, workers int) {
 
 /* ------------------------- Scenario 3: Daily bytes ------------------------ */
 
-func runScenarioHitDaily(usage ratelimit.UsageData, cfg Limits, workers int) {
+func runScenarioHitDaily(usage ratelimit2.UsageData, cfg Limits, workers int) {
 	var wg sync.WaitGroup
 	results := make(chan sendResult, 1024)
 
@@ -278,7 +278,7 @@ func runScenarioHitDaily(usage ratelimit.UsageData, cfg Limits, workers int) {
 			ok++
 			continue
 		}
-		if ratelimit.IsRateLimitError(r.err) {
+		if ratelimit2.IsRateLimitError(r.err) {
 			fmt.Println(describeErr(fmt.Sprintf("[daily w%02d m%03d %s] ", r.worker, r.n, r.info), r.err))
 			dailyHits++
 		} else {
