@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/getoptimum/optimum-common/ratelimit"
+	ratelimit2 "github.com/getoptimum/optimum-common/pkg/ratelimit"
 )
 
 func TestPerSecond_ConcurrentAllowsOverflow(t *testing.T) {
 	// Use the in-memory store.
-	mem := ratelimit.NewMemoryUsage()
+	mem := ratelimit2.NewMemoryUsage()
 
 	// Fix "now" and align the window so no reset during the test.
 	now := time.Unix(1_700_000_000, 0) // arbitrary fixed timestamp
-	_ = mem.WithUsage(func(ratelimit.Usage) (ratelimit.Usage, error) {
-		return ratelimit.Usage{
+	_ = mem.WithUsage(func(ratelimit2.Usage) (ratelimit2.Usage, error) {
+		return ratelimit2.Usage{
 			SecondCount: 0,
 			SecondStart: now, // same as "now" -> no rollover in CheckPerSecond
 			HourCount:   0,
@@ -42,7 +42,7 @@ func TestPerSecond_ConcurrentAllowsOverflow(t *testing.T) {
 			<-start // wait for the simultaneous start
 
 			// Every goroutine calls CheckPerSecond with the SAME "now".
-			if err := ratelimit.CheckPerSecond(mem, limit, now); err == nil {
+			if err := ratelimit2.CheckPerSecond(mem, limit, now); err == nil {
 				atomic.AddInt32(&successes, 1)
 			}
 		}()
