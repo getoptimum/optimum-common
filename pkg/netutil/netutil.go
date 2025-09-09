@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -128,6 +127,18 @@ func GetIPWithExternal() (string, error) {
 
 // GetPrivateIPs returns a slice of private IPv4 addresses.
 func GetPrivateIPs() ([]string, error) {
+	privateCIDRs := []string{
+		"10.0.0.0/8",     // 10.0.0.0 – 10.255.255.255
+		"172.16.0.0/12",  // 172.16.0.0 – 172.31.255.255
+		"192.168.0.0/16", // 192.168.0.0 – 192.168.255.255
+	}
+
+	var privateNets []*net.IPNet
+	for _, cidr := range privateCIDRs {
+		_, n, _ := net.ParseCIDR(cidr)
+		privateNets = append(privateNets, n)
+	}
+
 	var result []string
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -137,10 +148,13 @@ func GetPrivateIPs() ([]string, error) {
 		addrs, _ := iface.Addrs()
 		for _, addr := range addrs {
 			ipNet, ok := addr.(*net.IPNet)
-			if ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-				ip := ipNet.IP.String()
-				if strings.HasPrefix(ip, "10.") || strings.HasPrefix(ip, "192.168.") || strings.HasPrefix(ip, "172.") {
-					result = append(result, ip)
+			if !ok || ipNet.IP.IsLoopback() || ipNet.IP.To4() == nil {
+				continue
+			}
+			for _, n := range privateNets {
+				if n.Contains(ipNet.IP) {
+					result = append(result, ipNet.IP.String())
+					break
 				}
 			}
 		}
