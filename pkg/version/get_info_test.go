@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/getoptimum/optimum-common/version"
+	"github.com/getoptimum/optimum-common/pkg/version"
 	"github.com/stretchr/testify/require"
 )
 
