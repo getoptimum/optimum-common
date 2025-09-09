@@ -107,7 +107,7 @@ func GetIPWithExternal() (string, error) {
 	if remoteAddr := os.Getenv("REMOTE_ADDR"); remoteAddr != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://%s/return_ip", remoteAddr), nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://%s/return_ip", remoteAddr), http.NoBody)
 		if err == nil {
 			resp, err := http.DefaultClient.Do(req)
 			if err == nil {
