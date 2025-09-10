@@ -64,7 +64,7 @@ jobs:
       - name: Run tests
         run: CI_RUN="true" make test
 
-      - name: Measure test coverage
+      - name: Measure and enforce test coverage
         run: make coverage
 
   vulncheck:
