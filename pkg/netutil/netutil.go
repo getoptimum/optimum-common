@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"sort"
 	"time"
 )
@@ -68,35 +67,44 @@ func sortAddresses(ipAddrs []net.IP) []net.IP {
 	return ipAddrs
 }
 
-// GetOutboundIP returns the preferred outbound IP of this machine. If
-// REMOTE_HOST is set, it will attempt to retrieve the address from that host
-// first.
-func GetOutboundIP() (string, error) {
-	if remote := os.Getenv("REMOTE_HOST"); remote != "" {
-		resp, err := http.Get(fmt.Sprintf("http://%s/return_ip", remote))
+// GetOutboundIP returns preferred outbound ip of this machine
+// If remoteHost is non-empty, it tries http://<remoteHost>/return_ip
+// then falls back to local detection
+func GetOutboundIP(remoteHost string) (string, error) {
+	if remoteHost != "" {
+		url := fmt.Sprintf("http://%s/return_ip", remoteHost)
+		// #nosec G107 -- remoteHost is controlled input, not user-defined
+		resp, err := http.Get(url)
 		if err == nil {
-			defer resp.Body.Close() //nolint
+			defer resp.Body.Close() //nolint:errcheck
+
 			data, err := io.ReadAll(resp.Body)
-			if err == nil {
-				var rr struct {
-					IP string `json:"ip"`
-				}
-				if err = json.Unmarshal(data, &rr); err == nil && rr.IP != "" {
-					return rr.IP, nil
-				}
+			if err != nil {
+				return "", fmt.Errorf("read response from %s: %w", url, err)
+			}
+			var rr struct {
+				IP string `json:"ip"`
+			}
+			if err := json.Unmarshal(data, &rr); err != nil {
+				return "", fmt.Errorf("unmarshal response from %s: %w", url, err)
+			}
+			if rr.IP != "" {
+				return rr.IP, nil
 			}
 		}
-		// fall back to local detection on error
 	}
 
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("dial fallback failed: %w", err)
 	}
-	defer conn.Close() //nolint
+	defer conn.Close() //nolint:errcheck
 
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP.String(), nil
+	udp, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok || udp.IP == nil {
+		return "", fmt.Errorf("unexpected LocalAddr type: %T", conn.LocalAddr())
+	}
+	return udp.IP.String(), nil
 }
 
 // GetIPWithExternal attempts to retrieve the IP from an external service.
@@ -123,7 +131,7 @@ func GetIPWithExternal(remoteAddr string) (string, error) {
 			}
 		}
 	}
-	return GetOutboundIP()
+	return GetOutboundIP(remoteAddr)
 }
 
 // GetInterfaces production default, extracted for testing
@@ -178,8 +186,8 @@ func GetPrivateIPs() ([]string, error) {
 
 // GetOutboundP2PAddr builds a libp2p-compatible multiaddress using the
 // machine's outbound IP and the provided port.
-func GetOutboundP2PAddr(port int) (string, error) {
-	ipaddr, err := GetOutboundIP()
+func GetOutboundP2PAddr(port int, remoteAddr string) (string, error) {
+	ipaddr, err := GetOutboundIP(remoteAddr)
 	if err != nil {
 		return "", fmt.Errorf("failed to get ipaddress: %w", err)
 	}
