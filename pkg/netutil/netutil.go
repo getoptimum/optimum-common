@@ -125,13 +125,15 @@ func GetIPWithExternal() (string, error) {
 	return GetOutboundIP()
 }
 
+// production default, extracted for testing
+var GetInterfaces = net.Interfaces
+var ListAddrs = func(iface net.Interface) ([]net.Addr, error) {
+	return iface.Addrs()
+}
+
 // GetPrivateIPs returns a slice of private IPv4 addresses.
 func GetPrivateIPs() ([]string, error) {
-	privateCIDRs := []string{
-		"10.0.0.0/8",     // 10.0.0.0 – 10.255.255.255
-		"172.16.0.0/12",  // 172.16.0.0 – 172.31.255.255
-		"192.168.0.0/16", // 192.168.0.0 – 192.168.255.255
-	}
+	privateCIDRs := []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}
 
 	var privateNets []*net.IPNet
 	for _, cidr := range privateCIDRs {
@@ -140,12 +142,12 @@ func GetPrivateIPs() ([]string, error) {
 	}
 
 	var result []string
-	ifaces, err := net.Interfaces()
+	ifaces, err := GetInterfaces()
 	if err != nil {
 		return nil, err
 	}
 	for _, iface := range ifaces {
-		addrs, _ := iface.Addrs()
+		addrs, _ := ListAddrs(iface)
 		for _, addr := range addrs {
 			ipNet, ok := addr.(*net.IPNet)
 			if !ok || ipNet.IP.IsLoopback() || ipNet.IP.To4() == nil {
