@@ -1,6 +1,7 @@
 package ttlmap
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -16,17 +17,30 @@ type TTLMap[K comparable, V any] struct {
 	mu     sync.RWMutex
 	m      map[K]*item[V]
 	maxTTL time.Duration
+
+	// goroutine lifecycle
+	wg        sync.WaitGroup
+	stopCh    chan struct{}
+	closeOnce sync.Once
 }
 
-// NewTTLMap creates a new TTL map that stores items for up to maxTTL
-// A background goroutine periodically removes expired items every cleanupInterval
+// NewTTLMap creates a TTL map with a background cleanup goroutine
+// Call Close() when done to stop the goroutine
 func NewTTLMap[K comparable, V any](maxTTL, cleanupInterval time.Duration) *TTLMap[K, V] {
+	return NewTTLMapWithContext[K, V](context.Background(), maxTTL, cleanupInterval)
+}
+
+// NewTTLMapWithContext ties the cleanup goroutine to ctx and also supports Close().
+func NewTTLMapWithContext[K comparable, V any](ctx context.Context, maxTTL, cleanupInterval time.Duration) *TTLMap[K, V] {
 	m := &TTLMap[K, V]{
 		m:      make(map[K]*item[V], 1_000),
 		maxTTL: maxTTL,
+		stopCh: make(chan struct{}),
 	}
 	ticker := time.NewTicker(cleanupInterval)
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		defer ticker.Stop()
 		for now := range ticker.C {
 			m.mu.Lock()
@@ -38,10 +52,19 @@ func NewTTLMap[K comparable, V any](maxTTL, cleanupInterval time.Duration) *TTLM
 			m.mu.Unlock()
 		}
 	}()
+
 	return m
 }
 
-// Len returns the number of items in the map
+// Close stops the background cleanup goroutine and waits for it to exit.
+// Safe to call multiple times.
+func (m *TTLMap[K, V]) Close() {
+	m.closeOnce.Do(func() {
+		close(m.stopCh)
+		m.wg.Wait()
+	})
+}
+
 func (m *TTLMap[K, V]) Len() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -70,8 +93,6 @@ func (m *TTLMap[K, V]) Delete(k K) {
 	delete(m.m, k)
 }
 
-// Get returns value associated with key
-// If item has expired it is removed and zero_value and false are returned
 func (m *TTLMap[K, V]) Get(k K) (val V, ok bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
