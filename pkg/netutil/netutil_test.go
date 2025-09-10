@@ -27,8 +27,8 @@ func TestGetOutboundP2PAddr(t *testing.T) {
 	defer srv.Close()
 
 	t.Setenv("REMOTE_HOST", strings.TrimPrefix(srv.URL, "http://"))
-
-	addr, err := netutil.GetOutboundP2PAddr(3030)
+	remoteAddr := strings.TrimPrefix(srv.URL, "http://")
+	addr, err := netutil.GetOutboundP2PAddr(3030, remoteAddr)
 	require.NoError(t, err)
 	require.Equal(t, "/ip4/5.6.7.8/tcp/3030", addr)
 	require.True(t, called, "expected handler to be called")
