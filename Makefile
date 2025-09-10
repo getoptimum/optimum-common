@@ -1,7 +1,8 @@
 GO := go
 COVERAGE_THRESHOLD := 70
 COVERPROFILE    := coverage.out
-
+VULNCHECK_VER ?= v1.1.4
+VULNCHECK_RUN ?= $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
 all: check ## run all checks
 
 check: tidy fmt vet test coverage lint vulcheck ## Run tests, coverage gate, lints, vuln check
@@ -21,6 +22,10 @@ vet: ## go vet
 test: ## Run all tests with race detector and coverage
 	@echo "🧪 running tests..."
 	@$(GO) test ./... -race -covermode=atomic -coverprofile=$(COVERPROFILE)
+
+bench: ## Run benchmarks w/o tests
+	@echo "⚡ running benchmarks..."
+	@$(GO) test ./... -bench=. -benchmem -run=^$
 
 coverage: $(COVERPROFILE) ## Show summary and enforce threshold
 	@echo "📈 coverage summary"
@@ -44,7 +49,7 @@ vulcheck: ## Run govulncheck for vulnerabilities
 	@echo "🔍 govulncheck..."
 	@$(GO) version
 	@$(GO) env GOPRIVATE
-	@$(GOPATH)/bin/govulncheck ./... || govulncheck ./...
+	@$(VULNCHECK_RUN) ./...
 
 # NOTE: run before running vulcheck/lint commands locally
 tools: ## Install dev/CI tools (govulncheck, golangci-lint)
@@ -58,9 +63,9 @@ clean: ## Remove generated artifacts
 help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
-
+# guard target
 $(COVERPROFILE):
 	@echo "No $(COVERPROFILE) found; run 'make test' first." >&2; exit 1
 
-.PHONY: test coverage lint vulcheck tools check all help
+.PHONY: test coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean
 .DEFAULT_GOAL := help
