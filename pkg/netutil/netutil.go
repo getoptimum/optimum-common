@@ -125,7 +125,7 @@ func GetIPWithExternal() (string, error) {
 	return GetOutboundIP()
 }
 
-// production default, extracted for testing
+// GetInterfaces production default, extracted for testing
 var GetInterfaces = net.Interfaces
 var ListAddrs = func(iface net.Interface) ([]net.Addr, error) {
 	return iface.Addrs()
@@ -135,19 +135,30 @@ var ListAddrs = func(iface net.Interface) ([]net.Addr, error) {
 func GetPrivateIPs() ([]string, error) {
 	privateCIDRs := []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}
 
-	var privateNets []*net.IPNet
+	// pre-allocation
+	privateNets := make([]*net.IPNet, 0, len(privateCIDRs))
 	for _, cidr := range privateCIDRs {
-		_, n, _ := net.ParseCIDR(cidr)
+		_, n, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return nil, fmt.Errorf("parse CIDR %q: %w", cidr, err)
+		}
 		privateNets = append(privateNets, n)
 	}
 
-	var result []string
 	ifaces, err := GetInterfaces()
 	if err != nil {
 		return nil, err
 	}
+
+	// capacity -> at least one addr per iface
+	result := make([]string, 0, len(ifaces))
+
 	for _, iface := range ifaces {
-		addrs, _ := ListAddrs(iface)
+		addrs, err := ListAddrs(iface)
+		if err != nil {
+			// avoid failing test bc of problematic iface
+			continue
+		}
 		for _, addr := range addrs {
 			ipNet, ok := addr.(*net.IPNet)
 			if !ok || ipNet.IP.IsLoopback() || ipNet.IP.To4() == nil {
