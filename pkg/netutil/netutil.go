@@ -99,18 +99,19 @@ func GetOutboundIP() (string, error) {
 	return localAddr.IP.String(), nil
 }
 
-// GetIPWithExternal attempts to retrieve the IP from an external service
-// specified by the REMOTE_ADDR environment variable. If not set or on error,
-// it falls back to GetOutboundIP.
-func GetIPWithExternal() (string, error) {
-	if remoteAddr := os.Getenv("REMOTE_ADDR"); remoteAddr != "" {
+// GetIPWithExternal attempts to retrieve the IP from an external service.
+// If remoteAddr is empty or fails, it falls back to GetOutboundIP.
+func GetIPWithExternal(remoteAddr string) (string, error) {
+	if remoteAddr != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://%s/return_ip", remoteAddr), http.NoBody)
+
+		url := fmt.Sprintf("http://%s/return_ip", remoteAddr)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 		if err == nil {
 			resp, err := http.DefaultClient.Do(req)
 			if err == nil {
-				defer resp.Body.Close() //nolint
+				defer resp.Body.Close() //nolint:errcheck
 				if resp.StatusCode == http.StatusOK {
 					var r struct {
 						IP string `json:"ip"`
