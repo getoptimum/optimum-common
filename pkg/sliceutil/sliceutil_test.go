@@ -33,7 +33,7 @@ func TestConvertSlice2(t *testing.T) {
 
 	var nilSrc []int
 	require.Equal(t,
-		[]int{}, // your impl returns empty, not nil
+		[]int{},
 		sliceutil.ConvertSlice(nilSrc, func(i int) int { return i }),
 	)
 }
