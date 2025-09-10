@@ -47,10 +47,10 @@ func TestGetIPWithExternal(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	// Point REMOTE_ADDR to the test server (without http:// prefix)
-	t.Setenv("REMOTE_ADDR", strings.TrimPrefix(srv.URL, "http://"))
+	// Pass the test server address directly (without http:// prefix)
+	remoteAddr := strings.TrimPrefix(srv.URL, "http://")
 
-	ip, err := netutil.GetIPWithExternal()
+	ip, err := netutil.GetIPWithExternal(remoteAddr)
 	require.NoError(t, err)
 	require.Equal(t, "1.2.3.4", ip)
 	require.True(t, called, "expected handler to be called")
