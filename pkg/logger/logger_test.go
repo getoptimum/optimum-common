@@ -17,7 +17,10 @@ import (
 func parseJSONLines(t *testing.T, buf *bytes.Buffer) []map[string]any {
 	t.Helper()
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-	var out []map[string]any
+
+	// Preallocate capacity to avoid repeated growth (prealloc)
+	out := make([]map[string]any, 0, len(lines))
+
 	for _, ln := range lines {
 		if strings.TrimSpace(ln) == "" {
 			continue
@@ -82,6 +85,7 @@ func TestLogLevelFiltering_PerMode(t *testing.T) {
 }
 
 func TestLogger_Fatal_ExitsWithCode1AndLogs(t *testing.T) {
+	// #nosec G204 -- test re-invokes self with constant arguments; no user input involved
 	cmd := exec.Command(os.Args[0], "-test.run", "^TestHelperInvokeFatal$")
 	cmd.Env = append(os.Environ(), "INVOKE_FATAL=1")
 	var out bytes.Buffer
@@ -90,9 +94,10 @@ func TestLogger_Fatal_ExitsWithCode1AndLogs(t *testing.T) {
 
 	err := cmd.Run()
 	require.Error(t, err)
-	exit, ok := err.(*exec.ExitError)
-	require.True(t, ok)
-	require.Equal(t, 1, exit.ExitCode())
+
+	var ee *exec.ExitError
+	require.True(t, errors.As(err, &ee), "expected *exec.ExitError")
+	require.Equal(t, 1, ee.ExitCode())
 
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
 	require.GreaterOrEqual(t, len(lines), 2)
