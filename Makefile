@@ -72,5 +72,22 @@ help: ## Show help
 $(COVERPROFILE):
 	@echo "No $(COVERPROFILE) found; run 'make test' first." >&2; exit 1
 
-.PHONY: release coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean
+tag-rc: ## Tag new release candidate
+	@echo "🔖 Calculating next RC tag..."
+	@set -euo pipefail; \
+	latest=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$$' | head -n1 || true); \
+	if [ -z "$$latest" ]; then \
+		base=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$' | head -n1 || echo "v0.0.1"); \
+		next_tag="$$base-rc1"; \
+	else \
+		base=$${latest%-rc*}; \
+		rc=$${latest\#\#*-rc}; \
+		next_rc=$$((rc+1)); \
+		next_tag="$$base-rc$$next_rc"; \
+	fi; \
+	echo "✅ Tagging $$next_tag"; \
+	git tag -a "$$next_tag" -m "Release candidate $$next_tag"; \
+	git push origin "$$next_tag"
+
+.PHONY: release coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean tag-rc
 .DEFAULT_GOAL := help
