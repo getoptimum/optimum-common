@@ -15,9 +15,11 @@ make release
 ```
 NOTE: CI will run GoReleaser on tagged commits and publish the release automatically.
 
+Use the Makefile helpers to manage release versions:
 
-Main goal:
-Create a reusable internal SDK to standardize configuration loading, logging, and common utilities across all Optimum projects.
+- `make tag-rc` creates and pushes the next `vX.Y.Z-rcN` git tag based on existing tags.
+- `make release` builds and publishes artifacts for the current tag using GoReleaser.
+
 ## Optimum Common — Progress
 - [x] Inject `Version` and `CommitHash` from BuildInfo not -ldflags
     note: embedding version info in requests, version cheching handler
