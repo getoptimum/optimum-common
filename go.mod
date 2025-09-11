@@ -4,6 +4,7 @@ go 1.24.6
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.10.0
 )
 
