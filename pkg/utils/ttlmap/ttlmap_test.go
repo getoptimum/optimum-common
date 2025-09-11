@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/getoptimum/optimum-common/pkg/ttlmap"
+	"github.com/getoptimum/optimum-common/pkg/utils/ttlmap"
 	"github.com/stretchr/testify/require"
 )
 
