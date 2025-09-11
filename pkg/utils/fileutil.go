@@ -53,64 +53,74 @@ func GetAuthUsageDir(dataDir string) string {
 // AtomicallySaveToFile saves given data to the given file atomically
 // Appends a CRC64 checksum to the data before writing
 // File is either fully updated or not updated at all -> done by writing to a temporary file and renaming after
-func AtomicallySaveToFile(fileName string, data []byte) error {
+func AtomicallySaveToFile(fileName string, data []byte) (err error) {
 	checkSum := crc64.New(crc64.MakeTable(crc64.ISO))
-	if _, err := checkSum.Write(data); err != nil {
+	if _, err = checkSum.Write(data); err != nil {
 		return fmt.Errorf("cannot calculate checksum: %w", err)
 	}
+	sum := make([]byte, 8)
+	binary.LittleEndian.PutUint64(sum, checkSum.Sum64())
+	result := append(sum, data...)
 
-	checkSumBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(checkSumBytes, checkSum.Sum64())
-	resultData := make([]byte, 0, len(data)+len(checkSumBytes))
-	resultData = append(resultData, checkSumBytes...)
-	resultData = append(resultData, data...)
-
-	dir, file := filepath.Split(fileName)
+	dir, base := filepath.Split(fileName)
 	if dir == "" {
 		dir = "."
 	}
-
-	f, err := os.CreateTemp(dir, file)
+	f, err := os.CreateTemp(dir, base)
 	if err != nil {
 		return fmt.Errorf("cannot create temp file: %w", err)
 	}
+	// always try to close, even if we return early
+	defer func() { _ = f.Close() }()
+
+	tempPath := f.Name()
+	// remove temp file unless we successfully rename
+	committed := false
 	defer func() {
-		if err != nil {
-			_ = os.Remove(f.Name())
+		if !committed {
+			_ = os.Remove(tempPath)
 		}
 	}()
-	defer f.Close() //nolint:errcheck
 
-	name := f.Name()
-	if _, err = io.Copy(f, bytes.NewReader(resultData)); err != nil {
-		return fmt.Errorf("cannot write data to tempfile %q: %w", name, err)
+	// write + flush
+	if _, err = io.Copy(f, bytes.NewReader(result)); err != nil {
+		return fmt.Errorf("cannot write data to tempfile %q: %w", tempPath, err)
 	}
 	if err = f.Sync(); err != nil {
-		return fmt.Errorf("can't flush tempfile %q: %w", name, err)
+		return fmt.Errorf("can't flush tempfile %q: %w", tempPath, err)
 	}
-	if err = f.Close(); err != nil {
-		return fmt.Errorf("can't close tempfile %q: %w", name, err)
+	if err = f.Close(); err != nil { // explicit close before rename (Windows-friendly)
+		return fmt.Errorf("can't close tempfile %q: %w", tempPath, err)
 	}
 
-	destInfo, err := os.Stat(fileName)
-	if os.IsNotExist(err) {
-		// no original file
-	} else if err != nil {
-		return err
-	} else {
-		sourceInfo, errS := os.Stat(name)
-		if errS != nil {
-			return errS
-		}
-		if sourceInfo.Mode() != destInfo.Mode() {
-			if err = os.Chmod(name, destInfo.Mode()); err != nil {
-				return fmt.Errorf("can't set filemode on tempfile %q: %w", name, err)
+	// preserve mode if destination exists
+	if destInfo, statErr := os.Stat(fileName); statErr == nil {
+		if srcInfo, err := os.Stat(tempPath); err == nil && srcInfo.Mode() != destInfo.Mode() {
+			if err = os.Chmod(tempPath, destInfo.Mode()); err != nil {
+				return fmt.Errorf("can't set filemode on tempfile %q: %w", tempPath, err)
 			}
 		}
+	} else if !os.IsNotExist(statErr) {
+		return statErr
 	}
-	if err = os.Rename(name, fileName); err != nil {
-		return fmt.Errorf("cannot replace %q with tempfile %q: %w", fileName, name, err)
+
+	// atomic replace
+	if err = os.Rename(tempPath, fileName); err != nil {
+		return fmt.Errorf("cannot replace %q with tempfile %q: %w", fileName, tempPath, err)
 	}
+
+	// fsync directory to make rename durable
+	dirFD, err := os.Open(dir)
+	if err == nil {
+		if syncErr := dirFD.Sync(); syncErr != nil {
+			// not fatal everywhere
+			_ = dirFD.Close()
+			return fmt.Errorf("directory fsync failed for %q: %w", dir, syncErr)
+		}
+		_ = dirFD.Close()
+	} // if opening dir fails fsync is skipped, may be logged
+
+	committed = true
 	return nil
 }
 
