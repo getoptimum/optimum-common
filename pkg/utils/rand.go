@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"math"
 	randMath "math/rand"
-	"time"
 )
 
 // RandInt64 generates a random int64 value
@@ -46,8 +45,6 @@ func RandBetween(minVal, maxVal int) int {
 
 // Shuffle shuffles a slice of any type
 func Shuffle[T any](lst []T) {
-	//nolint:gosec
-	randMath.New(randMath.NewSource(time.Now().UnixNano()))
 	randMath.Shuffle(len(lst), func(i, j int) {
 		lst[i], lst[j] = lst[j], lst[i]
 	})
