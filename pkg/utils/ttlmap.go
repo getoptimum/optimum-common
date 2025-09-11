@@ -1,4 +1,4 @@
-package ttlmap
+package utils
 
 import (
 	"context"
