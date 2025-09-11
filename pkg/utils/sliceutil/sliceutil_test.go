@@ -13,14 +13,14 @@ func TestConvertSlice2(t *testing.T) {
 
 	require.Equal(t,
 		[]string{"Number: 1", "Number: 2", "Number: 3"},
-		sliceutil.ConvertSlice([]int{1, 2, 3}, func(i int) string {
+		sliceutil.MapSlice([]int{1, 2, 3}, func(i int) string {
 			return fmt.Sprintf("Number: %d", i)
 		}),
 	)
 
 	require.Equal(t,
 		[]int{2, 4, 6},
-		sliceutil.ConvertSlice([]float32{1, 2, 3}, func(i float32) int {
+		sliceutil.MapSlice([]float32{1, 2, 3}, func(i float32) int {
 			return int(i) * 2
 		}),
 	)
@@ -28,12 +28,12 @@ func TestConvertSlice2(t *testing.T) {
 	// Edge cases:
 	require.Equal(t,
 		[]int{}, // empty slice (not nil)
-		sliceutil.ConvertSlice([]int{}, func(i int) int { return i }),
+		sliceutil.MapSlice([]int{}, func(i int) int { return i }),
 	)
 
 	var nilSrc []int
 	require.Equal(t,
 		[]int{},
-		sliceutil.ConvertSlice(nilSrc, func(i int) int { return i }),
+		sliceutil.MapSlice(nilSrc, func(i int) int { return i }),
 	)
 }
