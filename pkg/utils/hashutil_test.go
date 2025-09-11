@@ -1,9 +1,9 @@
-package hashutil_test
+package utils_test
 
 import (
 	"testing"
 
-	"github.com/getoptimum/optimum-common/pkg/utils/hashutil"
+	"github.com/getoptimum/optimum-common/pkg/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,7 +14,7 @@ func TestHashSHA512(t *testing.T) {
 		"Hello, 123":    "84df6bdafdaa325beeaa4dedf46e6519e350ac7c9936d44d5b1de84359572d3d7047bece9f25dbb12876b9f307bb994f0df737b87757a0081583f3b23b7d4a4b",
 	}
 	for src, res := range table {
-		require.Equal(t, res, hashutil.HashSHA512([]byte(src)))
+		require.Equal(t, res, utils.HashSHA512([]byte(src)))
 	}
 }
 
@@ -25,20 +25,20 @@ func TestHashSHA256(t *testing.T) {
 		"Hello, 123":    "30b6bfae65bce9ae9ab1cef925407ddc3bcc3ee3ccbb4991619a4d7cd0c72675",
 	}
 	for src, res := range table {
-		require.Equal(t, res, hashutil.HashSHA256([]byte(src)))
+		require.Equal(t, res, utils.HashSHA256([]byte(src)))
 	}
 }
 
 func BenchmarkHashXXHash(b *testing.B) {
 	data := []byte("Hello, World!")
 	for i := 0; i < b.N; i++ {
-		hashutil.HashXXHash(data)
+		utils.HashXXHash(data)
 	}
 }
 
 func BenchmarkHashSHA256String(b *testing.B) {
 	data := []byte("Hello, World!")
 	for i := 0; i < b.N; i++ {
-		hashutil.HashSHA256String(data)
+		utils.HashSHA256String(data)
 	}
 }
