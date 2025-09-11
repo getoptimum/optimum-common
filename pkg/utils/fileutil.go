@@ -129,7 +129,7 @@ func AtomicallySaveToFile(fileName string, data []byte) (err error) {
 func LoadFromFile(path string) (data []byte, err error) {
 	path = filepath.Clean(path)
 	if _, err = os.Stat(path); os.IsNotExist(err) {
-		return nil, os.ErrNotExist
+		return nil, fmt.Errorf("file %q does not exist: %w", path, os.ErrNotExist)
 	}
 	// #nosec G304 -- path is caller-controlled within the application; sanitized above
 	r, err := os.Open(path)
@@ -143,10 +143,11 @@ func LoadFromFile(path string) (data []byte, err error) {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
-	if len(data) < 8 {
+    const checksumSize = 8
+	if len(data) < checksumSize {
 		return nil, errors.New("file is too short")
 	}
-	fileCrc := binary.LittleEndian.Uint64(data[:8])
+	fileCrc := binary.LittleEndian.Uint64(data[:checksumSize])
 	dataCrc := crc64.Checksum(data[8:], crc64.MakeTable(crc64.ISO))
 	if fileCrc != dataCrc {
 		return nil, fmt.Errorf("checksum mismatch: %x != %x", fileCrc, dataCrc)
