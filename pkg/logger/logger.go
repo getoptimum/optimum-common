@@ -4,14 +4,15 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/getoptimum/optimum-common/pkg/version"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
+// LogMode defines logging verbosity levels.
 type LogMode string
 
 const (
@@ -39,6 +40,7 @@ func (f Field) slog() slog.Attr {
 	return slog.Any(f.key, f.value)
 }
 
+// AppLogger defines the structured logger interface.
 type AppLogger interface {
 	Info(message string, fields ...Field)
 	Error(message string, err error, fields ...Field)
@@ -47,8 +49,10 @@ type AppLogger interface {
 	With(fields ...Field) AppLogger
 }
 
+// SLogger is an implementation of AppLogger backed by slog.
 type SLogger struct {
-	logWriters []*slog.Logger // since we do not modify this slice, we can avoid mutex usage
+	// logWriters are immutable after construction; no mutex required.
+	logWriters []*slog.Logger
 }
 
 var _ AppLogger = (*SLogger)(nil)
@@ -56,19 +60,6 @@ var _ AppLogger = (*SLogger)(nil)
 // NewAppSLogger creates a default AppLogger writing to stdout.
 func NewAppSLogger(appHash string, mode LogMode, fields ...Field) AppLogger {
 	return InitLogger([]io.Writer{os.Stdout}, appHash, validateLogMode(mode), fields...)
-}
-
-func getLastCommitHash() string {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		return ""
-	}
-	data := strings.Split(strings.ReplaceAll(info.Main.Version, "+dirty", ""), "-")
-	res := data[len(data)-1]
-	if len(res) > 7 {
-		return res[:7]
-	}
-	return res
 }
 
 // InitLogger initializes a multi-output JSON logger with slog.
@@ -98,7 +89,7 @@ func InitLogger(writers []io.Writer, appHash string, mode LogMode, fields ...Fie
 		for _, f := range fields {
 			attrs = append(attrs, f.slog())
 		}
-		if gitHash := getLastCommitHash(); gitHash != "" {
+		if gitHash := version.GetCommitHash(); gitHash != "" {
 			attrs = append(attrs, slog.String("commit", gitHash))
 		}
 
@@ -108,6 +99,7 @@ func InitLogger(writers []io.Writer, appHash string, mode LogMode, fields ...Fie
 	return &SLogger{logWriters: logs}
 }
 
+// Info logs an informational message with optional structured fields.
 func (l *SLogger) Info(message string, fields ...Field) {
 	params := prepareSlogParams(nil, fields)
 	l.processWriters(func(lg *slog.Logger) {
@@ -115,6 +107,7 @@ func (l *SLogger) Info(message string, fields ...Field) {
 	})
 }
 
+// Error logs an error message with associated error and fields.
 func (l *SLogger) Error(message string, err error, fields ...Field) {
 	params := prepareSlogParams(err, fields)
 	l.processWriters(func(lg *slog.Logger) {
@@ -122,6 +115,7 @@ func (l *SLogger) Error(message string, err error, fields ...Field) {
 	})
 }
 
+// Debug logs a debug message.
 func (l *SLogger) Debug(message string, fields ...Field) {
 	params := prepareSlogParams(nil, fields)
 	l.processWriters(func(lg *slog.Logger) {
@@ -129,6 +123,7 @@ func (l *SLogger) Debug(message string, fields ...Field) {
 	})
 }
 
+// Fatal logs an error and exits the application.
 func (l *SLogger) Fatal(message string, err error, fields ...Field) {
 	params := prepareSlogParams(err, fields)
 	l.processWriters(func(lg *slog.Logger) {
@@ -138,6 +133,7 @@ func (l *SLogger) Fatal(message string, err error, fields ...Field) {
 	os.Exit(1)
 }
 
+// With creates a child logger with additional structured context.
 func (l *SLogger) With(fields ...Field) AppLogger {
 	logs := make([]*slog.Logger, 0, len(l.logWriters))
 	for _, lg := range l.logWriters {
@@ -210,7 +206,7 @@ func WithInt(key string, val int) Field {
 	return Field{key: key, value: val}
 }
 
-// --- Domain-specific helpers ---
+// --- Generic helpers ---
 
 func WithModule(val string) *Field {
 	f := WithString("module", val)
@@ -222,30 +218,34 @@ func WithError(err error) *Field {
 	return &f
 }
 
-func WithP2PPeer(val peer.AddrInfo) Field {
-	return WithString("peer", val.ID.String())
-}
-
-func WithP2PPeerIP(val peer.AddrInfo) Field {
-	addrList := make([]string, 0, len(val.Addrs))
-	for _, addr := range val.Addrs {
-		addrList = append(addrList, addr.String())
-	}
-	return WithString("peer", strings.Join(addrList, ","))
-}
-
-func WithTopic(topic string) Field {
-	return WithString("topic", topic)
-}
-
-func WithTopicB(topic []byte) Field {
-	return WithString("topic", string(topic))
-}
-
 func WithFilePath(filePath string) Field {
 	return WithString("file", filePath)
 }
 
 func WithService(serviceName string) Field {
 	return WithString("service", serviceName)
+}
+
+// WithPeer adds the peer ID of the given AddrInfo.
+func WithPeer(info peer.AddrInfo) Field {
+	return WithString("peer", info.ID.String())
+}
+
+// WithPeerAddrs adds comma separated multiaddrs of the given peer.
+func WithPeerAddrs(info peer.AddrInfo) Field {
+	addrs := make([]string, 0, len(info.Addrs))
+	for _, addr := range info.Addrs {
+		addrs = append(addrs, addr.String())
+	}
+	return WithString("peer", strings.Join(addrs, ","))
+}
+
+// WithTopic adds a pubsub topic as a string field.
+func WithTopic(topic string) Field {
+	return WithString("topic", topic)
+}
+
+// WithTopicBytes adds a topic represented as byte slice.
+func WithTopicBytes(topic []byte) Field {
+	return WithString("topic", string(topic))
 }
