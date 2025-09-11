@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/getoptimum/optimum-common/pkg/sliceutil"
+	"github.com/getoptimum/optimum-common/pkg/utils/sliceutil"
 	"github.com/stretchr/testify/require"
 )
 
