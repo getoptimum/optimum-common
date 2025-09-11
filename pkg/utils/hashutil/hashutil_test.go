@@ -3,7 +3,7 @@ package hashutil_test
 import (
 	"testing"
 
-	"github.com/getoptimum/optimum-common/pkg/hashutil"
+	"github.com/getoptimum/optimum-common/pkg/utils/hashutil"
 	"github.com/stretchr/testify/require"
 )
 
