@@ -133,10 +133,11 @@ func LoadFromFile(path string) (data []byte, err error) {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
-	if len(data) < 8 {
+    const checksumSize = 8
+	if len(data) < checksumSize {
 		return nil, errors.New("file is too short")
 	}
-	fileCrc := binary.LittleEndian.Uint64(data[:8])
+	fileCrc := binary.LittleEndian.Uint64(data[:checksumSize])
 	dataCrc := crc64.Checksum(data[8:], crc64.MakeTable(crc64.ISO))
 	if fileCrc != dataCrc {
 		return nil, fmt.Errorf("checksum mismatch: %x != %x", fileCrc, dataCrc)
