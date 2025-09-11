@@ -119,7 +119,7 @@ func AtomicallySaveToFile(fileName string, data []byte) error {
 func LoadFromFile(path string) (data []byte, err error) {
 	path = filepath.Clean(path)
 	if _, err = os.Stat(path); os.IsNotExist(err) {
-		return nil, os.ErrNotExist
+		return nil, fmt.Errorf("file %q does not exist: %w", path, os.ErrNotExist)
 	}
 	// #nosec G304 -- path is caller-controlled within the application; sanitized above
 	r, err := os.Open(path)
