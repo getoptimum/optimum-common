@@ -1,0 +1,149 @@
+package utils_test
+
+import (
+	"bytes"
+	"encoding/binary"
+	"hash/crc64"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/getoptimum/optimum-common/pkg/utils"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+)
+
+func TestCleanupFolders_CreateAndClean(t *testing.T) {
+	tmp := prepareDir(t)
+	// target dirs
+	a := filepath.Join(tmp, "a")
+	b := filepath.Join(tmp, "b")
+
+	// pre-populate with files and subdirs (nested including)
+	require.NoError(t, os.MkdirAll(filepath.Join(a, "sub"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(a, "keep.txt"), []byte("keep"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(a, "kill.txt"), []byte("kill"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(a, "sub", "nested.txt"), []byte("nested"), 0o644))
+	// b does not exist yet; CleanupFolders should create it
+
+	// Ignore keep.txt only; subdir and kill.txt should be removed
+	require.NoError(t, utils.CleanupFolders([]string{a, b}, "keep.txt"))
+
+	// a exists, b created
+	_, err := os.Stat(a)
+	require.NoError(t, err)
+	_, err = os.Stat(b)
+	require.NoError(t, err)
+
+	// keep.txt remains
+	_, err = os.Stat(filepath.Join(a, "keep.txt"))
+	require.NoError(t, err)
+
+	// kill.txt and subdir removed
+	_, err = os.Stat(filepath.Join(a, "kill.txt"))
+	require.True(t, os.IsNotExist(err))
+	_, err = os.Stat(filepath.Join(a, "sub"))
+	require.True(t, os.IsNotExist(err))
+}
+
+func TestCleanupFolders_IgnoreDoesNotRemoveDirectoriesWithSameNameAsIgnoredFile(t *testing.T) {
+	tmp := prepareDir(t)
+	dir := filepath.Join(tmp, "dir")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	// create a directory that has the same name as an ignored "file" entry
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "keepme"), 0o755))
+	// create another file to be removed
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "deleteme"), []byte("x"), 0o644))
+
+	// only exact entry name is ignored; the directory named "keepme" shall not be removed
+	require.NoError(t, utils.CleanupFolders([]string{dir}, "keepme"))
+
+	_, err := os.Stat(filepath.Join(dir, "keepme"))
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(dir, "deleteme"))
+	require.True(t, os.IsNotExist(err))
+}
+
+func TestGetDirHelpers(t *testing.T) {
+	base := "/data"
+	proto := stringer("galois")
+	require.Equal(t, filepath.Join(base, "optimum", "galois", "traces"), utils.GetTracesDir(base, proto))
+	require.Equal(t, filepath.Join(base, "optimum", "galois", "pprof"), utils.GetPProfDir(base, proto))
+	require.Equal(t, filepath.Join(base, "optimum", "auth"), utils.GetAuthUsageDir(base))
+}
+
+func TestAtomicallySaveToFile_PrefixChecksumFormat(t *testing.T) {
+	tmp := prepareDir(t)
+	target := filepath.Join(tmp, "blob.bin")
+	payload := []byte("payload-data-123")
+
+	require.NoError(t, utils.AtomicallySaveToFile(target, payload))
+
+	// read raw file and verify first 8 bytes == crc64(remaining)
+	raw, err := os.ReadFile(target)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(raw), 8)
+
+	wantCRC := crc64.Checksum(payload, crc64.MakeTable(crc64.ISO))
+	gotCRC := binary.LittleEndian.Uint64(raw[:8])
+	require.Equal(t, wantCRC, gotCRC)
+	require.True(t, bytes.Equal(payload, raw[8:]))
+}
+
+func TestAtomicallySaveToFile_EmptyPayload(t *testing.T) {
+	tmp := prepareDir(t)
+	target := filepath.Join(tmp, "empty.bin")
+	require.NoError(t, utils.AtomicallySaveToFile(target, nil))
+
+	// should still be 8 bytes (crc of empty slice)
+	raw, err := os.ReadFile(target)
+	require.NoError(t, err)
+	require.Equal(t, 8, len(raw))
+
+	data, err := utils.LoadFromFile(target)
+	require.NoError(t, err)
+	require.Empty(t, data)
+}
+
+func TestAtomicallySaveToFile_PreserveExistingMode(t *testing.T) {
+	tmp := prepareDir(t)
+	target := filepath.Join(tmp, "mode.bin")
+
+	// create file with a specific mode, then save over it
+	require.NoError(t, os.WriteFile(target, []byte("tmp"), 0o640))
+	require.NoError(t, os.Chmod(target, 0o640))
+
+	require.NoError(t, utils.AtomicallySaveToFile(target, []byte("content")))
+	st, err := os.Stat(target)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o640), st.Mode().Perm())
+}
+
+func TestLoadFromFile_PathIsCleaned(t *testing.T) {
+	tmp := prepareDir(t)
+	target := filepath.Join(tmp, "data.bin")
+	payload := []byte("abc")
+	require.NoError(t, utils.AtomicallySaveToFile(target, payload))
+
+	// use a path with ../ segments; function calls filepath.Clean internally
+	cleaned := filepath.Join(tmp, "x", "..", "data.bin")
+	data, err := utils.LoadFromFile(cleaned)
+	require.NoError(t, err)
+	require.Equal(t, payload, data)
+}
+
+// ---------------
+// --- helpers ---
+// ---------------
+
+type stringer string
+
+func (s stringer) String() string { return string(s) }
+
+func prepareDir(t *testing.T) string {
+	t.Helper()
+	tmpDir, err := os.MkdirTemp("", uuid.NewString())
+	require.NoError(t, err, "failed to create temp directory")
+	t.Cleanup(func() { require.NoError(t, os.RemoveAll(tmpDir)) })
+	return tmpDir
+}
