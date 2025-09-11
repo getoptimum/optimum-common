@@ -1,4 +1,4 @@
-package sliceutil
+package utils
 
 func MapSlice[T, U any](src []T, converter func(T) U) []U {
 	result := make([]U, len(src)) // preallocate with exact length
