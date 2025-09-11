@@ -1,8 +1,9 @@
 GO := go
 COVERAGE_THRESHOLD := 70
 COVERPROFILE    := coverage.out
-VULNCHECK_VER ?= v1.1.4
-VULNCHECK_RUN ?= $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
+VULNCHECK_VER := v1.1.4
+VULNCHECK_RUN := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
+GORELEASER_VER := v2.12.0
 all: check ## run all checks
 
 check: tidy fmt vet test coverage lint vulcheck ## Run tests, coverage gate, lints, vuln check
@@ -51,12 +52,16 @@ vulcheck: ## Run govulncheck for vulnerabilities
 	@$(GO) env GOPRIVATE
 	@$(VULNCHECK_RUN) ./...
 
+release: ## Create a release with GoReleaser (requires tag)
+	@echo "🏷️ running goreleaser..."
+	@goreleaser release --clean
+
 # NOTE: run before running vulcheck/lint commands locally
 tools: ## Install dev/CI tools (govulncheck, golangci-lint)
 	@echo "🔧 installing tools (optional locally)"
 	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.1
-
+	@go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VER)
 clean: ## Remove generated artifacts
 	@rm -f $(COVERPROFILE) coverage.html
 
@@ -67,5 +72,5 @@ help: ## Show help
 $(COVERPROFILE):
 	@echo "No $(COVERPROFILE) found; run 'make test' first." >&2; exit 1
 
-.PHONY: test coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean
+.PHONY: release coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean
 .DEFAULT_GOAL := help

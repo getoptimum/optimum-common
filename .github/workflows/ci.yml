@@ -1,10 +1,8 @@
-# unified CI + Integration
 name: optimum-common CI
 
 env:
-  go-version: "1.24.4"
+  go-version: "1.25.0"
   vuln-version: "v1.1.4"
-  lint-version: "v1.64.7" # kept for reference; action uses explicit version below
   GOPRIVATE: "github.com/getoptimum"
   GITHUB_TOKEN: ${{ secrets.OPT_ACCESS_TOKEN }}
 
@@ -13,12 +11,12 @@ on:
     branches: [ main ]
     tags: [ 'v*' ]   # release tags like v1.2.3
   pull_request:
-    branches: [ '**' ]  # run on PRs to any branch
+    branches: [ '**' ]
 
 permissions:
   contents: read
   pull-requests: read
-  checks: write  # allow linter to annotate diffs
+  checks: write
 
 jobs:
   lint:
@@ -93,3 +91,25 @@ jobs:
         run: |
           export PATH="$(go env GOPATH)/bin:$PATH"
           make vulcheck
+
+  release:
+    name: goreleaser
+    needs: [lint, tests, vulncheck]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.go-version }}
+          cache: true
+      - name: Configure git for private modules
+        run: |
+          git config --global url."https://${{ secrets.OPT_ACCESS_TOKEN }}:@github.com/".insteadOf "https://github.com/"
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          version: v2.12.0        # optional pin
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.OPT_ACCESS_TOKEN }}
