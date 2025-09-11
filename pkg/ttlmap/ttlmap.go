@@ -15,7 +15,7 @@ type item[V any] struct {
 // Expired items are removed during cleanup or upon access
 type TTLMap[K comparable, V any] struct {
 	mu     sync.RWMutex
-	m      map[K]*item[V]
+	m      map[K]*item[V] // TODO: decide if calling by pointer is necessary
 	maxTTL time.Duration
 
 	// goroutine lifecycle
@@ -37,22 +37,30 @@ func NewTTLMapWithContext[K comparable, V any](ctx context.Context, maxTTL, clea
 		maxTTL: maxTTL,
 		stopCh: make(chan struct{}),
 	}
+
 	ticker := time.NewTicker(cleanupInterval)
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
 		defer ticker.Stop()
-		for now := range ticker.C {
-			m.mu.Lock()
-			for k, v := range m.m {
-				if now.After(v.expiryTime) {
-					delete(m.m, k)
+		for {
+			select {
+			case now := <-ticker.C:
+				m.mu.Lock()
+				for k, v := range m.m {
+					if now.After(v.expiryTime) {
+						delete(m.m, k)
+					}
 				}
+				m.mu.Unlock()
+
+			case <-m.stopCh:
+				return
+			case <-ctx.Done():
+				return
 			}
-			m.mu.Unlock()
 		}
 	}()
-
 	return m
 }
 
@@ -109,12 +117,16 @@ func (m *TTLMap[K, V]) Get(k K) (val V, ok bool) {
 
 // GetAndRefresh returns value associated with the given key and refreshes its expiry time
 // If key does not exist, zero_value and false are returned
+// Respects expiry time
 func (m *TTLMap[K, V]) GetAndRefresh(k K) (val V, ok bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	it, ok := m.m[k]
-	if !ok {
+	if !ok || time.Now().After(it.expiryTime) {
+		if ok {
+			delete(m.m, k)
+		}
 		return val, false
 	}
 	it.expiryTime = time.Now().Add(m.maxTTL)
