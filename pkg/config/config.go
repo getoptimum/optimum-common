@@ -1,0 +1,173 @@
+package config
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
+
+	"gopkg.in/yaml.v3"
+)
+
+type loader struct {
+	fs        *flag.FlagSet
+	path      string
+	envPrefix string
+}
+
+type Option func(*loader)
+
+func WithFlagSet(fs *flag.FlagSet) Option {
+	return func(l *loader) { l.fs = fs }
+}
+
+func WithYAML(path string) Option {
+	return func(l *loader) { l.path = path }
+}
+
+func WithEnvPrefix(p string) Option {
+	return func(l *loader) { l.envPrefix = p }
+}
+
+func Load(cfg any, opts ...Option) error {
+	l := loader{fs: flag.CommandLine}
+	for _, o := range opts {
+		o(&l)
+	}
+
+	if l.path != "" {
+		b, err := os.ReadFile(l.path)
+		if err == nil {
+			if err := yaml.Unmarshal(b, cfg); err != nil {
+				return err
+			}
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+
+	v := reflect.ValueOf(cfg)
+	if v.Kind() != reflect.Pointer || v.IsNil() {
+		return fmt.Errorf("cfg must be pointer")
+	}
+	v = v.Elem()
+
+	fields := collectFields(v, nil, l.envPrefix)
+	for _, fi := range fields {
+		if val, ok := os.LookupEnv(fi.envName); ok {
+			if err := setValue(fi.value, val); err != nil {
+				return err
+			}
+		}
+	}
+
+	if !l.fs.Parsed() {
+		if err := l.fs.Parse(os.Args[1:]); err != nil {
+			return err
+		}
+	}
+	flagMap := make(map[string]reflect.Value)
+	for _, fi := range fields {
+		flagMap[fi.flagName] = fi.value
+	}
+	l.fs.Visit(func(f *flag.Flag) {
+		if v, ok := flagMap[f.Name]; ok {
+			_ = setValue(v, f.Value.String())
+		}
+	})
+
+	return nil
+}
+
+type fieldInfo struct {
+	value    reflect.Value
+	flagName string
+	envName  string
+}
+
+func collectFields(v reflect.Value, path []string, envPrefix string) []fieldInfo {
+	t := v.Type()
+	var out []fieldInfo
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		fv := v.Field(i)
+		if !fv.CanSet() {
+			continue
+		}
+		name := f.Name
+		newPath := append(append([]string(nil), path...), name)
+		if fv.Kind() == reflect.Struct && f.Type != reflect.TypeOf(time.Time{}) {
+			out = append(out, collectFields(fv, newPath, envPrefix)...)
+			continue
+		}
+		envName := f.Tag.Get("env")
+		if envName == "" {
+			var parts []string
+			for _, p := range newPath {
+				parts = append(parts, strings.ToUpper(p))
+			}
+			envName = strings.Join(parts, "_")
+		}
+		if envPrefix != "" {
+			envName = envPrefix + "_" + envName
+		}
+		flagName := f.Tag.Get("flag")
+		if flagName == "" {
+			var parts []string
+			for _, p := range newPath {
+				parts = append(parts, strings.ToLower(p))
+			}
+			flagName = strings.Join(parts, "-")
+		}
+		out = append(out, fieldInfo{value: fv, flagName: flagName, envName: envName})
+	}
+	return out
+}
+
+func setValue(v reflect.Value, s string) error {
+	if !v.CanSet() {
+		return nil
+	}
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString(s)
+	case reflect.Bool:
+		b, err := strconv.ParseBool(s)
+		if err != nil {
+			return err
+		}
+		v.SetBool(b)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if v.Type() == reflect.TypeOf(time.Duration(0)) {
+			d, err := time.ParseDuration(s)
+			if err != nil {
+				return err
+			}
+			v.SetInt(int64(d))
+			return nil
+		}
+		i, err := strconv.ParseInt(s, 10, v.Type().Bits())
+		if err != nil {
+			return err
+		}
+		v.SetInt(i)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		u, err := strconv.ParseUint(s, 10, v.Type().Bits())
+		if err != nil {
+			return err
+		}
+		v.SetUint(u)
+	case reflect.Float32, reflect.Float64:
+		f, err := strconv.ParseFloat(s, v.Type().Bits())
+		if err != nil {
+			return err
+		}
+		v.SetFloat(f)
+	default:
+		return fmt.Errorf("unsupported kind %s", v.Kind())
+	}
+	return nil
+}
