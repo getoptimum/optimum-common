@@ -20,10 +20,10 @@ func TestCleanupFolders_CreateAndClean(t *testing.T) {
 	b := filepath.Join(tmp, "b")
 
 	// pre-populate with files and subdirs (nested including)
-	require.NoError(t, os.MkdirAll(filepath.Join(a, "sub"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(a, "keep.txt"), []byte("keep"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(a, "kill.txt"), []byte("kill"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(a, "sub", "nested.txt"), []byte("nested"), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(a, "sub"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(a, "keep.txt"), []byte("keep"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(a, "kill.txt"), []byte("kill"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(a, "sub", "nested.txt"), []byte("nested"), 0o600))
 	// b does not exist yet; CleanupFolders should create it
 
 	// Ignore keep.txt only; subdir and kill.txt should be removed
@@ -49,11 +49,11 @@ func TestCleanupFolders_CreateAndClean(t *testing.T) {
 func TestCleanupFolders_IgnoreDoesNotRemoveDirectoriesWithSameNameAsIgnoredFile(t *testing.T) {
 	tmp := prepareDir(t)
 	dir := filepath.Join(tmp, "dir")
-	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.MkdirAll(dir, 0o750))
 	// create a directory that has the same name as an ignored "file" entry
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, "keepme"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "keepme"), 0o750))
 	// create another file to be removed
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "deleteme"), []byte("x"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "deleteme"), []byte("x"), 0o600))
 
 	// only exact entry name is ignored; the directory named "keepme" shall not be removed
 	require.NoError(t, utils.CleanupFolders([]string{dir}, "keepme"))
@@ -80,6 +80,7 @@ func TestAtomicallySaveToFile_PrefixChecksumFormat(t *testing.T) {
 	require.NoError(t, utils.AtomicallySaveToFile(target, payload))
 
 	// read raw file and verify first 8 bytes == crc64(remaining)
+	// #nosec G304 -- target is generated in a safe test TempDir; not user-controlled
 	raw, err := os.ReadFile(target)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(raw), 8)
@@ -96,6 +97,7 @@ func TestAtomicallySaveToFile_EmptyPayload(t *testing.T) {
 	require.NoError(t, utils.AtomicallySaveToFile(target, nil))
 
 	// should still be 8 bytes (crc of empty slice)
+	// #nosec G304 -- target is generated in a safe test TempDir; not user-controlled
 	raw, err := os.ReadFile(target)
 	require.NoError(t, err)
 	require.Equal(t, 8, len(raw))
@@ -110,13 +112,13 @@ func TestAtomicallySaveToFile_PreserveExistingMode(t *testing.T) {
 	target := filepath.Join(tmp, "mode.bin")
 
 	// create file with a specific mode, then save over it
-	require.NoError(t, os.WriteFile(target, []byte("tmp"), 0o640))
-	require.NoError(t, os.Chmod(target, 0o640))
+	require.NoError(t, os.WriteFile(target, []byte("tmp"), 0o600))
+	require.NoError(t, os.Chmod(target, 0o600))
 
 	require.NoError(t, utils.AtomicallySaveToFile(target, []byte("content")))
 	st, err := os.Stat(target)
 	require.NoError(t, err)
-	require.Equal(t, os.FileMode(0o640), st.Mode().Perm())
+	require.Equal(t, os.FileMode(0o600), st.Mode().Perm())
 }
 
 func TestLoadFromFile_PathIsCleaned(t *testing.T) {
