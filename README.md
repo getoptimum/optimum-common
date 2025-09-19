@@ -1,14 +1,31 @@
 # optimum-common
 This library will serve as the **shared SDK** for Optimum projects.
 
-Main goal:
-Create a reusable internal SDK to standardize configuration loading, logging, and common utilities across all Optimum projects.
+
+## Versioning and Releases
+
+To import a specific version of this module, use Go modules with semantic version tags.
+Releases are created from git tags.
+Create and push a tag like `v1.1.1` and run GoReleaser:
+
+```
+git tag v1.2.3
+git push origin v1.2.3
+make release
+```
+NOTE: CI will run GoReleaser on tagged commits and publish the release automatically.
+
+Use the Makefile helpers to manage release versions:
+
+- `make tag-rc` creates and pushes the next `vX.Y.Z-rcN` git tag based on existing tags.
+- `make release` builds and publishes artifacts for the current tag using GoReleaser.
+
 ## Optimum Common — Progress
 - [x] Inject `Version` and `CommitHash` from BuildInfo not -ldflags
     note: embedding version info in requests, version cheching handler
-- [ ] Common utility functions (IP detection, hashing, TTLMap, file helpers)
-- [ ] Config loader that supports flags, environment variables, and YAML with override priority
-- [ ] Standard `AppLogger` interface with structured fields
+- [X] Common utility functions (IP detection, hashing, TTLMap, file helpers)
+- [X] Config loader that supports flags, environment variables, and YAML with override priority
+- [X] Standard `AppLogger` interface with structured fields
 - [ ] Prepare example usage and integration guide
 
 ---

@@ -1,4 +1,4 @@
-package netutil_test
+package utils_test
 
 import (
 	"net"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/getoptimum/optimum-common/pkg/netutil"
+	"github.com/getoptimum/optimum-common/pkg/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +28,7 @@ func TestGetOutboundP2PAddr(t *testing.T) {
 
 	t.Setenv("REMOTE_HOST", strings.TrimPrefix(srv.URL, "http://"))
 	remoteAddr := strings.TrimPrefix(srv.URL, "http://")
-	addr, err := netutil.GetOutboundP2PAddr(3030, remoteAddr)
+	addr, err := utils.GetOutboundP2PAddr(3030, remoteAddr)
 	require.NoError(t, err)
 	require.Equal(t, "/ip4/5.6.7.8/tcp/3030", addr)
 	require.True(t, called, "expected handler to be called")
@@ -50,7 +50,7 @@ func TestGetIPWithExternal(t *testing.T) {
 	// Pass the test server address directly (without http:// prefix)
 	remoteAddr := strings.TrimPrefix(srv.URL, "http://")
 
-	ip, err := netutil.GetIPWithExternal(remoteAddr)
+	ip, err := utils.GetIPWithExternal(remoteAddr)
 	require.NoError(t, err)
 	require.Equal(t, "1.2.3.4", ip)
 	require.True(t, called, "expected handler to be called")
@@ -58,26 +58,26 @@ func TestGetIPWithExternal(t *testing.T) {
 
 func TestGetPrivateIPs_Unit(t *testing.T) {
 	defer func() {
-		netutil.GetInterfaces = net.Interfaces
-		netutil.ListAddrs = func(iface net.Interface) ([]net.Addr, error) {
+		utils.GetInterfaces = net.Interfaces
+		utils.ListAddrs = func(iface net.Interface) ([]net.Addr, error) {
 			return iface.Addrs()
 		}
 	}()
 
 	// fake interface list (only 1 for testing)
-	netutil.GetInterfaces = func() ([]net.Interface, error) {
+	utils.GetInterfaces = func() ([]net.Interface, error) {
 		return []net.Interface{{Index: 1, Name: "mock0"}}, nil
 	}
 
 	// fake addresses for that interface
 	// in case real net.Interfaces is called mock address will be appended for every interface
-	netutil.ListAddrs = func(iface net.Interface) ([]net.Addr, error) {
+	utils.ListAddrs = func(iface net.Interface) ([]net.Addr, error) {
 		return []net.Addr{
 			&net.IPNet{IP: net.ParseIP("10.1.2.3"), Mask: net.CIDRMask(32, 32)},
 		}, nil
 	}
 
-	ips, err := netutil.GetPrivateIPs()
+	ips, err := utils.GetPrivateIPs()
 	require.NoError(t, err)
 	require.Equal(t, []string{"10.1.2.3"}, ips)
 }
@@ -124,7 +124,7 @@ func systemCandidateIPs(t *testing.T) []net.IP {
 }
 
 func TestExternalIP_ReturnsValidIP(t *testing.T) {
-	ipStr, err := netutil.ExternalIP()
+	ipStr, err := utils.ExternalIP()
 	require.NoError(t, err, "ExternalIP() failed")
 	require.NotEmpty(t, ipStr, "ExternalIP() returned empty string")
 	ip := net.ParseIP(ipStr)
@@ -135,7 +135,7 @@ func TestExternalIP_ReturnsValidIP(t *testing.T) {
 }
 
 func TestExternalIP_RespectsSystemInterfaces(t *testing.T) {
-	gotStr, err := netutil.ExternalIP()
+	gotStr, err := utils.ExternalIP()
 	require.NoError(t, err, "ExternalIP() should not return error")
 
 	require.NotEmpty(t, gotStr, "ExternalIP() must not return empty string")
@@ -170,7 +170,7 @@ func TestExternalIP_RespectsSystemInterfaces(t *testing.T) {
 
 func BenchmarkExternalIP(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, err := netutil.ExternalIP()
+		_, err := utils.ExternalIP()
 		require.NoError(b, err, "ExternalIP() should not return an error")
 	}
 }
