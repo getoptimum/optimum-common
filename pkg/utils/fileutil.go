@@ -35,21 +35,6 @@ func CleanupFolders(dirs []string, ignoreFiles ...string) error {
 	return nil
 }
 
-// GetTracesDir returns path to store trace data for given protocol
-func GetTracesDir(dataDir string, protocol fmt.Stringer) string {
-	return filepath.Join(dataDir, "optimum", protocol.String(), "traces")
-}
-
-// GetPProfDir returns path to store pprof profiles for given protocol
-func GetPProfDir(dataDir string, protocol fmt.Stringer) string {
-	return filepath.Join(dataDir, "optimum", protocol.String(), "pprof")
-}
-
-// GetAuthUsageDir returns path to store auth usage data
-func GetAuthUsageDir(dataDir string) string {
-	return filepath.Join(dataDir, "optimum", "auth")
-}
-
 // AtomicallySaveToFile saves given data to the given file atomically
 // Appends a CRC64 checksum to the data before writing
 // File is either fully updated or not updated at all -> done by writing to a temporary file and renaming after
@@ -143,7 +128,7 @@ func LoadFromFile(path string) (data []byte, err error) {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
-    const checksumSize = 8
+	const checksumSize = 8
 	if len(data) < checksumSize {
 		return nil, errors.New("file is too short")
 	}
