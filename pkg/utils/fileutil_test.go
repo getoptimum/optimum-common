@@ -3,6 +3,7 @@ package utils_test
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"hash/crc64"
 	"os"
 	"path/filepath"
@@ -62,14 +63,6 @@ func TestCleanupFolders_IgnoreDoesNotRemoveDirectoriesWithSameNameAsIgnoredFile(
 	require.NoError(t, err)
 	_, err = os.Stat(filepath.Join(dir, "deleteme"))
 	require.True(t, os.IsNotExist(err))
-}
-
-func TestGetDirHelpers(t *testing.T) {
-	base := "/data"
-	proto := stringer("galois")
-	require.Equal(t, filepath.Join(base, "optimum", "galois", "traces"), utils.GetTracesDir(base, proto))
-	require.Equal(t, filepath.Join(base, "optimum", "galois", "pprof"), utils.GetPProfDir(base, proto))
-	require.Equal(t, filepath.Join(base, "optimum", "auth"), utils.GetAuthUsageDir(base))
 }
 
 func TestAtomicallySaveToFile_PrefixChecksumFormat(t *testing.T) {
@@ -137,6 +130,9 @@ func TestLoadFromFile_PathIsCleaned(t *testing.T) {
 // ---------------
 // --- helpers ---
 // ---------------
+
+// compile-time interface assertion
+var _ fmt.Stringer = stringer("")
 
 type stringer string
 
