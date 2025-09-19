@@ -45,7 +45,9 @@ func AtomicallySaveToFile(fileName string, data []byte) (err error) {
 	}
 	sum := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sum, checkSum.Sum64())
-	result := append(sum, data...)
+	result := make([]byte, 8+len(data))
+	copy(result[:8], sum)
+	copy(result[8:], data)
 
 	dir, base := filepath.Split(fileName)
 	if dir == "" {
@@ -95,6 +97,7 @@ func AtomicallySaveToFile(fileName string, data []byte) (err error) {
 	}
 
 	// fsync directory to make rename durable
+	// #nosec G304 -- safe: dir is derived from controlled file path
 	dirFD, err := os.Open(dir)
 	if err == nil {
 		if syncErr := dirFD.Sync(); syncErr != nil {
