@@ -43,3 +43,77 @@ func TestLoadPriority(t *testing.T) {
 	require.Equal(t, 9090, cfg.Port)
 	require.True(t, cfg.Debug)
 }
+
+func TestEnvPrefix(t *testing.T) {
+	require.NoError(t, os.Setenv("APP_HOST", "prefixedhost"))
+	require.NoError(t, os.Setenv("APP_PORT", "4242"))
+	require.NoError(t, os.Setenv("APP_DEBUG", "true"))
+	t.Cleanup(func() {
+		require.NoError(t, os.Unsetenv("APP_HOST"))
+		require.NoError(t, os.Unsetenv("APP_PORT"))
+		require.NoError(t, os.Unsetenv("APP_DEBUG"))
+	})
+
+	cfg := testConfig{}
+	require.NoError(t, config.Load(&cfg, config.WithEnvPrefix("APP")))
+
+	require.Equal(t, "prefixedhost", cfg.Host)
+	require.Equal(t, 4242, cfg.Port)
+	require.True(t, cfg.Debug)
+}
+
+func TestNestedStruct(t *testing.T) {
+	type NestedConfig struct {
+		LogLevel string `env:"LOG_LEVEL" flag:"log-level"`
+	}
+	type ComplexConfig struct {
+		AppName string `env:"APP_NAME" flag:"app-name"`
+		Nested  NestedConfig
+	}
+
+	require.NoError(t, os.Setenv("APP_NAME", "myapp"))
+	require.NoError(t, os.Setenv("LOG_LEVEL", "debug"))
+	t.Cleanup(func() {
+		require.NoError(t, os.Unsetenv("APP_NAME"))
+		require.NoError(t, os.Unsetenv("LOG_LEVEL"))
+	})
+
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.String("app-name", "", "")
+	fs.String("log-level", "", "")
+	os.Args = []string{"cmd", "-log-level=info"}
+
+	cfg := ComplexConfig{}
+	require.NoError(t, config.Load(&cfg, config.WithFlagSet(fs)))
+
+	require.Equal(t, "myapp", cfg.AppName)
+	require.Equal(t, "info", cfg.Nested.LogLevel) // Flag overrides env
+}
+
+func TestInvalidTypeConversion(t *testing.T) {
+	require.NoError(t, os.Setenv("PORT", "notanumber"))
+	t.Cleanup(func() {
+		require.NoError(t, os.Unsetenv("PORT"))
+	})
+
+	cfg := testConfig{}
+	err := config.Load(&cfg)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid syntax")
+}
+
+func TestUnsupportedType(t *testing.T) {
+	type UnsupportedConfig struct {
+		Data []string `env:"DATA"` // slices not supported
+	}
+
+	require.NoError(t, os.Setenv("DATA", "foo,bar"))
+	t.Cleanup(func() {
+		require.NoError(t, os.Unsetenv("DATA"))
+	})
+
+	cfg := UnsupportedConfig{}
+	err := config.Load(&cfg)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unsupported kind")
+}
