@@ -50,7 +50,7 @@ func AtomicallySaveToFile(fileName string, data []byte) (err error) {
 	binary.LittleEndian.PutUint64(sum, checkSum.Sum64())
 	result := make([]byte, checksumSize+len(data))
 	copy(result[:checksumSize], sum)
-	copy(result[:], data)
+	copy(result[checksumSize:], data)
 
 	dir, base := filepath.Split(fileName)
 	if dir == "" {
