@@ -1,8 +1,9 @@
 GO := go
-COVERAGE_THRESHOLD := 70
+COVERAGE_THRESHOLD := 80
 COVERPROFILE    := coverage.out
-VULNCHECK_VER ?= v1.1.4
-VULNCHECK_RUN ?= $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
+VULNCHECK_VER := v1.1.4
+VULNCHECK_RUN := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
+GORELEASER_VER := v2.12.0
 all: check ## run all checks
 
 check: tidy fmt vet test coverage lint vulcheck ## Run tests, coverage gate, lints, vuln check
@@ -51,12 +52,16 @@ vulcheck: ## Run govulncheck for vulnerabilities
 	@$(GO) env GOPRIVATE
 	@$(VULNCHECK_RUN) ./...
 
+release: ## Create a release with GoReleaser (requires tag)
+	@echo "🏷️ running goreleaser..."
+	@goreleaser release --clean
+
 # NOTE: run before running vulcheck/lint commands locally
 tools: ## Install dev/CI tools (govulncheck, golangci-lint)
 	@echo "🔧 installing tools (optional locally)"
 	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.1
-
+	@go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VER)
 clean: ## Remove generated artifacts
 	@rm -f $(COVERPROFILE) coverage.html
 
@@ -67,5 +72,22 @@ help: ## Show help
 $(COVERPROFILE):
 	@echo "No $(COVERPROFILE) found; run 'make test' first." >&2; exit 1
 
-.PHONY: test coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean
+tag-rc: ## Tag new release candidate
+	@echo "🔖 Calculating next RC tag..."
+	@set -euo pipefail; \
+	latest=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$$' | head -n1 || true); \
+	if [ -z "$$latest" ]; then \
+		base=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$' | head -n1 || echo "v0.0.1"); \
+		next_tag="$$base-rc1"; \
+	else \
+		base=$${latest%-rc*}; \
+		rc=$${latest\#\#*-rc}; \
+		next_rc=$$((rc+1)); \
+		next_tag="$$base-rc$$next_rc"; \
+	fi; \
+	echo "✅ Tagging $$next_tag"; \
+	git tag -a "$$next_tag" -m "Release candidate $$next_tag"; \
+	git push origin "$$next_tag"
+
+.PHONY: release coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean tag-rc
 .DEFAULT_GOAL := help
