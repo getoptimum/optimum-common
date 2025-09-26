@@ -62,6 +62,7 @@ func NewAppSLogger(appHash string, mode LogMode, fields ...Field) AppLogger {
 }
 
 // TODO: appHash should be removed
+
 // InitLogger initializes a multi-output JSON logger with slog.
 func InitLogger(writers []io.Writer, appHash string, mode LogMode, fields ...Field) AppLogger {
 	logs := make([]*slog.Logger, 0, len(writers))
@@ -86,8 +87,10 @@ func InitLogger(writers []io.Writer, appHash string, mode LogMode, fields ...Fie
 		for _, f := range fields {
 			attrs = append(attrs, f.slog())
 		}
-		attrs = append(attrs, slog.String("commit", version.GetCommitHash()))
-		attrs = append(attrs, slog.String("version", version.GetVersion()))
+		attrs = append(attrs,
+			slog.String("commit", version.GetCommitHash()),
+			slog.String("version", version.GetVersion()),
+		)
 
 		lw := slog.New(handler).With(attrs...)
 		logs = append(logs, lw)
