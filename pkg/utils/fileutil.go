@@ -12,6 +12,9 @@ import (
 	"slices"
 )
 
+// checksumSize is the length (in bytes) of the CRC64 checksum header
+const checksumSize = 8
+
 // CleanupFolders ensures that each directory in dirs exists and removes all entries except in ignoreFiles
 func CleanupFolders(dirs []string, ignoreFiles ...string) error {
 	for _, dir := range dirs {
@@ -43,11 +46,11 @@ func AtomicallySaveToFile(fileName string, data []byte) (err error) {
 	if _, err = checkSum.Write(data); err != nil {
 		return fmt.Errorf("cannot calculate checksum: %w", err)
 	}
-	sum := make([]byte, 8)
+	sum := make([]byte, checksumSize)
 	binary.LittleEndian.PutUint64(sum, checkSum.Sum64())
-	result := make([]byte, 8+len(data))
-	copy(result[:8], sum)
-	copy(result[8:], data)
+	result := make([]byte, checksumSize+len(data))
+	copy(result[:checksumSize], sum)
+	copy(result[:], data)
 
 	dir, base := filepath.Split(fileName)
 	if dir == "" {
@@ -58,16 +61,9 @@ func AtomicallySaveToFile(fileName string, data []byte) (err error) {
 		return fmt.Errorf("cannot create temp file: %w", err)
 	}
 	// always try to close, even if we return early
-	defer func() { _ = f.Close() }()
+	defer f.Close() //nolint:errcheck
 
 	tempPath := f.Name()
-	// remove temp file unless we successfully rename
-	committed := false
-	defer func() {
-		if !committed {
-			_ = os.Remove(tempPath)
-		}
-	}()
 
 	// write + flush
 	if _, err = io.Copy(f, bytes.NewReader(result)); err != nil {
@@ -93,6 +89,7 @@ func AtomicallySaveToFile(fileName string, data []byte) (err error) {
 
 	// atomic replace
 	if err = os.Rename(tempPath, fileName); err != nil {
+		_ = os.Remove(tempPath) // clean up temp file immediately; no flag logic
 		return fmt.Errorf("cannot replace %q with tempfile %q: %w", fileName, tempPath, err)
 	}
 
@@ -108,7 +105,6 @@ func AtomicallySaveToFile(fileName string, data []byte) (err error) {
 		_ = dirFD.Close()
 	} // if opening dir fails fsync is skipped, may be logged
 
-	committed = true
 	return nil
 }
 
@@ -131,14 +127,13 @@ func LoadFromFile(path string) (data []byte, err error) {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
-	const checksumSize = 8
 	if len(data) < checksumSize {
 		return nil, errors.New("file is too short")
 	}
 	fileCrc := binary.LittleEndian.Uint64(data[:checksumSize])
-	dataCrc := crc64.Checksum(data[8:], crc64.MakeTable(crc64.ISO))
+	dataCrc := crc64.Checksum(data[checksumSize:], crc64.MakeTable(crc64.ISO))
 	if fileCrc != dataCrc {
 		return nil, fmt.Errorf("checksum mismatch: %x != %x", fileCrc, dataCrc)
 	}
-	return data[8:], nil
+	return data[checksumSize:], nil
 }

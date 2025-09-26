@@ -10,12 +10,11 @@ import (
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/utils"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCleanupFolders_CreateAndClean(t *testing.T) {
-	tmp := prepareDir(t)
+	tmp := t.TempDir()
 	// target dirs
 	a := filepath.Join(tmp, "a")
 	b := filepath.Join(tmp, "b")
@@ -48,7 +47,7 @@ func TestCleanupFolders_CreateAndClean(t *testing.T) {
 }
 
 func TestCleanupFolders_IgnoreDoesNotRemoveDirectoriesWithSameNameAsIgnoredFile(t *testing.T) {
-	tmp := prepareDir(t)
+	tmp := t.TempDir()
 	dir := filepath.Join(tmp, "dir")
 	require.NoError(t, os.MkdirAll(dir, 0o750))
 	// create a directory that has the same name as an ignored "file" entry
@@ -66,7 +65,7 @@ func TestCleanupFolders_IgnoreDoesNotRemoveDirectoriesWithSameNameAsIgnoredFile(
 }
 
 func TestAtomicallySaveToFile_PrefixChecksumFormat(t *testing.T) {
-	tmp := prepareDir(t)
+	tmp := t.TempDir()
 	target := filepath.Join(tmp, "blob.bin")
 	payload := []byte("payload-data-123")
 
@@ -85,7 +84,7 @@ func TestAtomicallySaveToFile_PrefixChecksumFormat(t *testing.T) {
 }
 
 func TestAtomicallySaveToFile_EmptyPayload(t *testing.T) {
-	tmp := prepareDir(t)
+	tmp := t.TempDir()
 	target := filepath.Join(tmp, "empty.bin")
 	require.NoError(t, utils.AtomicallySaveToFile(target, nil))
 
@@ -101,7 +100,7 @@ func TestAtomicallySaveToFile_EmptyPayload(t *testing.T) {
 }
 
 func TestAtomicallySaveToFile_PreserveExistingMode(t *testing.T) {
-	tmp := prepareDir(t)
+	tmp := t.TempDir()
 	target := filepath.Join(tmp, "mode.bin")
 
 	// create file with a specific mode, then save over it
@@ -115,7 +114,7 @@ func TestAtomicallySaveToFile_PreserveExistingMode(t *testing.T) {
 }
 
 func TestLoadFromFile_PathIsCleaned(t *testing.T) {
-	tmp := prepareDir(t)
+	tmp := t.TempDir()
 	target := filepath.Join(tmp, "data.bin")
 	payload := []byte("abc")
 	require.NoError(t, utils.AtomicallySaveToFile(target, payload))
@@ -137,11 +136,3 @@ var _ fmt.Stringer = stringer("")
 type stringer string
 
 func (s stringer) String() string { return string(s) }
-
-func prepareDir(t *testing.T) string {
-	t.Helper()
-	tmpDir, err := os.MkdirTemp("", uuid.NewString())
-	require.NoError(t, err, "failed to create temp directory")
-	t.Cleanup(func() { require.NoError(t, os.RemoveAll(tmpDir)) })
-	return tmpDir
-}
