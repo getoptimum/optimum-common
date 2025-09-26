@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/logger"
+	"github.com/getoptimum/optimum-common/pkg/utils"
 	"github.com/getoptimum/optimum-common/pkg/version"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -127,7 +128,9 @@ func TestHelperInvokeFatal(t *testing.T) {
 
 func Test_SLogger_purelog_with_stdout(t *testing.T) {
 	// given
-	appLog := logger.NewTestLogger(t)
+	appLog := utils.NewTestLogger(t, func(w []io.Writer) logger.AppLogger {
+		return logger.InitLogger(w, "test", logger.Debug)
+	})
 	appLog.Info("test")
 	appLog.Error("source log", fmt.Errorf("123"))
 
@@ -145,14 +148,18 @@ func Test_SLogger_purelog_with_stdout(t *testing.T) {
 		),
 	)
 	t.Run("pure check", func(t *testing.T) {
-		l := logger.NewTestLogger(t)
+		l := utils.NewTestLogger(t, func(w []io.Writer) logger.AppLogger {
+			return logger.InitLogger(w, "test", logger.Debug)
+		})
 		l.Error("source log", fmt.Errorf("123"))
 	})
 }
 
 func Test_DefaultLogger(t *testing.T) {
 	// given
-	appLog := logger.NewTestLogger(t)
+	appLog := utils.NewTestLogger(t, func(w []io.Writer) logger.AppLogger {
+		return logger.InitLogger(w, "test", logger.Debug)
+	})
 	appLog.Info("test")
 	appLog.Error("source log", fmt.Errorf("123"))
 
@@ -185,8 +192,9 @@ func Test_DefaultLogger(t *testing.T) {
 
 func Test_SLogger_multiply_writers(t *testing.T) {
 	// given
-	appLog := logger.NewTestLogger(t)
-
+	appLog := utils.NewTestLogger(t, func(w []io.Writer) logger.AppLogger {
+		return logger.InitLogger(w, "test", logger.Debug)
+	})
 	// when, then
 	concurrentlyLogIt(appLog)
 
