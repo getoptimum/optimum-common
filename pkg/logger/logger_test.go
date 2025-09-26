@@ -4,13 +4,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/logger"
+	"github.com/getoptimum/optimum-common/pkg/version"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,7 +47,7 @@ func getNumber(m map[string]any, key string) float64 {
 
 func TestInitLogger_JSONShapeAndMappings(t *testing.T) {
 	var buf bytes.Buffer
-
+	// TODO: after logger refactor appHash argument will be deleted
 	l := logger.InitLogger([]io.Writer{&buf}, "abcdef123456", logger.Debug,
 		logger.WithString("svc", "api"),
 	)
@@ -58,7 +62,7 @@ func TestInitLogger_JSONShapeAndMappings(t *testing.T) {
 
 	require.Equal(t, "hello world", r["short_message"])
 	require.Equal(t, "info", r["_level"])
-	require.Equal(t, "abcdef", r["version"])
+	require.Equal(t, version.GetVersion(), r["version"])
 	require.Equal(t, "api", r["svc"])
 	require.EqualValues(t, 3, getNumber(r, "n"))
 	require.EqualValues(t, 5, getNumber(r, "level"))
@@ -119,4 +123,106 @@ func TestHelperInvokeFatal(t *testing.T) {
 	var buf bytes.Buffer
 	l := logger.InitLogger([]io.Writer{&buf, os.Stdout}, "abcdef", logger.Debug)
 	l.Fatal("boom", errors.New("fatal")) // os.Exit(1)
+}
+
+func Test_SLogger_purelog_with_stdout(t *testing.T) {
+	// given
+	appLog := logger.NewTestLogger(t)
+	appLog.Info("test")
+	appLog.Error("source log", fmt.Errorf("123"))
+
+	// when, then
+	concurrentlyLogIt(
+		appLog.With(
+			logger.WithString("a", "b"),
+			logger.WithString("c", "d"),
+			logger.WithAny("e", "f"),
+			logger.WithAny("e2", map[string]string{
+				"k1": "v1",
+				"k2": "v2",
+				"k3": "v3",
+			}),
+		),
+	)
+	t.Run("pure check", func(t *testing.T) {
+		l := logger.NewTestLogger(t)
+		l.Error("source log", fmt.Errorf("123"))
+	})
+}
+
+func Test_DefaultLogger(t *testing.T) {
+	// given
+	appLog := logger.NewTestLogger(t)
+	appLog.Info("test")
+	appLog.Error("source log", fmt.Errorf("123"))
+
+	// when, then
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			concurrentlyLogIt(
+				appLog.With(
+					logger.WithString("a", "b"),
+					logger.WithString("c", "d"),
+				),
+			)
+		}()
+		go func() {
+			defer wg.Done()
+			defaultAppLog := logger.NewAppSLogger("test_2", "debug")
+			concurrentlyLogIt(
+				defaultAppLog.With(
+					logger.WithString("a", "b"),
+					logger.WithString("c", "d"),
+				),
+			)
+		}()
+	}
+	wg.Wait()
+}
+
+func Test_SLogger_multiply_writers(t *testing.T) {
+	// given
+	appLog := logger.NewTestLogger(t)
+
+	// when, then
+	concurrentlyLogIt(appLog)
+
+	t.Run("pure check", func(t *testing.T) {
+		l := logger.NewAppSLogger(
+			"test_2",
+			"debug",
+			logger.WithString("additional", "value"),
+			logger.WithString("additional2", "value"),
+		)
+		l.Info("test")
+	})
+}
+
+func concurrentlyLogIt(appLog logger.AppLogger) {
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 10; j++ {
+				appLog.Info("message")
+				appLog.Error("message", fmt.Errorf("error"))
+				appLog.Error("message", fmt.Errorf("error"), logger.WithString("key", uuid.NewString()))
+			}
+		}()
+	}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			customLogger1 := appLog.With(logger.WithString("keyA", uuid.NewString()))
+			customLogger1.Info("customLogger message")
+			customLogger1.Error("customLogger message", fmt.Errorf("customLogger error"))
+			customLogger1.Error("customLogger message", fmt.Errorf("customLogger error"), logger.WithString("keyB", uuid.NewString()))
+		}()
+	}
+	wg.Wait()
 }
