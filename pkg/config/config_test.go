@@ -22,13 +22,8 @@ func TestLoadPriority(t *testing.T) {
 	yamlData := []byte("host: yamlhost\nport: 8080\ndebug: false\n")
 	require.NoError(t, os.WriteFile(p, yamlData, 0o600))
 
-	require.NoError(t, os.Setenv("HOST", "envhost"))
-	require.NoError(t, os.Setenv("PORT", "9090"))
-	// ensure env cleanup
-	t.Cleanup(func() {
-		require.NoError(t, os.Unsetenv("HOST"))
-		require.NoError(t, os.Unsetenv("PORT"))
-	})
+	t.Setenv("HOST", "envhost")
+	t.Setenv("PORT", "9090")
 
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fs.String("host", "", "")
@@ -45,14 +40,9 @@ func TestLoadPriority(t *testing.T) {
 }
 
 func TestEnvPrefix(t *testing.T) {
-	require.NoError(t, os.Setenv("APP_HOST", "prefixedhost"))
-	require.NoError(t, os.Setenv("APP_PORT", "4242"))
-	require.NoError(t, os.Setenv("APP_DEBUG", "true"))
-	t.Cleanup(func() {
-		require.NoError(t, os.Unsetenv("APP_HOST"))
-		require.NoError(t, os.Unsetenv("APP_PORT"))
-		require.NoError(t, os.Unsetenv("APP_DEBUG"))
-	})
+	t.Setenv("APP_HOST", "prefixedhost")
+	t.Setenv("APP_PORT", "4242")
+	t.Setenv("APP_DEBUG", "true")
 
 	cfg := testConfig{}
 	require.NoError(t, config.Load(&cfg, config.WithEnvPrefix("APP")))
@@ -71,12 +61,8 @@ func TestNestedStruct(t *testing.T) {
 		Nested  NestedConfig
 	}
 
-	require.NoError(t, os.Setenv("APP_NAME", "myapp"))
-	require.NoError(t, os.Setenv("LOG_LEVEL", "debug"))
-	t.Cleanup(func() {
-		require.NoError(t, os.Unsetenv("APP_NAME"))
-		require.NoError(t, os.Unsetenv("LOG_LEVEL"))
-	})
+	t.Setenv("APP_NAME", "myapp")
+	t.Setenv("LOG_LEVEL", "debug")
 
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fs.String("app-name", "", "")
@@ -91,10 +77,7 @@ func TestNestedStruct(t *testing.T) {
 }
 
 func TestInvalidTypeConversion(t *testing.T) {
-	require.NoError(t, os.Setenv("PORT", "notanumber"))
-	t.Cleanup(func() {
-		require.NoError(t, os.Unsetenv("PORT"))
-	})
+	t.Setenv("PORT", "notanumber")
 
 	cfg := testConfig{}
 	err := config.Load(&cfg)
@@ -107,10 +90,7 @@ func TestUnsupportedType(t *testing.T) {
 		Data []string `env:"DATA"` // slices not supported
 	}
 
-	require.NoError(t, os.Setenv("DATA", "foo,bar"))
-	t.Cleanup(func() {
-		require.NoError(t, os.Unsetenv("DATA"))
-	})
+	t.Setenv("DATA", "foo,bar")
 
 	cfg := UnsupportedConfig{}
 	err := config.Load(&cfg)
