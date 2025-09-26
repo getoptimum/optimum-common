@@ -5,7 +5,7 @@ go 1.24.6
 require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/google/uuid v1.6.0
-	github.com/libp2p/go-libp2p v0.43.0
+	github.com/libp2p/go-libp2p/core v0.43.0-rc2
 	github.com/stretchr/testify v1.10.0
 )
 
@@ -14,6 +14,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/ipfs/go-cid v0.5.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
