@@ -71,16 +71,16 @@ func TestAtomicallySaveToFile_PrefixChecksumFormat(t *testing.T) {
 
 	require.NoError(t, utils.AtomicallySaveToFile(target, payload))
 
-	// read raw file and verify first 8 bytes == crc64(remaining)
+	// read raw file and verify first utils.ChecksumSize bytes == crc64(remaining)
 	// #nosec G304 -- target is generated in a safe test TempDir; not user-controlled
 	raw, err := os.ReadFile(target)
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(raw), 8)
+	require.GreaterOrEqual(t, len(raw), utils.ChecksumSize)
 
 	wantCRC := crc64.Checksum(payload, crc64.MakeTable(crc64.ISO))
-	gotCRC := binary.LittleEndian.Uint64(raw[:8])
+	gotCRC := binary.LittleEndian.Uint64(raw[:utils.ChecksumSize])
 	require.Equal(t, wantCRC, gotCRC)
-	require.True(t, bytes.Equal(payload, raw[8:]))
+	require.True(t, bytes.Equal(payload, raw[utils.ChecksumSize:]))
 }
 
 func TestAtomicallySaveToFile_EmptyPayload(t *testing.T) {
@@ -88,11 +88,11 @@ func TestAtomicallySaveToFile_EmptyPayload(t *testing.T) {
 	target := filepath.Join(tmp, "empty.bin")
 	require.NoError(t, utils.AtomicallySaveToFile(target, nil))
 
-	// should still be 8 bytes (crc of empty slice)
+	// should still be utils.ChecksumSize bytes (crc of empty slice)
 	// #nosec G304 -- target is generated in a safe test TempDir; not user-controlled
 	raw, err := os.ReadFile(target)
 	require.NoError(t, err)
-	require.Equal(t, 8, len(raw))
+	require.Equal(t, utils.ChecksumSize, len(raw))
 
 	data, err := utils.LoadFromFile(target)
 	require.NoError(t, err)

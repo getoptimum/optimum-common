@@ -12,8 +12,8 @@ import (
 	"slices"
 )
 
-// checksumSize is the length (in bytes) of the CRC64 checksum header
-const checksumSize = 8
+// ChecksumSize is the length (in bytes) of the CRC64 checksum header
+const ChecksumSize = 8
 
 // CleanupFolders ensures that each directory in dirs exists and removes all entries except in ignoreFiles
 func CleanupFolders(dirs []string, ignoreFiles ...string) error {
@@ -46,11 +46,11 @@ func AtomicallySaveToFile(fileName string, data []byte) (err error) {
 	if _, err = checkSum.Write(data); err != nil {
 		return fmt.Errorf("cannot calculate checksum: %w", err)
 	}
-	sum := make([]byte, checksumSize)
+	sum := make([]byte, ChecksumSize)
 	binary.LittleEndian.PutUint64(sum, checkSum.Sum64())
-	result := make([]byte, checksumSize+len(data))
-	copy(result[:checksumSize], sum)
-	copy(result[checksumSize:], data)
+	result := make([]byte, ChecksumSize+len(data))
+	copy(result[:ChecksumSize], sum)
+	copy(result[ChecksumSize:], data)
 
 	dir, base := filepath.Split(fileName)
 	if dir == "" {
@@ -127,13 +127,13 @@ func LoadFromFile(path string) (data []byte, err error) {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
-	if len(data) < checksumSize {
+	if len(data) < ChecksumSize {
 		return nil, errors.New("file is too short")
 	}
-	fileCrc := binary.LittleEndian.Uint64(data[:checksumSize])
-	dataCrc := crc64.Checksum(data[checksumSize:], crc64.MakeTable(crc64.ISO))
+	fileCrc := binary.LittleEndian.Uint64(data[:ChecksumSize])
+	dataCrc := crc64.Checksum(data[ChecksumSize:], crc64.MakeTable(crc64.ISO))
 	if fileCrc != dataCrc {
 		return nil, fmt.Errorf("checksum mismatch: %x != %x", fileCrc, dataCrc)
 	}
-	return data[checksumSize:], nil
+	return data[ChecksumSize:], nil
 }
