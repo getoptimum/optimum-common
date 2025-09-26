@@ -1,5 +1,5 @@
 GO := go
-COVERAGE_THRESHOLD := 70
+COVERAGE_THRESHOLD := 80
 COVERPROFILE    := coverage.out
 VULNCHECK_VER := v1.1.4
 VULNCHECK_RUN := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
