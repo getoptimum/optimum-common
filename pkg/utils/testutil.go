@@ -12,13 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// IsCIRun reports whether the current execution context is a CI run
-// Will be deleted as CI env variable should be used
-// For now preserved to be comliant with current proxy's and p2p ci
-func IsCIRun() bool {
-	return os.Getenv("CI_RUN") != ""
-}
-
 // GetFreePort reserves an available TCP port for testing purposes
 func GetFreePort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
@@ -77,7 +70,7 @@ func NewTestLogWriterWithOutput(t testing.TB, std io.Writer) *TestLogWriter {
 
 	t.Cleanup(func() {
 		tl.close()
-		if IsCIRun() && t.Failed() {
+		if os.Getenv("CI") != "" && t.Failed() {
 			fmt.Print(tl.logs.String())
 		}
 	})
@@ -86,7 +79,7 @@ func NewTestLogWriterWithOutput(t testing.TB, std io.Writer) *TestLogWriter {
 }
 
 func (tl *TestLogWriter) Write(p []byte) (int, error) {
-	if IsCIRun() {
+	if os.Getenv("CI") != "" {
 		buf := append([]byte(nil), p...) // slog reuses buffers; copy to avoid races
 		select {
 		case tl.logsChan <- buf:
