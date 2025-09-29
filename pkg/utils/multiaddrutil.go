@@ -22,7 +22,7 @@ func MultiAddressBuilder(ip net.IP, tcpPort int) ([]multiaddr.Multiaddr, error) 
 		return nil, fmt.Errorf("provided IP address is neither IPv4 nor IPv6: %s", ip)
 	}
 
-	// Example: /ip4/1.2.3.4./tcp/5678
+	// Example: /ip4/1.2.3.4/tcp/5678
 	multiaddrStr := fmt.Sprintf("/%s/%s/tcp/%d", ipType, ip, tcpPort)
 	multiAddrTCP, err := multiaddr.NewMultiaddr(multiaddrStr)
 	if err != nil {
