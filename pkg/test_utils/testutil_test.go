@@ -1,4 +1,4 @@
-package utils_test
+package test_utils_test
 
 import (
 	"bytes"
@@ -7,9 +7,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/getoptimum/optimum-common/pkg/test_utils"
 	"github.com/stretchr/testify/require"
-
-	"github.com/getoptimum/optimum-common/pkg/utils"
 )
 
 // ensure valid and bindable tcp ports returned
@@ -24,19 +23,18 @@ func TestGetFreePortFunctions(t *testing.T) {
 			name: "GetFreePort",
 			port: func(t *testing.T) int {
 				t.Helper()
-				p, err := utils.GetFreePort()
+				p, err := test_utils.GetFreePort()
 				require.NoError(t, err)
 				return p
 			},
 		},
 		{
 			name: "GetFreePortT",
-			port: utils.GetFreePortT,
+			port: test_utils.GetFreePortT,
 		},
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -72,7 +70,7 @@ func TestNewTestLogWriterLocalMirrorsOutput(t *testing.T) {
 	t.Setenv("CI", "")
 
 	var captured bytes.Buffer
-	writer := utils.NewTestLogWriterWithOutput(t, &captured)
+	writer := test_utils.NewTestLogWriterWithOutput(t, &captured)
 
 	const message = "local log line"
 	n, err := writer.Write([]byte(message))
@@ -85,7 +83,7 @@ func TestNewTestLogWriterCIBuffersLogs(t *testing.T) {
 	t.Setenv("CI", "1")
 
 	pw := &panicWriter{}
-	writer := utils.NewTestLogWriterWithOutput(t, pw)
+	writer := test_utils.NewTestLogWriterWithOutput(t, pw)
 
 	const message = "ci log line"
 	n, err := writer.Write([]byte(message))
@@ -101,11 +99,11 @@ type stubLogger struct {
 func TestNewTestLoggerIntegratesWithFactory(t *testing.T) {
 	t.Parallel()
 
-	logger := utils.NewTestLogger[*stubLogger](t, func(writers []io.Writer) *stubLogger {
+	logger := test_utils.NewTestLogger[*stubLogger](t, func(writers []io.Writer) *stubLogger {
 		return &stubLogger{writers: writers}
 	})
 
 	require.Len(t, logger.writers, 1)
-	_, ok := logger.writers[0].(*utils.TestLogWriter)
+	_, ok := logger.writers[0].(*test_utils.TestLogWriter)
 	require.True(t, ok)
 }

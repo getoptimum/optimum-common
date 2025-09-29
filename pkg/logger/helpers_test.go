@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"strings"
 	"testing"
 
-	logger "github.com/getoptimum/optimum-common/pkg/logger"
+	"github.com/getoptimum/optimum-common/pkg/logger"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
@@ -101,13 +100,10 @@ func TestHelperFields(t *testing.T) {
 			expected: peerID.String(),
 		},
 		{
-			name:  "WithPeerAddrs",
-			field: logger.WithPeerAddrs(peerInfoWithAddrs),
-			key:   "peer",
-			expected: strings.Join([]string{
-				addr1.String(),
-				addr2.String(),
-			}, ","),
+			name:     "WithPeerAddrs",
+			field:    logger.WithPeerAddrs(peerInfoWithAddrs),
+			key:      "peer",
+			expected: addr1.String() + "," + addr2.String(),
 		},
 		{
 			name:     "WithTopic",
@@ -124,7 +120,6 @@ func TestHelperFields(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			value := logFieldValue(t, tt.field, tt.key)
