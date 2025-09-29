@@ -60,7 +60,7 @@ jobs:
           git config --global url."https://${{ secrets.OPT_ACCESS_TOKEN }}:@github.com/".insteadOf "https://github.com/"
 
       - name: Run tests
-        run: CI_RUN="true" make test
+        run:  make test
 
       - name: Measure and enforce test coverage
         run: make coverage

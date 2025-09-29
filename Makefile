@@ -23,7 +23,7 @@ vet: ## go vet
 test: ## Run all tests with race detector and coverage
 	@echo "🧪 running tests..."
 	@$(GO) test ./... -race -covermode=atomic -coverprofile=$(COVERPROFILE)
-
+	@sed -i '/test_utils\//d' $(COVERPROFILE) # exclude test_utils from coverage
 bench: ## Run benchmarks w/o tests
 	@echo "⚡ running benchmarks..."
 	@$(GO) test ./... -bench=. -benchmem -run=^$
