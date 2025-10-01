@@ -55,7 +55,7 @@ func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJ
 // GetCurl is a generic function to send GET request with headers and return response
 // expect json response
 // T is a type of response, automatically unmarshalled from json
-// check status code first. in some cases response can be different, so unmarsharlling will fail
+// check status code first. in some cases response can be different, so unmarshalling will fail
 // status code return as is even in unmarshalling error
 func GetCurl[T any](ctx context.Context, targetURL string, headers map[string]string, opts ...CurlOpts[T]) (res *T, statusCode int, err error) {
 	config := &CurlConf[T]{}
