@@ -4,33 +4,18 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"sync"
 	"testing"
 
+	"github.com/getoptimum/optimum-common/pkg/utils"
 	"github.com/stretchr/testify/require"
 )
-
-// GetFreePort reserves an available TCP port for testing purposes
-func GetFreePort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return 0, err
-	}
-	defer l.Close() //nolint // closing listener is safe here
-	return l.Addr().(*net.TCPAddr).Port, nil
-}
 
 // GetFreePortT is a wrapper around GetFreePort
 func GetFreePortT(t *testing.T) int {
 	t.Helper()
-	port, err := GetFreePort()
+	port, err := utils.GetFreePort()
 	require.NoError(t, err, "failed to allocate free TCP port")
 	return port
 }
