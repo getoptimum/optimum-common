@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/test_utils"
+	"github.com/getoptimum/optimum-common/pkg/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +24,7 @@ func TestGetFreePortFunctions(t *testing.T) {
 			name: "GetFreePort",
 			port: func(t *testing.T) int {
 				t.Helper()
-				p, err := test_utils.GetFreePort()
+				p, err := utils.GetFreePort()
 				require.NoError(t, err)
 				return p
 			},
