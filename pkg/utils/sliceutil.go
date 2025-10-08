@@ -21,6 +21,7 @@ func UniqueSlice[T fmt.Stringer](slice []T) []T {
 	}
 	return result
 }
+
 func ContainsInSlice[T comparable](slice []T, value T) bool {
 	for i := range slice {
 		if slice[i] == value {
