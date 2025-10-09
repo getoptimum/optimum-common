@@ -133,7 +133,7 @@ func logFieldValue(t *testing.T, field logger.Field, key string) any {
 
 	var buf bytes.Buffer
 	writers := []io.Writer{&buf}
-	l := logger.InitLogger(writers, "test", logger.Debug)
+	l := logger.InitLogger(writers, logger.Debug)
 	l.Info("message", field)
 
 	raw := bytes.TrimSpace(buf.Bytes())
