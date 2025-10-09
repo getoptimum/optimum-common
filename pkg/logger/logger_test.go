@@ -49,7 +49,7 @@ func getNumber(m map[string]any, key string) float64 {
 func TestInitLogger_JSONShapeAndMappings(t *testing.T) {
 	var buf bytes.Buffer
 	// TODO: after logger refactor appHash argument will be deleted
-	l := logger.InitLogger([]io.Writer{&buf}, "abcdef123456", logger.Debug,
+	l := logger.InitLogger([]io.Writer{&buf}, logger.Debug,
 		logger.WithString("svc", "api"),
 	)
 	l.Info("hello world",
@@ -71,19 +71,19 @@ func TestInitLogger_JSONShapeAndMappings(t *testing.T) {
 
 func TestLogLevelFiltering_PerMode(t *testing.T) {
 	var bp bytes.Buffer
-	lp := logger.InitLogger([]io.Writer{&bp}, "xxyyzz", logger.Production)
+	lp := logger.InitLogger([]io.Writer{&bp}, logger.Production)
 	lp.Info("info-suppressed")
 	lp.Error("err-shown", errors.New("boom"))
 	require.Equal(t, 1, len(parseJSONLines(t, &bp)))
 
 	var bv bytes.Buffer
-	lv := logger.InitLogger([]io.Writer{&bv}, "xxyyzz", logger.Verbose)
+	lv := logger.InitLogger([]io.Writer{&bv}, logger.Verbose)
 	lv.Debug("debug-suppressed")
 	lv.Info("info-shown")
 	require.Equal(t, 1, len(parseJSONLines(t, &bv)))
 
 	var bd bytes.Buffer
-	ld := logger.InitLogger([]io.Writer{&bd}, "xxyyzz", logger.Debug)
+	ld := logger.InitLogger([]io.Writer{&bd}, logger.Debug)
 	ld.Debug("debug-shown")
 	ld.Info("info-shown")
 	require.Equal(t, 2, len(parseJSONLines(t, &bd)))
@@ -122,14 +122,14 @@ func TestHelperInvokeFatal(t *testing.T) {
 		t.Skip("helper")
 	}
 	var buf bytes.Buffer
-	l := logger.InitLogger([]io.Writer{&buf, os.Stdout}, "abcdef", logger.Debug)
+	l := logger.InitLogger([]io.Writer{&buf, os.Stdout}, logger.Debug)
 	l.Fatal("boom", errors.New("fatal")) // os.Exit(1)
 }
 
 func Test_SLogger_purelog_with_stdout(t *testing.T) {
 	// given
 	appLog := test_utils.NewTestLogger(t, func(w []io.Writer) logger.AppLogger {
-		return logger.InitLogger(w, "test", logger.Debug)
+		return logger.InitLogger(w, logger.Debug)
 	})
 	appLog.Info("test")
 	appLog.Error("source log", fmt.Errorf("123"))
@@ -149,7 +149,7 @@ func Test_SLogger_purelog_with_stdout(t *testing.T) {
 	)
 	t.Run("pure check", func(t *testing.T) {
 		l := test_utils.NewTestLogger(t, func(w []io.Writer) logger.AppLogger {
-			return logger.InitLogger(w, "test", logger.Debug)
+			return logger.InitLogger(w, logger.Debug)
 		})
 		l.Error("source log", fmt.Errorf("123"))
 	})
@@ -158,7 +158,7 @@ func Test_SLogger_purelog_with_stdout(t *testing.T) {
 func Test_DefaultLogger(t *testing.T) {
 	// given
 	appLog := test_utils.NewTestLogger(t, func(w []io.Writer) logger.AppLogger {
-		return logger.InitLogger(w, "test", logger.Debug)
+		return logger.InitLogger(w, logger.Debug)
 	})
 	appLog.Info("test")
 	appLog.Error("source log", fmt.Errorf("123"))
@@ -178,7 +178,7 @@ func Test_DefaultLogger(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			defaultAppLog := logger.NewAppSLogger("test_2", "debug")
+			defaultAppLog := logger.NewAppSLogger("debug")
 			concurrentlyLogIt(
 				defaultAppLog.With(
 					logger.WithString("a", "b"),
@@ -193,14 +193,13 @@ func Test_DefaultLogger(t *testing.T) {
 func Test_SLogger_multiply_writers(t *testing.T) {
 	// given
 	appLog := test_utils.NewTestLogger(t, func(w []io.Writer) logger.AppLogger {
-		return logger.InitLogger(w, "test", logger.Debug)
+		return logger.InitLogger(w, logger.Debug)
 	})
 	// when, then
 	concurrentlyLogIt(appLog)
 
 	t.Run("pure check", func(t *testing.T) {
 		l := logger.NewAppSLogger(
-			"test_2",
 			"debug",
 			logger.WithString("additional", "value"),
 			logger.WithString("additional2", "value"),

@@ -57,14 +57,12 @@ type SLogger struct {
 var _ AppLogger = (*SLogger)(nil)
 
 // NewAppSLogger creates a default AppLogger writing to stdout.
-func NewAppSLogger(appHash string, mode LogMode, fields ...Field) AppLogger {
-	return InitLogger([]io.Writer{os.Stdout}, appHash, validateLogMode(mode), fields...)
+func NewAppSLogger(mode LogMode, fields ...Field) AppLogger {
+	return InitLogger([]io.Writer{os.Stdout}, validateLogMode(mode), fields...)
 }
 
-// TODO: appHash should be removed
-
 // InitLogger initializes a multi-output JSON logger with slog.
-func InitLogger(writers []io.Writer, appHash string, mode LogMode, fields ...Field) AppLogger {
+func InitLogger(writers []io.Writer, mode LogMode, fields ...Field) AppLogger {
 	logs := make([]*slog.Logger, 0, len(writers))
 	for _, w := range writers {
 		handler := slog.NewJSONHandler(w, &slog.HandlerOptions{
