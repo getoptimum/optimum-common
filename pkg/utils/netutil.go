@@ -2,14 +2,21 @@ package utils
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"sort"
 	"time"
 )
+
+const (
+	// optimumBootstrapURL internal service to get public IP
+	optimumBootstrapURL = "https://bootstrap.getoptimum.io"
+)
+
+type boostrapRemoteIP struct {
+	IP string `json:"ip"`
+}
 
 // ExternalIP returns the first non-loopback IP address available.
 func ExternalIP() (string, error) {
@@ -56,42 +63,22 @@ func ipAddresses() ([]net.IP, error) {
 			result = append(result, ip)
 		}
 	}
-	return sortAddresses(result), nil
-}
-
-// sortAddresses makes results deterministic across runs, ipv4 first
-func sortAddresses(ipAddrs []net.IP) []net.IP {
-	sort.Slice(ipAddrs, func(i, j int) bool {
-		return ipAddrs[i].To4() != nil && ipAddrs[j].To4() == nil
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].To4() != nil && result[j].To4() == nil
 	})
-	return ipAddrs
+	return result, nil
 }
 
 // GetOutboundIP returns preferred outbound ip of this machine
-// If remoteHost is non-empty, it tries http://<remoteHost>/return_ip
 // then falls back to local detection
-func GetOutboundIP(remoteHost string) (string, error) {
-	if remoteHost != "" {
-		url := fmt.Sprintf("http://%s/return_ip", remoteHost)
-		// #nosec G107 -- remoteHost is controlled input, not user-defined
-		resp, err := http.Get(url)
-		if err == nil {
-			defer resp.Body.Close() //nolint:errcheck
+func GetOutboundIP() (string, error) {
+	url := fmt.Sprintf("%s/api/v1/ip", optimumBootstrapURL)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
 
-			data, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return "", fmt.Errorf("read response from %s: %w", url, err)
-			}
-			var rr struct {
-				IP string `json:"ip"`
-			}
-			if err := json.Unmarshal(data, &rr); err != nil {
-				return "", fmt.Errorf("unmarshal response from %s: %w", url, err)
-			}
-			if rr.IP != "" {
-				return rr.IP, nil
-			}
-		}
+	resp, code, _ := GetCurl[boostrapRemoteIP](ctx, url, nil)
+	if code == http.StatusOK && resp != nil {
+		return resp.IP, nil
 	}
 
 	conn, err := net.Dial("udp", "8.8.8.8:80")
@@ -107,38 +94,13 @@ func GetOutboundIP(remoteHost string) (string, error) {
 	return udp.IP.String(), nil
 }
 
-// GetIPWithExternal attempts to retrieve the IP from an external service.
-// If remoteAddr is empty or fails, it falls back to GetOutboundIP.
-func GetIPWithExternal(remoteAddr string) (string, error) {
-	if remoteAddr != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		url := fmt.Sprintf("http://%s/return_ip", remoteAddr)
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
-		if err == nil {
-			resp, err := http.DefaultClient.Do(req)
-			if err == nil {
-				defer resp.Body.Close() //nolint:errcheck
-				if resp.StatusCode == http.StatusOK {
-					var r struct {
-						IP string `json:"ip"`
-					}
-					if err := json.NewDecoder(resp.Body).Decode(&r); err == nil && r.IP != "" {
-						return r.IP, nil
-					}
-				}
-			}
-		}
+var (
+	// GetInterfaces production default, extracted for testing
+	GetInterfaces = net.Interfaces
+	ListAddrs     = func(iface net.Interface) ([]net.Addr, error) {
+		return iface.Addrs()
 	}
-	return GetOutboundIP(remoteAddr)
-}
-
-// GetInterfaces production default, extracted for testing
-var GetInterfaces = net.Interfaces
-var ListAddrs = func(iface net.Interface) ([]net.Addr, error) {
-	return iface.Addrs()
-}
+)
 
 // GetPrivateIPs returns a slice of private IPv4 addresses.
 func GetPrivateIPs() ([]string, error) {
@@ -184,12 +146,22 @@ func GetPrivateIPs() ([]string, error) {
 	return result, nil
 }
 
-// GetOutboundP2PAddr builds a libp2p-compatible multiaddress using the
+// GetOutboundTCPP2PAddr builds a libp2p-compatible multiaddress using the for tcp transport
 // machine's outbound IP and the provided port.
-func GetOutboundP2PAddr(port int, remoteAddr string) (string, error) {
-	ipaddr, err := GetOutboundIP(remoteAddr)
+func GetOutboundTCPP2PAddr(port int) (string, error) {
+	ipaddr, err := GetOutboundIP()
 	if err != nil {
 		return "", fmt.Errorf("failed to get ipaddress: %w", err)
 	}
 	return fmt.Sprintf("/ip4/%s/tcp/%d", ipaddr, port), nil
+}
+
+// GetOutboundQUICKP2PAddr builds a libp2p-compatible multiaddress using the for quick transport
+// machine's outbound IP and the provided port.
+func GetOutboundQUICKP2PAddr(port int) (string, error) {
+	ipaddr, err := GetOutboundIP()
+	if err != nil {
+		return "", fmt.Errorf("failed to get ipaddress: %w", err)
+	}
+	return fmt.Sprintf("/ip4/%s/udp/%d/quic-v1", ipaddr, port), nil
 }
