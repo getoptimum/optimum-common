@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetOutboundQUICKP2PAddr(t *testing.T) {
-	addr, err := utils.GetOutboundQUICKP2PAddr(3030)
+func TestGetOutboundQUICP2PAddr(t *testing.T) {
+	addr, err := utils.GetOutboundQUICP2PAddr(3030)
 	require.NoError(t, err)
 	require.True(t, strings.HasPrefix(addr, "/ip4/"))
 	require.True(t, strings.HasSuffix(addr, "/quic-v1"))

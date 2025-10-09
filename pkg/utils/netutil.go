@@ -14,7 +14,7 @@ const (
 	optimumBootstrapURL = "https://bootstrap.getoptimum.io"
 )
 
-type boostrapRemoteIP struct {
+type bootstrapRemoteIP struct {
 	IP string `json:"ip"`
 }
 
@@ -76,7 +76,7 @@ func GetOutboundIP() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	resp, code, _ := GetCurl[boostrapRemoteIP](ctx, url, nil)
+	resp, code, _ := GetCurl[bootstrapRemoteIP](ctx, url, nil)
 	if code == http.StatusOK && resp != nil {
 		return resp.IP, nil
 	}
@@ -156,9 +156,9 @@ func GetOutboundTCPP2PAddr(port int) (string, error) {
 	return fmt.Sprintf("/ip4/%s/tcp/%d", ipaddr, port), nil
 }
 
-// GetOutboundQUICKP2PAddr builds a libp2p-compatible multiaddress using the for quick transport
+// GetOutboundQUICP2PAddr builds a libp2p-compatible multiaddress for the QUIC transport
 // machine's outbound IP and the provided port.
-func GetOutboundQUICKP2PAddr(port int) (string, error) {
+func GetOutboundQUICP2PAddr(port int) (string, error) {
 	ipaddr, err := GetOutboundIP()
 	if err != nil {
 		return "", fmt.Errorf("failed to get ipaddress: %w", err)
