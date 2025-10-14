@@ -1,59 +1,19 @@
 # optimum-common
 This library will serve as the **shared SDK** for Optimum projects.
 
+## High-level structure
+- `optimum-common/` contains a Go module that acts as a shared SDK for other Optimum services, 
+consolidating logging, configuration, utilities, and version helpers used across projects.
+
+## Key packages in `optimum-common`
+- `pkg/config` implements a configurable loader that merges YAML, environment variables, and CLI flags, with deterministic precedence and automatic struct field discovery for overrides.
+- `pkg/logger` wraps Go's `slog` with multi-writer support, contextual fields, automatic version/commit tagging, and concurrency-safe fan-out to multiple structured loggers.
+- `pkg/utils` offers shared helpers and utility primitives (hashing, random IDs, request helpers, etc.).
+- `pkg/test_utils` provides testing adapters like `TestLogWriter` and `NewTestLogger` to capture structured logs during CI runs while mirroring them locally.
+- `pkg/version` derives semantic versions and short commit hashes from Go build metadata, normalizes various pseudo-version formats into stable identifiers.
 
 ## Versioning and Releases
-
-To import a specific version of this module, use Go modules with semantic version tags.
-Releases are created from git tags.
-Create and push a tag like `v1.1.1` and run GoReleaser:
-
-```
-git tag v1.2.3
-git push origin v1.2.3
-make release
-```
 NOTE: CI will run GoReleaser on tagged commits and publish the release automatically.
-
 Use the Makefile helpers to manage release versions:
-
 - `make tag-rc` creates and pushes the next `vX.Y.Z-rcN` git tag based on existing tags.
 - `make release` builds and publishes artifacts for the current tag using GoReleaser.
-
-## Optimum Common — Progress
-- [x] Inject `Version` and `CommitHash` from BuildInfo not -ldflags
-    note: embedding version info in requests, version cheching handler
-- [X] Common utility functions (IP detection, hashing, TTLMap, file helpers)
-- [X] Config loader that supports flags, environment variables, and YAML with override priority
-- [X] Standard `AppLogger` interface with structured fields
-- [ ] Prepare example usage and integration guide
-
----
-
-
-## Tasks better described
-### Extracting common utility functions includes:
-- Duplicate IP detection logic
-    - optimum-p2p/pkg/utils/ip.go
-    - optimum-proxy/pkg/utils/ip.go
-    - optimum-gateway/internal/utils/ip.go
-- Duplicate hashing utilities
-    - optimum-p2p/pkg/utils/hash.go
-    - optimum-gateway/internal/utils/hash.go
-- Multiple TTLMap implementations
-    - optimum-p2p/pkg/utils/ttl_map.go
-    - optimum-proxy/pkg/utils/ttl_map.go
-    - optimum-gateway/internal/utils/ttl_map.go
- - Duplicate file helper functions
-    - optimum-p2p/pkg/utils/file.go
-    - optimum-proxy/pkg/utils/file.go
-    - optimum gateway reuses the p2p implementation?
-
-### Add standard AppLogger interface
- - shared logger abstraction in optimum-common
- - current StringWith structs only carry string values, forcing all fields through string conversion and losing type information
- - both optimum-p2p and optimum-proxy embed nearly identical SLogger implementations
-
-### Add config loader with overrides support
-- Add a new configuration loader that reads settings from YAML, environment variables, and command-line flags, applying overrides in the order of flags > environment > YAML
-- Document the completed configuration loader capabilities
