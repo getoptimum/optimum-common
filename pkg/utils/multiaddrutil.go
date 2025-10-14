@@ -32,8 +32,8 @@ func MultiAddressBuilder(ip net.IP, tcpPort int) ([]multiaddr.Multiaddr, error) 
 }
 
 // AddressInfoToString converts a peer.AddrInfo into a JSON representation consistent with libp2p logging output
-func AddressInfoToString(peer peer.AddrInfo) string {
-	data, _ := json.Marshal(peer.Loggable())
+func AddressInfoToString(localPeer peer.AddrInfo) string {
+	data, _ := json.Marshal(localPeer.Loggable())
 	return string(data)
 }
 
