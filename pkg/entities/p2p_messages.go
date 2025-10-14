@@ -34,7 +34,9 @@ func (m *P2PMessage) Marshal() ([]byte, error) {
 	return result, nil
 }
 
-// UnmarshalP2PMessage deserializes JSON data into a P2PMessage struct.
+// UnmarshalP2PMessage deserializes the P2P wire format into a P2PMessage struct.
+// the wire format is: [1 byte version][1 byte reserved][32 bytes hash of message content][JSON data...].
+// it checks the header, extracts and verifies the hash, and then unmarshals the JSON data.
 func UnmarshalP2PMessage(data []byte) (*P2PMessage, error) {
 	if len(data) < 34 { // at least version(1) + reserved(1) + hash(32)
 		return nil, fmt.Errorf("data too short to be a valid P2PMessage")
@@ -57,14 +59,19 @@ func UnmarshalP2PMessage(data []byte) (*P2PMessage, error) {
 	return &msg, nil
 }
 
-// DecodeFrom reads JSON data from an io.Reader and decodes it into the P2PMessage struct.
-func (m *P2PMessage) DecodeFrom(r io.Reader) error {
-	return json.NewDecoder(r).Decode(m)
+// DecodeFrom reads a header-prefixed P2PMessage from an io.Reader and decodes it into the P2PMessage struct.
+func DecodeFrom(r io.Reader) (*P2PMessage, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return UnmarshalP2PMessage(data)
 }
 
+// MessageIDFn generates or extract a unique message ID based on the content of the P2PMessage.
+// if the data is a common.P2PMessage, return the hash of the message content (the 32 bytes after the 2-byte header).
+// otherwise, compute the hash of the entire message.
 func MessageIDFn(data []byte) string {
-	// if it common.P2PMessage - hash only content of message, it first 32 bytes after 2 bytes header
-	// if not - hash whole message
 	if len(data) > 34 && data[0] == 0x01 { // at least version(1) + reserved(1) + hash(32)
 		return hex.EncodeToString(data[2:34])
 	}

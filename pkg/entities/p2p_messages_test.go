@@ -1,6 +1,7 @@
 package entities_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
@@ -23,11 +24,10 @@ func TestMarshalUnMarshalP2PMessage(t *testing.T) {
 
 		msg, err := entities.UnmarshalP2PMessage(data)
 		require.NoError(t, err)
-		require.NotNil(t, msg)
-		require.Equal(t, validMsg.SourceNodeID, msg.SourceNodeID)
-		require.Equal(t, validMsg.UpstreamPeerID, msg.UpstreamPeerID)
-		require.Equal(t, validMsg.Topic, msg.Topic)
-		require.Equal(t, validMsg.Message, msg.Message)
+		compareMessage(t, validMsg, msg)
+		msgD, errD := entities.DecodeFrom(bytes.NewReader(data))
+		require.NoError(t, errD)
+		compareMessage(t, validMsg, msgD)
 	})
 	t.Run("invalid_message", func(t *testing.T) {
 		wrongMessage := map[string]string{
@@ -41,6 +41,9 @@ func TestMarshalUnMarshalP2PMessage(t *testing.T) {
 		msg, err := entities.UnmarshalP2PMessage(data)
 		require.Error(t, err)
 		require.Nil(t, msg)
+		msgD, errD := entities.DecodeFrom(bytes.NewReader(data))
+		require.Error(t, errD)
+		require.Nil(t, msgD)
 	})
 }
 
@@ -67,4 +70,11 @@ func TestMessageIDFn(t *testing.T) {
 
 		require.Equal(t, utils.HashSHA256(data), entities.MessageIDFn(data))
 	})
+}
+
+func compareMessage(t *testing.T, expected, msg *entities.P2PMessage) {
+	require.Equal(t, expected.SourceNodeID, msg.SourceNodeID)
+	require.Equal(t, expected.UpstreamPeerID, msg.UpstreamPeerID)
+	require.Equal(t, expected.Topic, msg.Topic)
+	require.Equal(t, expected.Message, msg.Message)
 }
