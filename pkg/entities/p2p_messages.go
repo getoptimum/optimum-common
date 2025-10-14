@@ -18,9 +18,10 @@ type P2PMessage struct {
 }
 
 // Marshal serializes the P2PMessage into JSON format.
+// for faster processing, we add 2 bytes header and 32 bytes hash of the message content at the beginning
+// [1 byte version][1 byte reserved][32 bytes hash of message content][json data...]
+// this allows quick filtering of duplicate messages by hash without full JSON parsing
 func (m *P2PMessage) Marshal() ([]byte, error) {
-	// todo consider using more efficient serialization (e.g., protobuf)
-	// also what we need - correct hashing of message for deduplication, so probably just first 36 bytes + 1 signature byte
 	jsonData, err := json.Marshal(m)
 	if err != nil {
 		return nil, err
