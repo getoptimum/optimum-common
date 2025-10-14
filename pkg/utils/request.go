@@ -72,6 +72,7 @@ func GetCurl[T any](ctx context.Context, targetURL string, headers map[string]st
 	return executeWithDefaultClient[T](req, config.Decoder)
 }
 
+// TODO: need to add timeout logic + regress-test it
 func executeWithDefaultClient[T any](req *http.Request, decoder func(io.Reader) error) (res *T, statusCode int, err error) {
 	client := http.DefaultClient
 	resp, err := client.Do(req)
