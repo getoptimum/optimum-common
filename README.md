@@ -17,3 +17,9 @@ NOTE: CI will run GoReleaser on tagged commits and publish the release automatic
 Use the Makefile helpers to manage release versions:
 - `make tag-rc` creates and pushes the next `vX.Y.Z-rcN` git tag based on existing tags.
 - `make release` builds and publishes artifacts for the current tag using GoReleaser.
+
+
+## Standards followed
+1. Tests employ `require` package, must be table driven where possible
+2. Comments in tests follow Given/When/Then structure when possible
+3. Comments are capitalized, in full sentences ending with a period.
