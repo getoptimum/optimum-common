@@ -78,7 +78,7 @@ func executeWithDefaultClient[T any](req *http.Request, decoder func(io.Reader) 
 	if err != nil {
 		return res, 0, fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if decoder != nil {
 		return nil, resp.StatusCode, decoder(resp.Body)
 	}
