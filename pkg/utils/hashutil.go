@@ -20,8 +20,8 @@ func HashSHA512(data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// HashSHA256String computes the SHA-256 hash, returns the raw 32-byte array
-func HashSHA256String(data []byte) [32]byte {
+// HashSHA256Bytes computes the SHA-256 hash, returns the raw 32-byte array
+func HashSHA256Bytes(data []byte) [32]byte {
 	return sha256.Sum256(data)
 }
 

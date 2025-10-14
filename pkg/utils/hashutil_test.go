@@ -39,6 +39,6 @@ func BenchmarkHashXXHash(b *testing.B) {
 func BenchmarkHashSHA256String(b *testing.B) {
 	data := []byte("Hello, World!")
 	for i := 0; i < b.N; i++ {
-		utils.HashSHA256String(data)
+		utils.HashSHA256Bytes(data)
 	}
 }
