@@ -4,6 +4,8 @@ COVERPROFILE    := coverage.out
 VULNCHECK_VER := v1.1.4
 VULNCHECK_RUN := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
 GORELEASER_VER := v2.12.0
+SHELL := /bin/bash
+
 all: check ## run all checks
 
 check: tidy fmt vet test coverage lint vulcheck ## Run tests, coverage gate, lints, vuln check
