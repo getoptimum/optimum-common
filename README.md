@@ -13,10 +13,13 @@ consolidating logging, configuration, utilities, and version helpers used across
 - `pkg/version` derives semantic versions and short commit hashes from Go build metadata, normalizes various pseudo-version formats into stable identifiers.
 
 ## Versioning and Releases
-NOTE: CI will run GoReleaser on tagged commits and publish the release automatically.
-Use the Makefile helpers to manage release versions:
-- `make tag-rc` creates and pushes the next `vX.Y.Z-rcN` git tag based on existing tags.
-- `make release` builds and publishes artifacts for the current tag using GoReleaser.
+Use the Makefile helper to manage release versions:
+- `make tag-rc` creates and pushes the next `vX.Y.Z-rcN` release candidate tag.
+
+Consumers can use tagged versions in their `go.mod`:
+```go
+require github.com/getoptimum/optimum-common v0.0.1-rc1
+```
 
 
 ## Standards followed
