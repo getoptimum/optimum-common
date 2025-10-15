@@ -31,12 +31,7 @@ func validateLogMode(mode LogMode) LogMode {
 
 // Field represents a typed key-value pair for structured logging.
 type Field struct {
-	key   string
-	value any
-}
-
-func (f Field) slog() slog.Attr {
-	return slog.Any(f.key, f.value)
+	a slog.Attr
 }
 
 // AppLogger defines the structured logger interface.
@@ -83,7 +78,7 @@ func InitLogger(writers []io.Writer, mode LogMode, fields ...Field) AppLogger {
 		})
 		attrs := make([]any, 0, len(fields)+2)
 		for _, f := range fields {
-			attrs = append(attrs, f.slog())
+			attrs = append(attrs, f.a)
 		}
 		attrs = append(attrs,
 			slog.String("commit", version.GetCommitHash()),
@@ -147,7 +142,7 @@ func prepareSlogParams(err error, fields []Field) []any {
 		params = append(params, slog.String("error", err.Error()))
 	}
 	for _, f := range fields {
-		params = append(params, f.slog())
+		params = append(params, f.a)
 	}
 	return params
 }
