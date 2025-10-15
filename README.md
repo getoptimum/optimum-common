@@ -13,8 +13,9 @@ consolidating logging, configuration, utilities, and version helpers used across
 - `pkg/version` derives semantic versions and short commit hashes from Go build metadata, normalizes various pseudo-version formats into stable identifiers.
 
 ## Versioning and Releases
-Use the Makefile helper to manage release versions:
+Use the Makefile helpers to manage release versions:
 - `make tag-rc` creates and pushes the next `vX.Y.Z-rcN` release candidate tag.
+- `make release` creates a GitHub release using GoReleaser (requires existing tag).
 
 Consumers can use tagged versions in their `go.mod`:
 ```go

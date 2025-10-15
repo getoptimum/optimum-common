@@ -3,7 +3,6 @@ COVERAGE_THRESHOLD := 80
 COVERPROFILE    := coverage.out
 VULNCHECK_VER := v1.1.4
 VULNCHECK_RUN := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
-SHELL := /bin/bash
 
 all: check ## run all checks
 
@@ -54,10 +53,11 @@ vulcheck: ## Run govulncheck for vulnerabilities
 	@$(VULNCHECK_RUN) ./...
 
 # NOTE: run before running vulcheck/lint commands locally
-tools: ## Install dev/CI tools (govulncheck, golangci-lint)
+tools: ## Install dev/CI tools (govulncheck, golangci-lint, goreleaser)
 	@echo "Installing tools (optional locally)"
 	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.1
+	@go install github.com/goreleaser/goreleaser/v2@v2.12.0
 clean: ## Remove generated artifacts
 	@rm -f $(COVERPROFILE) coverage.html
 
@@ -70,18 +70,24 @@ $(COVERPROFILE):
 
 tag-rc: ## Tag new release candidate
 	@echo "Calculating next RC tag..."
-	@latest_tag=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$$' | head -n1); \
-	if [ -z "$$latest_tag" ]; then \
-		new_tag="v0.0.1-rc1"; \
+	@set -euo pipefail; \
+	latest=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$$' | head -n1 || true); \
+	if [ -z "$$latest" ]; then \
+		base=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$' | head -n1 || echo "v0.0.1"); \
+		next_tag="$$base-rc1"; \
 	else \
-		version=$$(echo $$latest_tag | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+)-rc([0-9]+)$$/\1/'); \
-		rc_num=$$(echo $$latest_tag | sed -E 's/^v[0-9]+\.[0-9]+\.[0-9]+-rc([0-9]+)$$/\1/'); \
-		new_rc_num=$$(expr $$rc_num + 1); \
-		new_tag="v$$version-rc$$new_rc_num"; \
+		base=$${latest%-rc*}; \
+		rc=$${latest##*-rc}; \
+		next_rc=$$((rc+1)); \
+		next_tag="$$base-rc$$next_rc"; \
 	fi; \
-	echo "Tagging $$new_tag"; \
-	git tag -a $$new_tag -m "Release candidate $$new_tag"; \
-	git push origin $$new_tag
+	echo "Tagging $$next_tag"; \
+	git tag -a "$$next_tag" -m "Release candidate $$next_tag"; \
+	git push origin "$$next_tag"
 
-.PHONY: coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean tag-rc bench test
+release: ## Create a release with GoReleaser (requires tag)
+	@echo "Running goreleaser..."
+	@goreleaser release --clean
+
+.PHONY: coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean tag-rc release bench test
 .DEFAULT_GOAL := help
