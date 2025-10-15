@@ -3,13 +3,15 @@ COVERAGE_THRESHOLD := 80
 COVERPROFILE    := coverage.out
 VULNCHECK_VER := v1.1.4
 VULNCHECK_RUN := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
-GORELEASER_VER := v2.12.0
 SHELL := /bin/bash
 
 all: check ## run all checks
 
 check: tidy fmt vet test coverage lint vulcheck ## Run tests, coverage gate, lints, vuln check
-	@echo "✅ all checks passed"
+	@echo "all checks passed"
+
+ci: lint test coverage vulcheck ## Run CI checks (matches GitHub Actions)
+	@echo "CI checks passed"
 
 tidy: ## go mod tidy + verify
 	@$(GO) mod tidy
@@ -19,51 +21,47 @@ fmt: ## go fmt packages
 	@$(GO) fmt ./...
 
 vet: ## go vet
-	@echo "🔍 go vet..."
+	@echo "Running go vet..."
 	@$(GO) vet ./...
 
 test: ## Run all tests with race detector and coverage
-	@echo "🧪 running tests..."
+	@echo "Running tests..."
 	@$(GO) test ./... -race -covermode=atomic -coverprofile=$(COVERPROFILE)
-	@sed -i '/test_utils\//d' $(COVERPROFILE) # exclude test_utils from coverage
+	@grep -v 'test_utils/' $(COVERPROFILE) > $(COVERPROFILE).tmp && mv $(COVERPROFILE).tmp $(COVERPROFILE) # exclude test_utils from coverage
 bench: ## Run benchmarks w/o tests
-	@echo "⚡ running benchmarks..."
+	@echo "Running benchmarks..."
 	@$(GO) test ./... -bench=. -benchmem -run=^$
 
 coverage: $(COVERPROFILE) ## Show summary and enforce threshold
-	@echo "📈 coverage summary"
+	@echo "Coverage summary"
 	@$(GO) tool cover -func=$(COVERPROFILE) | tail -1
 	@total=$$($(GO) tool cover -func=$(COVERPROFILE) | tail -1 | awk '{print $$3}' | tr -d '%'); \
 	 echo "Threshold:            $(COVERAGE_THRESHOLD)%"; \
 	 echo "Current test coverage: $$total%"; \
 	 awk 'BEGIN{exit !('"$${total:-0}"' >= '$(COVERAGE_THRESHOLD)')}'; \
-	 if [ $$? -ne 0 ]; then echo "❌ Test coverage is lower than threshold"; exit 1; fi
+	 if [ $$? -ne 0 ]; then echo "ERROR: Test coverage is lower than threshold"; exit 1; fi
 
 
 coverhtml: $(COVERPROFILE) ## Generate HTML coverage report
 	@$(GO) tool cover -html=$(COVERPROFILE) -o coverage.html
-	@echo "📊 open coverage.html to view the report"
+	@echo "Open coverage.html to view the report"
 
 lint: ## Run golangci-lint
-	@echo "🧹 linting..."
+	@echo "Running linter..."
 	@golangci-lint run --timeout=7m
 
 vulcheck: ## Run govulncheck for vulnerabilities
-	@echo "🔍 govulncheck..."
+	@echo "Running govulncheck..."
 	@$(GO) version
 	@$(GO) env GOPRIVATE
 	@$(VULNCHECK_RUN) ./...
 
-release: ## Create a release with GoReleaser (requires tag)
-	@echo "🏷️ running goreleaser..."
-	@goreleaser release --clean
-
 # NOTE: run before running vulcheck/lint commands locally
-tools: ## Install dev/CI tools (govulncheck, golangci-lint)
-	@echo "🔧 installing tools (optional locally)"
+tools: ## Install dev/CI tools (govulncheck, golangci-lint, goreleaser)
+	@echo "Installing tools (optional locally)"
 	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.1
-	@go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VER)
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
+	@go install github.com/goreleaser/goreleaser/v2@v2.12.0
 clean: ## Remove generated artifacts
 	@rm -f $(COVERPROFILE) coverage.html
 
@@ -75,7 +73,7 @@ $(COVERPROFILE):
 	@echo "No $(COVERPROFILE) found; run 'make test' first." >&2; exit 1
 
 tag-rc: ## Tag new release candidate
-	@echo "🔖 Calculating next RC tag..."
+	@echo "Calculating next RC tag..."
 	@set -euo pipefail; \
 	latest=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$$' | head -n1 || true); \
 	if [ -z "$$latest" ]; then \
@@ -83,13 +81,17 @@ tag-rc: ## Tag new release candidate
 		next_tag="$$base-rc1"; \
 	else \
 		base=$${latest%-rc*}; \
-		rc=$${latest\#\#*-rc}; \
+		rc=$${latest##*-rc}; \
 		next_rc=$$((rc+1)); \
 		next_tag="$$base-rc$$next_rc"; \
 	fi; \
-	echo "✅ Tagging $$next_tag"; \
+	echo "Tagging $$next_tag"; \
 	git tag -a "$$next_tag" -m "Release candidate $$next_tag"; \
 	git push origin "$$next_tag"
 
-.PHONY: release coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean tag-rc
+release: ## Create a release with GoReleaser (requires tag)
+	@echo "Running goreleaser..."
+	@goreleaser release --clean
+
+.PHONY: coverage coverhtml lint vulcheck tools check ci all help tidy fmt vet clean tag-rc release bench test
 .DEFAULT_GOAL := help
