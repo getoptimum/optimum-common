@@ -1,33 +1,59 @@
 package logger
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 func WithAny(key string, val any) Field {
-	return Field{key: key, value: val}
+	return Field{a: slog.Any(key, val)}
 }
 
-func WithString(key, val string) Field {
-	return Field{key: key, value: val}
+func WithString(key, v string) Field {
+	return Field{a: slog.String(key, v)}
 }
 
-func WithUint64(key string, val uint64) Field {
-	return Field{key: key, value: val}
+func WithBool(key string, v bool) Field {
+	return Field{a: slog.Bool(key, v)}
 }
 
-func WithBool(key string, val bool) Field {
-	return Field{key: key, value: val}
+func WithInt(key string, v int) Field {
+	return Field{a: slog.Int(key, v)} // uses platform int
 }
 
-func WithInt64(key string, val int64) Field {
-	return Field{key: key, value: val}
+func WithInt32(key string, v int32) Field {
+	return Field{a: slog.Int64(key, int64(v))}
 }
 
-func WithInt(key string, val int) Field {
-	return Field{key: key, value: val}
+func WithInt64(key string, v int64) Field {
+	return Field{a: slog.Int64(key, v)}
+}
+
+func WithUint(key string, v uint) Field {
+	// slog has no Uint(), but Uint64 works fine and keeps the sign semantics.
+	return Field{a: slog.Uint64(key, uint64(v))}
+}
+
+func WithUint64(key string, v uint64) Field {
+	return Field{a: slog.Uint64(key, v)}
+}
+
+func WithFloat32(key string, v float32) Field {
+	return Field{a: slog.Float64(key, float64(v))}
+}
+
+func WithFloat64(key string, v float64) Field {
+	return Field{a: slog.Float64(key, v)}
+}
+
+func WithFlow(val string) Field {
+	return WithString("flow", val)
+}
+
+func WithRunID(val string) Field {
+	return WithString("run_id", val)
 }
 
 func WithModule(val string) *Field {

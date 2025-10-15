@@ -52,6 +52,30 @@ func TestHelperFields(t *testing.T) {
 			expected: float64(42),
 		},
 		{
+			name:     "WithFloat32",
+			field:    logger.WithFloat32("u64", 42),
+			key:      "u64",
+			expected: float64(42),
+		},
+		{
+			name:     "WithFloat64",
+			field:    logger.WithFloat64("u64", 42),
+			key:      "u64",
+			expected: float64(42),
+		},
+		{
+			name:     "WithUint",
+			field:    logger.WithUint("u64", 42),
+			key:      "u64",
+			expected: float64(42),
+		},
+		{
+			name:     "WithInt32",
+			field:    logger.WithInt32("u64", 42),
+			key:      "u64",
+			expected: float64(42),
+		},
+		{
 			name:     "WithBool",
 			field:    logger.WithBool("bool", true),
 			key:      "bool",
@@ -122,8 +146,7 @@ func TestHelperFields(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			value := logFieldValue(t, tt.field, tt.key)
-			require.Equal(t, tt.expected, value)
+			require.Equal(t, tt.expected, logFieldValue(t, tt.field, tt.key))
 		})
 	}
 }
