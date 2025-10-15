@@ -10,6 +10,9 @@ all: check ## run all checks
 check: tidy fmt vet test coverage lint vulcheck ## Run tests, coverage gate, lints, vuln check
 	@echo "all checks passed"
 
+ci: lint test coverage vulcheck ## Run CI checks (matches GitHub Actions)
+	@echo "CI checks passed"
+
 tidy: ## go mod tidy + verify
 	@$(GO) mod tidy
 	@$(GO) mod verify
@@ -57,7 +60,7 @@ vulcheck: ## Run govulncheck for vulnerabilities
 tools: ## Install dev/CI tools (govulncheck, golangci-lint, goreleaser)
 	@echo "Installing tools (optional locally)"
 	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.1
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
 	@go install github.com/goreleaser/goreleaser/v2@v2.12.0
 clean: ## Remove generated artifacts
 	@rm -f $(COVERPROFILE) coverage.html
@@ -90,5 +93,5 @@ release: ## Create a release with GoReleaser (requires tag)
 	@echo "Running goreleaser..."
 	@goreleaser release --clean
 
-.PHONY: coverage coverhtml lint vulcheck tools check all help tidy fmt vet clean tag-rc release bench test
+.PHONY: coverage coverhtml lint vulcheck tools check ci all help tidy fmt vet clean tag-rc release bench test
 .DEFAULT_GOAL := help
