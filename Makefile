@@ -3,6 +3,7 @@ COVERAGE_THRESHOLD := 80
 COVERPROFILE    := coverage.out
 VULNCHECK_VER := v1.1.4
 VULNCHECK_RUN := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
+SHELL := /bin/bash
 
 all: check ## run all checks
 
@@ -23,7 +24,7 @@ vet: ## go vet
 test: ## Run all tests with race detector and coverage
 	@echo "Running tests..."
 	@$(GO) test ./... -race -covermode=atomic -coverprofile=$(COVERPROFILE)
-	@sed -i '/test_utils\//d' $(COVERPROFILE) # exclude test_utils from coverage
+	@sed -i '' '/test_utils\//d' $(COVERPROFILE) # exclude test_utils from coverage
 bench: ## Run benchmarks w/o tests
 	@echo "Running benchmarks..."
 	@$(GO) test ./... -bench=. -benchmem -run=^$
