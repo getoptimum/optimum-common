@@ -152,6 +152,15 @@ func setValue(v reflect.Value, s string) error {
 		return nil
 	}
 	switch v.Kind() {
+	case reflect.Array, reflect.Slice:
+		parts := strings.Split(s, ",")
+		slice := reflect.MakeSlice(v.Type(), len(parts), len(parts))
+		for i, p := range parts {
+			if err := setValue(slice.Index(i), strings.TrimSpace(p)); err != nil {
+				return err
+			}
+		}
+		v.Set(slice)
 	case reflect.String:
 		v.SetString(s)
 	case reflect.Bool:
