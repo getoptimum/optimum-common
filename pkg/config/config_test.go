@@ -11,25 +11,26 @@ import (
 )
 
 type testConfig struct {
-	Host  string   `yaml:"host" env:"HOST" flag:"host"`
-	Port  int      `yaml:"port" env:"PORT" flag:"port"`
-	Debug bool     `yaml:"debug" env:"DEBUG" flag:"debug"`
-	Items []string `yaml:"items" env:"ITEMS" flag:"items"`
+	Host         string   `yaml:"host" env:"HOST" flag:"host" default:"localhost"`
+	Port         int      `yaml:"port" env:"PORT" flag:"port" default:"8080"`
+	Debug        bool     `yaml:"debug" env:"DEBUG" flag:"debug" default:"false"`
+	Items        []string `yaml:"items" env:"ITEMS" flag:"items" default:"item1,item2"`
+	DefaultParam string   `yaml:"default_param" env:"DEFAULT_PARAM" flag:"default_param" default:"defaultValue"`
 }
 
 func TestLoadPriority(t *testing.T) {
 	// given
 	dir := t.TempDir()
 	p := filepath.Join(dir, "cfg.yaml")
-	yamlData := []byte(`
+	yamlData := `
 host: yamlhost
 port: 8080
 debug: false
 items:
   - a
   - b
-`)
-	require.NoError(t, os.WriteFile(p, yamlData, 0o600))
+`
+	require.NoError(t, os.WriteFile(p, []byte(yamlData), 0o600))
 
 	t.Run("yml should pase correctly", func(t *testing.T) {
 		// when
@@ -41,6 +42,7 @@ items:
 		require.Equal(t, 8080, cfg.Port)
 		require.False(t, cfg.Debug)
 		require.Equal(t, []string{"a", "b"}, cfg.Items)
+		require.Equal(t, "defaultValue", cfg.DefaultParam)
 	})
 
 	t.Run("env should override yml", func(t *testing.T) {
@@ -58,6 +60,7 @@ items:
 		require.Equal(t, 9090, cfg.Port)
 		require.True(t, cfg.Debug)
 		require.Equal(t, []string{"x", "y", "z"}, cfg.Items)
+		require.Equal(t, "defaultValue", cfg.DefaultParam)
 	})
 
 	t.Run("flags should override env and yml", func(t *testing.T) {
@@ -133,7 +136,7 @@ func TestInvalidTypeConversion(t *testing.T) {
 
 func TestUnsupportedType(t *testing.T) {
 	type UnsupportedConfig struct {
-		Data []string `env:"DATA"` // slices not supported
+		Data map[string]string `env:"DATA"` // slices not supported
 	}
 
 	t.Setenv("DATA", "foo,bar")
