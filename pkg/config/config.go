@@ -167,7 +167,7 @@ func setValue(v reflect.Value, s string) error {
 		return nil
 	}
 	switch v.Kind() {
-	case reflect.Array, reflect.Slice:
+	case reflect.Slice:
 		parts := strings.Split(s, ",")
 		slice := reflect.MakeSlice(v.Type(), len(parts), len(parts))
 		for i, p := range parts {

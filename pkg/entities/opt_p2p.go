@@ -32,7 +32,7 @@ func (cfg *OptimumConfig) Validate() error {
 		return fmt.Errorf("cluster_id is required")
 	}
 	if cfg.MaxMessageSize <= 0 || cfg.MaxMessageSize > math.MaxInt {
-		return fmt.Errorf("random message size must be positive and less than max int: %d", cfg.MaxMessageSize)
+		return fmt.Errorf("max_message_size_bytes must be positive and less than max int: %d", cfg.MaxMessageSize)
 	}
 	if cfg.RandomMessageSize == 0 {
 		return errors.New("random_message_size_bytes must be > 0")

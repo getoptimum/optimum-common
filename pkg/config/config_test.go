@@ -32,7 +32,7 @@ items:
 `
 	require.NoError(t, os.WriteFile(p, []byte(yamlData), 0o600))
 
-	t.Run("yml should pase correctly", func(t *testing.T) {
+	t.Run("yml should parse correctly", func(t *testing.T) {
 		// when
 		cfg := testConfig{}
 		require.NoError(t, config.Load(&cfg, config.WithYAML(p)))
@@ -136,7 +136,7 @@ func TestInvalidTypeConversion(t *testing.T) {
 
 func TestUnsupportedType(t *testing.T) {
 	type UnsupportedConfig struct {
-		Data map[string]string `env:"DATA"` // slices not supported
+		Data map[string]string `env:"DATA"` // maps not supported
 	}
 
 	t.Setenv("DATA", "foo,bar")
