@@ -6,8 +6,6 @@ import (
 	"math"
 )
 
-//var _ DCConfigurable = (*OptimumConfig)(nil)
-
 type OptimumConfig struct {
 	ClusterID      string `yaml:"cluster_id" env:"CLUSTER_ID" flag:"cluster_id"`
 	ChainID        string `yaml:"chain_id" env:"CHAIN_ID" flag:"chain_id" default:"default"`
