@@ -20,20 +20,19 @@ func TestRenewConfig(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	var cfg entities.OptimumConfig
+	var cfg testConfig
 	require.NoError(t, config.Load(&cfg))
 	cfg.ClusterID = "optimum_hoodi_v0_1"
 	cfg.MeshDegreeMin = 1
 	cfg.MeshDegreeMax = 1
 
 	received := make(chan *entities.DynamicConfig, 10)
-	updater := func(dcCfg *entities.DynamicConfig) *entities.OptimumConfig {
+	updater := func(dcCfg *entities.DynamicConfig) {
 		received <- dcCfg
-		return cfg.ApplyDynamicConfig(dcCfg)
 	}
 
 	// when
-	cfgRotator := config.NewConfigRotator[entities.OptimumConfig](ctx, &cfg, cfg.ChainID, cfg.ClusterID, updater)
+	cfgRotator := config.NewConfigRotator(ctx, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, updater)
 
 	// then
 	select {
@@ -54,12 +53,12 @@ func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	var cfg entities.OptimumConfig
+	var cfg testConfig
 	require.NoError(t, config.Load(&cfg))
 	cfg.ClusterID = "optimum_hoodi_v0_1"
 
 	// when
-	cfgRotator := config.NewConfigRotator[entities.OptimumConfig](ctx, &cfg, cfg.ChainID, cfg.ClusterID, cfg.ApplyDynamicConfig)
+	cfgRotator := config.NewConfigRotator(ctx, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, nil)
 
 	// then
 	var wg sync.WaitGroup

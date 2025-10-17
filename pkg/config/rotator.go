@@ -21,25 +21,23 @@ var (
 
 // Rotator holds the default and current configuration and allows atomic updates.
 // need dynamically update config in a thread-safe manner for all p2p nodes in the cluster
-type Rotator[T any] struct {
-	// currentConfig holds the current active configuration, which may be updated at runtime.
+type Rotator struct {
+	// currentOptConfig holds the current active configuration, which may be updated at runtime.
 	// use atomic operations to ensure thread-safe access and updates.
-	currentConfig atomic.Pointer[T]
-
-	updater func(config *entities.DynamicConfig) *T
+	currentOptConfig atomic.Pointer[entities.OptimumConfig]
+	updater          func(config *entities.DynamicConfig)
 }
 
-func NewConfigRotator[T any](ctx context.Context, cfg *T, chainID, clusterID string, updater func(config *entities.DynamicConfig) *T) *Rotator[T] {
-	r := &Rotator[T]{
-		currentConfig: atomic.Pointer[T]{},
-		updater:       updater,
+func NewConfigRotator(ctx context.Context, baseOptCfg *entities.OptimumConfig, chainID, clusterID string, updater func(config *entities.DynamicConfig)) *Rotator {
+	r := &Rotator{
+		updater: updater,
 	}
-	r.currentConfig.Store(cfg)
+	r.currentOptConfig.Store(baseOptCfg)
 	go r.bgFetchConfig(ctx, chainID, clusterID)
 	return r
 }
 
-func (r *Rotator[T]) bgFetchConfig(ctx context.Context, chainID, clusterID string) {
+func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) {
 	url := fmt.Sprintf("%s/api/v1/%s/%s/config", baseURL, chainID, clusterID)
 	ticker := time.NewTicker(RenewInterval)
 	defer ticker.Stop()
@@ -54,16 +52,20 @@ func (r *Rotator[T]) bgFetchConfig(ctx context.Context, chainID, clusterID strin
 				continue
 			}
 			r.RenewConfig(config)
+			if r.updater != nil {
+				r.updater(config)
+			}
 		}
 	}
 }
 
-func (r *Rotator[T]) RenewConfig(cfg *entities.DynamicConfig) {
-	r.currentConfig.Store(r.updater(cfg))
+func (r *Rotator) RenewConfig(cfg *entities.DynamicConfig) {
+	currCfg := r.currentOptConfig.Load()
+	r.currentOptConfig.Store(currCfg.ApplyDynamicConfig(cfg))
 }
 
-func (r *Rotator[T]) Get() *T {
-	return r.currentConfig.Load()
+func (r *Rotator) Get() *entities.OptimumConfig {
+	return r.currentOptConfig.Load()
 }
 
 func fetchRemoteConfig(ctx context.Context, url string) (*entities.DynamicConfig, error) {

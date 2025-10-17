@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/config"
+	"github.com/getoptimum/optimum-common/pkg/entities"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,6 +17,8 @@ type testConfig struct {
 	Debug        bool     `yaml:"debug" env:"DEBUG" flag:"debug" default:"false"`
 	Items        []string `yaml:"items" env:"ITEMS" flag:"items" default:"item1,item2"`
 	DefaultParam string   `yaml:"default_param" env:"DEFAULT_PARAM" flag:"default_param" default:"defaultValue"`
+
+	entities.OptimumConfig
 }
 
 func TestLoadPriority(t *testing.T) {
