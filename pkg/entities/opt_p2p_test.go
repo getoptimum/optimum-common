@@ -43,15 +43,15 @@ func TestOptimumConfig(t *testing.T) {
 		}
 
 		// when
-		cfg.ApplyDynamicConfig(dc)
+		newCfg := cfg.ApplyDynamicConfig(dc)
 
 		// then
-		require.Equal(t, int64(1024), cfg.RandomMessageSize)
-		require.Equal(t, int64(8), cfg.ShardFactor)
-		require.Equal(t, float32(3), cfg.PublisherShardMultiplier)
-		require.Equal(t, float32(1.23), cfg.ForwardShardThreshold)
-		require.Equal(t, int64(32), cfg.MeshDegreeTarget)
-		require.Equal(t, int64(64), cfg.MeshDegreeMin)
-		require.Equal(t, int64(128), cfg.MeshDegreeMax)
+		require.Equal(t, int64(1024), newCfg.RandomMessageSize)
+		require.Equal(t, int64(8), newCfg.ShardFactor)
+		require.Equal(t, float32(3), newCfg.PublisherShardMultiplier)
+		require.Equal(t, float32(1.23), newCfg.ForwardShardThreshold)
+		require.Equal(t, int64(32), newCfg.MeshDegreeTarget)
+		require.Equal(t, int64(64), newCfg.MeshDegreeMin)
+		require.Equal(t, int64(128), newCfg.MeshDegreeMax)
 	})
 }
