@@ -1,14 +1,16 @@
 package entities
 
 import (
+	"errors"
 	"fmt"
 	"math"
 )
 
-var _ DCConfigurable = (*OptimumConfig)(nil)
+//var _ DCConfigurable = (*OptimumConfig)(nil)
 
 type OptimumConfig struct {
 	ClusterID      string `yaml:"cluster_id" env:"CLUSTER_ID" flag:"cluster_id"`
+	ChainID        string `yaml:"chain_id" env:"CHAIN_ID" flag:"chain_id" default:"default"`
 	MaxMessageSize int64  `yaml:"max_message_size_bytes" env:"OPTIMUM_MAX_MSG_SIZE" flag:"max_message_size_bytes" default:"1048576"`
 
 	// RLNC and message settings
@@ -32,15 +34,28 @@ func (cfg *OptimumConfig) Validate() error {
 	if cfg.MaxMessageSize <= 0 || cfg.MaxMessageSize > math.MaxInt {
 		return fmt.Errorf("random message size must be positive and less than max int: %d", cfg.MaxMessageSize)
 	}
+	if cfg.RandomMessageSize == 0 {
+		return errors.New("random_message_size_bytes must be > 0")
+	}
 	return nil
 }
 
-func (cfg *OptimumConfig) ApplyDynamicConfig(dcCfg *DynamicConfig) {
-	cfg.RandomMessageSize = dcCfg.RandomMessageSize
-	cfg.ShardFactor = dcCfg.ShardFactor
-	cfg.PublisherShardMultiplier = dcCfg.PublisherShardMultiplier
-	cfg.ForwardShardThreshold = dcCfg.ForwardShardThreshold
-	cfg.MeshDegreeTarget = dcCfg.MeshDegreeTarget
-	cfg.MeshDegreeMin = dcCfg.MeshDegreeMin
-	cfg.MeshDegreeMax = dcCfg.MeshDegreeMax
+func (cfg *OptimumConfig) ApplyDynamicConfig(dcCfg *DynamicConfig) *OptimumConfig {
+	newCfg := cfg.Clone()
+	newCfg.RandomMessageSize = dcCfg.RandomMessageSize
+	newCfg.ShardFactor = dcCfg.ShardFactor
+	newCfg.PublisherShardMultiplier = dcCfg.PublisherShardMultiplier
+	newCfg.ForwardShardThreshold = dcCfg.ForwardShardThreshold
+	newCfg.MeshDegreeTarget = dcCfg.MeshDegreeTarget
+	newCfg.MeshDegreeMin = dcCfg.MeshDegreeMin
+	newCfg.MeshDegreeMax = dcCfg.MeshDegreeMax
+	return newCfg
+}
+
+func (cfg *OptimumConfig) Clone() *OptimumConfig {
+	out := *cfg
+	if cfg.BootstrapPeers != nil {
+		out.BootstrapPeers = append([]string{}, cfg.BootstrapPeers...)
+	}
+	return &out
 }

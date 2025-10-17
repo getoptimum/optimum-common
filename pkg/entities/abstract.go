@@ -1,5 +1,6 @@
 package entities
 
-type DCConfigurable interface {
-	ApplyDynamicConfig(dcCfg *DynamicConfig)
+type DCConfigurable[T any] interface {
+	ApplyDynamicConfig(dcCfg *DynamicConfig) *T
+	Clone() *T
 }
