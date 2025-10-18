@@ -3,14 +3,22 @@ pragma solidity ^0.8.28;
 
 /// @title OptimumConfigRegistry
 /// @notice Stores and manages unique configurations identified by a (networkId, clusterId) pair.
+/// @author Optimum Team
 /// @dev
 /// - Each (networkId, clusterId) combination is unique.
 /// - The same networkId can appear in multiple clusters, and the same clusterId can appear in multiple networks.
 /// - Configuration payloads are stored as base64-encoded strings (callDataBase64).
 /// - Only the contract owner can create, update, or remove configurations.
 contract OptimumConfigRegistry {
-    /// OWNERSHIP
+    /// Errors
+    error OptimumConfigRegistry_OnlyOwner();
+    error OptimumConfigRegistry_ZeroAddress();
+    error OptimumConfigRegistry_EmptyNetwork();
+    error OptimumConfigRegistry_EmptyCluster();
+    error OptimumConfigRegistry_PairExists();
+    error OptimumConfigRegistry_NotFound();
 
+    /// OWNERSHIP
     /// @notice The address with permission to manage configurations.
     address public owner;
 
@@ -21,7 +29,7 @@ contract OptimumConfigRegistry {
 
     /// @dev Restricts a function to be callable only by the owner.
     modifier onlyOwner() {
-        require(msg.sender == owner, "ONLY_OWNER");
+        if (msg.sender != owner) revert OptimumConfigRegistry_OnlyOwner();
         _;
     }
 
@@ -34,7 +42,7 @@ contract OptimumConfigRegistry {
     /// @notice Transfers ownership of the contract to a new address.
     /// @param newOwner The address of the new owner.
     function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "ZERO_ADDR");
+        if (newOwner == address(0)) revert OptimumConfigRegistry_ZeroAddress();
         emit OwnershipTransferred(owner, newOwner);
         owner = newOwner;
     }
@@ -89,11 +97,11 @@ contract OptimumConfigRegistry {
         bytes32 clusterId,
         string calldata callDataBase64
     ) external onlyOwner {
-        require(networkId != bytes32(0), "EMPTY_NETWORK");
-        require(clusterId != bytes32(0), "EMPTY_CLUSTER");
+        if (networkId == bytes32(0)) revert OptimumConfigRegistry_EmptyNetwork();
+        if (clusterId == bytes32(0)) revert OptimumConfigRegistry_EmptyCluster();
 
         bytes32 pairKey = _pairKey(networkId, clusterId);
-        require(bytes(_configs[pairKey].callDataBase64).length == 0, "PAIR_EXISTS");
+        if (bytes(_configs[pairKey].callDataBase64).length != 0) revert OptimumConfigRegistry_PairExists();
 
         _configs[pairKey] = Config({ callDataBase64: callDataBase64 });
 
@@ -112,7 +120,7 @@ contract OptimumConfigRegistry {
     ) external onlyOwner {
         bytes32 pairKey = _pairKey(networkId, clusterId);
         Config storage cfg = _configs[pairKey];
-        require(bytes(cfg.callDataBase64).length != 0, "NOT_FOUND");
+        if (bytes(cfg.callDataBase64).length == 0) revert OptimumConfigRegistry_NotFound();
 
         string memory old = cfg.callDataBase64;
         cfg.callDataBase64 = newCallDataBase64;
@@ -127,7 +135,7 @@ contract OptimumConfigRegistry {
     function removeConfig(bytes32 networkId, bytes32 clusterId) external onlyOwner {
         bytes32 pairKey = _pairKey(networkId, clusterId);
         Config storage cfg = _configs[pairKey];
-        require(bytes(cfg.callDataBase64).length != 0, "NOT_FOUND");
+        if (bytes(cfg.callDataBase64).length == 0) revert OptimumConfigRegistry_NotFound();
 
         delete _configs[pairKey];
         emit ConfigRemoved(uint256(pairKey), networkId, clusterId);
@@ -146,7 +154,7 @@ contract OptimumConfigRegistry {
     ) external view returns (Config memory cfg) {
         bytes32 pairKey = _pairKey(networkId, clusterId);
         cfg = _configs[pairKey];
-        require(bytes(cfg.callDataBase64).length != 0, "NOT_FOUND");
+        if (bytes(cfg.callDataBase64).length == 0) revert OptimumConfigRegistry_NotFound();
     }
 
     /// INTERNAL UTILITIES

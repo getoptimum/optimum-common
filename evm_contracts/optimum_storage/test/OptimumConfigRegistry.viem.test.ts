@@ -53,7 +53,7 @@ describe("OptimumConfigRegistry (viem)", async function () {
 		})
 
 		// must revert now
-		await assert.rejects(() => registry.read.getConfig([net, cl]), /NOT_FOUND/)
+		await assert.rejects(() => registry.read.getConfig([net, cl]), /OptimumConfigRegistry_NotFound/)
 	})
 
 	it("enforces uniqueness only for the (networkId, clusterId) pair", async () => {
@@ -76,7 +76,7 @@ describe("OptimumConfigRegistry (viem)", async function () {
 				registry.write.createConfig([netA, clA, data], {
 					account: ownerClient.account,
 				}),
-			/PAIR_EXISTS/,
+			/OptimumConfigRegistry_PairExists/,
 		)
 	})
 
@@ -90,7 +90,7 @@ describe("OptimumConfigRegistry (viem)", async function () {
 				registry.write.createConfig([net, cl, data], {
 					account: strangerClient.account,
 				}),
-			/ONLY_OWNER/,
+			/OptimumConfigRegistry_OnlyOwner/,
 		)
 
 		// owner creates
@@ -103,14 +103,14 @@ describe("OptimumConfigRegistry (viem)", async function () {
 				registry.write.updateCallDataBase64([net, cl, b64("y")], {
 					account: strangerClient.account,
 				}),
-			/ONLY_OWNER/,
+			/OptimumConfigRegistry_OnlyOwner/,
 		)
 		await assert.rejects(
 			() =>
 				registry.write.removeConfig([net, cl], {
 					account: strangerClient.account,
 				}),
-			/ONLY_OWNER/,
+			/OptimumConfigRegistry_OnlyOwner/,
 		)
 	})
 
@@ -123,14 +123,14 @@ describe("OptimumConfigRegistry (viem)", async function () {
 				registry.write.updateCallDataBase64([net, cl, b64("nope")], {
 					account: ownerClient.account,
 				}),
-			/NOT_FOUND/,
+			/OptimumConfigRegistry_NotFound/,
 		)
 		await assert.rejects(
 			() =>
 				registry.write.removeConfig([net, cl], {
 					account: ownerClient.account,
 				}),
-			/NOT_FOUND/,
+			/OptimumConfigRegistry_NotFound/,
 		)
 	})
 })
