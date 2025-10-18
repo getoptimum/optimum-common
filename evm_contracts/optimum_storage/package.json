@@ -28,6 +28,7 @@
 		"lint:fix": "solhint 'contracts/**/*.sol' --fix",
 		"format": "prettier --write .",
 		"test": "hardhat test",
+		"compile_artifacts": "yarn solcjs --bin --abi --include-path node_modules --base-path . -o ./contracts ./contracts/OptimumConfigRegistry.sol",
 		"compile": "hardhat compile"
 	},
 	"devDependencies": {

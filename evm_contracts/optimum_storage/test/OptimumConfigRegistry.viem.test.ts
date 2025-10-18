@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it, beforeEach } from "node:test"
-import { toBytes, keccak256 } from 'viem'
+import { toBytes, keccak256 } from "viem"
 
 import { network } from "hardhat"
 
