@@ -1,0 +1,51 @@
+{
+	"type": "module",
+	"name": "evm_optimum_storage",
+	"version": "1.0.0",
+	"main": "index.js",
+	"license": "MIT",
+	"engines": {
+		"node": ">=18 <24"
+	},
+	"dependencies": {
+		"@chainlink/contracts": "^1.5.0",
+		"@nomicfoundation/hardhat-verify": "^3.0.3",
+		"@nomiclabs/hardhat-ethers": "2.2.3",
+		"@nomiclabs/hardhat-waffle": "^2.0.6",
+		"@types/fs-extra": "^11.0.4",
+		"dotenv": "^17.2.3",
+		"ethers": "^6.15.0",
+		"fs-extra": "^11.3.2",
+		"hardhat-deploy": "^1.0.4",
+		"hardhat-deploy-ethers": "^0.4.2",
+		"prettier": "^3.6.2",
+		"prettier-plugin-solidity": "^2.1.0",
+		"solc": "^0.8.30",
+		"solhint": "^6.0.1",
+		"solidity-coverage": "^0.8.16",
+		"ts-node": "^10.9.2",
+		"typescript": "~5.8.0"
+	},
+	"scripts": {
+		"lint": "solhint 'contracts/**/*.sol'",
+		"lint:fix": "solhint 'contracts/**/*.sol' --fix",
+		"format": "prettier --write .",
+		"test": "hardhat test",
+		"compile": "hardhat compile"
+	},
+	"devDependencies": {
+		"@nomicfoundation/hardhat-ignition": "^3.0.0",
+		"@nomicfoundation/hardhat-ignition-viem": "^3.0.0",
+		"@nomicfoundation/hardhat-keystore": "^3.0.0",
+		"@nomicfoundation/hardhat-network-helpers": "^3.0.1",
+		"@nomicfoundation/hardhat-node-test-runner": "^3.0.0",
+		"@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
+		"@nomicfoundation/hardhat-viem": "^3.0.0",
+		"@nomicfoundation/hardhat-viem-assertions": "^3.0.0",
+		"@nomicfoundation/ignition-core": "^3.0.0",
+		"@types/node": "^22.8.5",
+		"forge-std": "foundry-rs/forge-std#v1.9.4",
+		"hardhat": "^3.0.7",
+		"viem": "^2.30.0"
+	}
+}

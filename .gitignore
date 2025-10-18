@@ -3,3 +3,4 @@ coverage.html
 .env
 .idea
 vendor
+evm_contracts/optimum_storage/node_modules
