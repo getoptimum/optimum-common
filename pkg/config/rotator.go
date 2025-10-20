@@ -38,6 +38,9 @@ func NewConfigRotator(ctx context.Context, baseOptCfg *entities.OptimumConfig, c
 }
 
 func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) {
+	if chainID == "" || clusterID == "" {
+		return // do not fetch if chainID or clusterID is empty
+	}
 	url := fmt.Sprintf("%s/api/v1/%s/%s/config", baseURL, chainID, clusterID)
 	ticker := time.NewTicker(RenewInterval)
 	defer ticker.Stop()
