@@ -32,7 +32,7 @@ func NewConfigRotator(ctx context.Context, baseOptCfg *entities.OptimumConfig, c
 	r := &Rotator{
 		updater: updater,
 	}
-	r.currentOptConfig.Store(baseOptCfg)
+	r.currentOptConfig.Store(baseOptCfg.Clone())
 	go r.bgFetchConfig(ctx, chainID, clusterID)
 	return r
 }
@@ -42,6 +42,14 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 		return // do not fetch if chainID or clusterID is empty
 	}
 	url := fmt.Sprintf("%s/api/v1/%s/%s/config", baseURL, chainID, clusterID)
+	config, err := fetchRemoteConfig(ctx, url)
+	if err == nil { // if init failed, we not panic, use default one, just try later fetch it again
+		r.RenewConfig(config)
+		if r.updater != nil {
+			r.updater(config)
+		}
+	}
+
 	ticker := time.NewTicker(RenewInterval)
 	defer ticker.Stop()
 
@@ -50,7 +58,7 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			config, err := fetchRemoteConfig(ctx, url)
+			config, err = fetchRemoteConfig(ctx, url)
 			if err != nil {
 				continue
 			}
