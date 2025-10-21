@@ -7,36 +7,88 @@ import (
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/config"
+	"github.com/getoptimum/optimum-common/pkg/entities"
 	"github.com/stretchr/testify/require"
 )
 
 type testConfig struct {
-	Host  string `yaml:"host" env:"HOST" flag:"host"`
-	Port  int    `yaml:"port" env:"PORT" flag:"port"`
-	Debug bool   `yaml:"debug" env:"DEBUG" flag:"debug"`
+	Host         string   `yaml:"host" env:"HOST" flag:"host" default:"localhost"`
+	Port         int      `yaml:"port" env:"PORT" flag:"port" default:"8080"`
+	Debug        bool     `yaml:"debug" env:"DEBUG" flag:"debug" default:"false"`
+	Items        []string `yaml:"items" env:"ITEMS" flag:"items" default:"item1,item2"`
+	DefaultParam string   `yaml:"default_param" env:"DEFAULT_PARAM" flag:"default_param" default:"defaultValue"`
+
+	entities.OptimumConfig
 }
 
 func TestLoadPriority(t *testing.T) {
+	// given
 	dir := t.TempDir()
 	p := filepath.Join(dir, "cfg.yaml")
-	yamlData := []byte("host: yamlhost\nport: 8080\ndebug: false\n")
-	require.NoError(t, os.WriteFile(p, yamlData, 0o600))
+	yamlData := `
+host: yamlhost
+port: 8080
+debug: false
+items:
+  - a
+  - b
+`
+	require.NoError(t, os.WriteFile(p, []byte(yamlData), 0o600))
 
-	t.Setenv("HOST", "envhost")
-	t.Setenv("PORT", "9090")
+	t.Run("yml should parse correctly", func(t *testing.T) {
+		// when
+		cfg := testConfig{}
+		require.NoError(t, config.Load(&cfg, config.WithYAML(p)))
 
-	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	fs.String("host", "", "")
-	fs.Int("port", 0, "")
-	fs.Bool("debug", false, "")
-	os.Args = []string{"cmd", "-host", "flaghost", "-debug=true"}
+		// then
+		require.Equal(t, "yamlhost", cfg.Host)
+		require.Equal(t, 8080, cfg.Port)
+		require.False(t, cfg.Debug)
+		require.Equal(t, []string{"a", "b"}, cfg.Items)
+		require.Equal(t, "defaultValue", cfg.DefaultParam)
+	})
 
-	cfg := testConfig{}
-	require.NoError(t, config.Load(&cfg, config.WithYAML(p), config.WithFlagSet(fs)))
+	t.Run("env should override yml", func(t *testing.T) {
+		t.Setenv("HOST", "envhost")
+		t.Setenv("PORT", "9090")
+		t.Setenv("DEBUG", "true")
+		t.Setenv("ITEMS", "x,y,z")
 
-	require.Equal(t, "flaghost", cfg.Host)
-	require.Equal(t, 9090, cfg.Port)
-	require.True(t, cfg.Debug)
+		// when
+		cfg := testConfig{}
+		require.NoError(t, config.Load(&cfg, config.WithYAML(p)))
+
+		// then
+		require.Equal(t, "envhost", cfg.Host)
+		require.Equal(t, 9090, cfg.Port)
+		require.True(t, cfg.Debug)
+		require.Equal(t, []string{"x", "y", "z"}, cfg.Items)
+		require.Equal(t, "defaultValue", cfg.DefaultParam)
+	})
+
+	t.Run("flags should override env and yml", func(t *testing.T) {
+		t.Setenv("HOST", "envhost")
+		t.Setenv("PORT", "9090")
+		t.Setenv("DEBUG", "true")
+		t.Setenv("ITEMS", "x,y,z")
+
+		fs := flag.NewFlagSet("test", flag.ContinueOnError)
+		fs.String("host", "", "")
+		fs.Int("port", 0, "")
+		fs.Bool("debug", false, "")
+		fs.String("items", "", "")
+		os.Args = []string{"cmd", "-host", "flaghost", "-debug=true", "-port=9010", "-items=m,n"}
+
+		// when
+		cfg := testConfig{}
+		require.NoError(t, config.Load(&cfg, config.WithYAML(p), config.WithFlagSet(fs)))
+
+		// then
+		require.Equal(t, "flaghost", cfg.Host)
+		require.Equal(t, 9010, cfg.Port)
+		require.True(t, cfg.Debug)
+		require.Equal(t, []string{"m", "n"}, cfg.Items)
+	})
 }
 
 func TestEnvPrefix(t *testing.T) {
@@ -87,7 +139,7 @@ func TestInvalidTypeConversion(t *testing.T) {
 
 func TestUnsupportedType(t *testing.T) {
 	type UnsupportedConfig struct {
-		Data []string `env:"DATA"` // slices not supported
+		Data map[string]string `env:"DATA"` // maps not supported
 	}
 
 	t.Setenv("DATA", "foo,bar")
