@@ -20,6 +20,7 @@ reviews:
       github-checks:
         enabled: true
       languagetool:
+        enabled: true
         level: "picky"
       hadolint:
         enabled: true
@@ -63,20 +64,22 @@ reviews:
       instructions: |
           - Technical accuracy first; keep commands copy-pastable; prefer minimal prerequisites.
 
-pre_merge_check:
-  title: "warning"
-  requirements: "Title should be concise and descriptive, ideally under 50 characters."
-  issue_assessment: "warning"
-  custom_checks:
-    - name: "Go build and test rationale"
+  pre_merge_checks:
+    title:
       mode: "warning"
-      instructions: "If code changes affect Go packages, verify that tests cover changed logic; flag risky changes lacking tests."
-    - name: "Concurrency safety"
-      mode: "warning"
-      instructions: "Watch for goroutine leaks, unbounded channels, racy access; ensure contexts are plumbed and respected."
-    - name: "Public API changes"
-      mode: "warning"
-      instructions: "Call out any breaking changes to exported types/functions and expect a CHANGELOG entry or migration note."
+      requirements: "Title should be concise and descriptive, ideally under 50 characters."
+    issue_assessment:
+        mode: "warning"
+    custom_checks:
+      - name: "Go build and test rationale"
+        mode: "warning"
+        instructions: "If code changes affect Go packages, verify that tests cover changed logic; flag risky changes lacking tests."
+      - name: "Concurrency safety"
+        mode: "warning"
+        instructions: "Watch for goroutine leaks, unbounded channels, racy access; ensure contexts are plumbed and respected."
+      - name: "Public API changes"
+        mode: "warning"
+        instructions: "Call out any breaking changes to exported types/functions and expect a CHANGELOG entry or migration note."
 
 chat:
   auto_reply: true
