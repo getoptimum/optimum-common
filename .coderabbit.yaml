@@ -9,10 +9,27 @@ reviews:
   auto_review:
       enabled: true
       drafts: false
+      ignore_usernames:
+        - "dependabot"
+        - "codecov"
   tools:
-      eslint:
+      shellcheck:
+        enabled: true
+      markdownlint:
+        enabled: true
+      github-checks:
+        enabled: true
+      languagetool:
+        level: "picky"
+      hadolint:
+        enabled: true
+      golangci-lint:
         enabled: true
       gitleaks:
+        enabled: true
+      buf:
+        enabled: true
+      checkmake:
         enabled: true
   path_filters:
     - ".github/**"
@@ -46,12 +63,6 @@ reviews:
       instructions: |
           - Technical accuracy first; keep commands copy-pastable; prefer minimal prerequisites.
 
-auto_review:
-  enabled: true
-  ignore_usernames:
-    - "dependabot"
-    - "codecov"
-
 pre_merge_check:
   title: "warning"
   requirements: "Title should be concise and descriptive, ideally under 50 characters."
@@ -67,26 +78,6 @@ pre_merge_check:
       mode: "warning"
       instructions: "Call out any breaking changes to exported types/functions and expect a CHANGELOG entry or migration note."
 
-tools:
-  shellcheck:
-    enabled: true
-  markdownlint:
-    enabled: true
-  github-checks:
-    enabled: true
-  languagetool:
-    level: "picky"
-  hadolint:
-    enabled: true
-  golangci-lint:
-    enabled: true
-  gitleaks:
-    enabled: true
-  buf:
-    enabled: true
-  checkmake:
-    enabled: true
-
 chat:
   auto_reply: true
 
@@ -101,5 +92,3 @@ knowledge_base:
     scope: global
   issues:
     scope: global
-
-
