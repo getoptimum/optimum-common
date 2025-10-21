@@ -2,12 +2,15 @@ package config
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
 
 	"github.com/getoptimum/optimum-common/pkg/entities"
+	"github.com/getoptimum/optimum-common/pkg/logger"
 	"github.com/getoptimum/optimum-common/pkg/utils"
 )
 
@@ -22,14 +25,25 @@ var (
 // Rotator holds the default and current configuration and allows atomic updates.
 // need dynamically update config in a thread-safe manner for all p2p nodes in the cluster
 type Rotator struct {
+	log logger.AppLogger
+	// lastHash stores the hash of the last applied dynamic configuration to avoid redundant updates.
+	lastHash string
 	// currentOptConfig holds the current active configuration, which may be updated at runtime.
 	// use atomic operations to ensure thread-safe access and updates.
 	currentOptConfig atomic.Pointer[entities.OptimumConfig]
 	updater          func(config *entities.DynamicConfig)
 }
 
-func NewConfigRotator(ctx context.Context, baseOptCfg *entities.OptimumConfig, chainID, clusterID string, updater func(config *entities.DynamicConfig)) *Rotator {
+func NewConfigRotator(
+	ctx context.Context,
+	log logger.AppLogger,
+	baseOptCfg *entities.OptimumConfig,
+	chainID,
+	clusterID string,
+	updater func(config *entities.DynamicConfig),
+) *Rotator {
 	r := &Rotator{
+		log:     log.With(logger.WithService("config_rotator")),
 		updater: updater,
 	}
 	r.currentOptConfig.Store(baseOptCfg.Clone())
@@ -62,6 +76,16 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 			if err != nil {
 				continue
 			}
+			newObjHash := HashRemoteConfig(config)
+			if r.lastHash == newObjHash {
+				continue
+			}
+			r.log.Info("applying new dynamic config",
+				logger.WithString("old_hash", r.lastHash),
+				logger.WithString("new_hash", newObjHash),
+			)
+			r.lastHash = newObjHash
+
 			r.RenewConfig(config)
 			if r.updater != nil {
 				r.updater(config)
@@ -85,4 +109,17 @@ func fetchRemoteConfig(ctx context.Context, url string) (*entities.DynamicConfig
 		return res, nil
 	}
 	return nil, fmt.Errorf("failed to fetch remote config, code %d: %w", code, err)
+}
+
+func HashRemoteConfig(cfg *entities.DynamicConfig) string {
+	h := sha256.New()
+	utils.WriteBool(h, cfg.EnableABTesting)
+	utils.WriteInt64(h, cfg.RandomMessageSize)
+	utils.WriteInt64(h, cfg.ShardFactor)
+	utils.WriteFloat32(h, cfg.PublisherShardMultiplier)
+	utils.WriteFloat32(h, cfg.ForwardShardThreshold)
+	utils.WriteInt64(h, cfg.MeshDegreeTarget)
+	utils.WriteInt64(h, cfg.MeshDegreeMin)
+	utils.WriteInt64(h, cfg.MeshDegreeMax)
+	return hex.EncodeToString(h.Sum(nil))
 }

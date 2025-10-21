@@ -3,7 +3,10 @@ package utils
 import (
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/binary"
 	"encoding/hex"
+	"hash"
+	"math"
 
 	"github.com/cespare/xxhash/v2"
 )
@@ -28,4 +31,22 @@ func HashSHA256String(data []byte) [32]byte {
 // HashXXHash computes the XXHash, fast, non-cryptographic
 func HashXXHash(data []byte) uint64 {
 	return xxhash.Sum64(data)
+}
+
+func WriteBool(h hash.Hash, v bool) {
+	if v {
+		h.Write([]byte{1})
+	} else {
+		h.Write([]byte{0})
+	}
+}
+func WriteInt64(h hash.Hash, v int64) {
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], uint64(v))
+	h.Write(buf[:])
+}
+func WriteFloat32(h hash.Hash, v float32) {
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], math.Float32bits(v))
+	h.Write(buf[:])
 }
