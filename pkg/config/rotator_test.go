@@ -8,6 +8,7 @@ import (
 
 	"github.com/getoptimum/optimum-common/pkg/config"
 	"github.com/getoptimum/optimum-common/pkg/entities"
+	"github.com/getoptimum/optimum-common/pkg/logger"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,6 +21,7 @@ func TestRenewConfig(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
+	l := logger.NewAppSLogger(logger.Debug)
 	var cfg testConfig
 	require.NoError(t, config.Load(&cfg))
 	cfg.ClusterID = "optimum_hoodi_v0_1"
@@ -32,7 +34,7 @@ func TestRenewConfig(t *testing.T) {
 	}
 
 	// when
-	cfgRotator := config.NewConfigRotator(ctx, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, updater)
+	cfgRotator := config.NewConfigRotator(ctx, l, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, updater)
 
 	// then
 	select {
@@ -52,13 +54,13 @@ func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 	// given
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-
+	l := logger.NewAppSLogger(logger.Debug)
 	var cfg testConfig
 	require.NoError(t, config.Load(&cfg))
 	cfg.ClusterID = "optimum_hoodi_v0_1"
 
 	// when
-	cfgRotator := config.NewConfigRotator(ctx, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, nil)
+	cfgRotator := config.NewConfigRotator(ctx, l, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, nil)
 
 	// then
 	var wg sync.WaitGroup
@@ -83,4 +85,33 @@ func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestHashRemoteConfig(t *testing.T) {
+	// given
+	table := map[string]*entities.DynamicConfig{
+		"78877fa898f0b4c45c9c33ae941e40617ad7c8657a307db62bc5691f92f4f60e": {},
+		"5dc7d121a6303c01bf14d296bd151d5992ba4910bbfa7920767663ce7616b151": {
+			RandomMessageSize:        1,
+			ShardFactor:              1,
+			PublisherShardMultiplier: 1,
+			ForwardShardThreshold:    1,
+			MeshDegreeTarget:         1,
+			MeshDegreeMin:            1,
+			MeshDegreeMax:            1,
+		},
+		"4a6c2bc7e9e63af53026b4bce9b63d8587f7122b370215f62f02d8ac370467b7": {
+			RandomMessageSize:        2,
+			ShardFactor:              2,
+			PublisherShardMultiplier: 2,
+			ForwardShardThreshold:    2,
+			MeshDegreeTarget:         2,
+			MeshDegreeMin:            2,
+			MeshDegreeMax:            2,
+		},
+	}
+	for k, v := range table {
+		// when, then
+		require.Equal(t, k, config.HashRemoteConfig(v))
+	}
 }
