@@ -1,0 +1,105 @@
+language: en-US
+tone_instructions: "Be assertive and pragmatic. Prioritize correctness, concurrency safety, performance, and maintainability in code, make sure that the code follows latest best practices."
+
+reviews:
+  profile: assertive
+  auto_title_instructions: "Generate a concise PR title; prefer imperative mood and include the primary module or package name."
+  poem: false
+  auto_assign_reviewers: true
+  auto_review:
+      enabled: true
+      drafts: false
+  tools:
+      eslint:
+        enabled: true
+      gitleaks:
+        enabled: true
+  path_filters:
+    - ".github/**"
+    - ".golangci.yaml"
+    - ".coderabbit.yaml"
+    - ".gitignore"
+    - "go.mod"
+    - "go.sum"
+    - "Makefile"
+    - "README.md"
+    - "pkg/**"
+    - "!coverage.html"
+    - "!coverage.out"
+  path_instructions:
+    - path: '**/*.go'
+      instructions: >-
+          Review the Go code, point out issues relative to principles of clean
+          code, expressiveness, and performance.
+    - path: '**/*.proto'
+      instructions: >-
+              Review the Protobuf definitions, point out issues relative to
+              compatibility, and expressiveness.
+    - path: '**/*.sh'
+      instructions: >-
+              Review the shell scripts, point out issues relative to security,
+              performance, and maintainability.
+    - path: "Makefile*"
+      instructions: >-
+          - Provide phony targets; stable reproducible builds; avoid environment-specific paths.
+    - path: "**/*.md"
+      instructions: |
+          - Technical accuracy first; keep commands copy-pastable; prefer minimal prerequisites.
+
+auto_review:
+  enabled: true
+  ignore_usernames:
+    - "dependabot"
+    - "codecov"
+
+pre_merge_check:
+  title: "warning"
+  requirements: "Title should be concise and descriptive, ideally under 50 characters."
+  issue_assessment: "warning"
+  custom_checks:
+    - name: "Go build and test rationale"
+      mode: "warning"
+      instructions: "If code changes affect Go packages, verify that tests cover changed logic; flag risky changes lacking tests."
+    - name: "Concurrency safety"
+      mode: "warning"
+      instructions: "Watch for goroutine leaks, unbounded channels, racy access; ensure contexts are plumbed and respected."
+    - name: "Public API changes"
+      mode: "warning"
+      instructions: "Call out any breaking changes to exported types/functions and expect a CHANGELOG entry or migration note."
+
+tools:
+  shellcheck:
+    enabled: true
+  markdownlint:
+    enabled: true
+  github-checks:
+    enabled: true
+  languagetool:
+    level: "picky"
+  hadolint:
+    enabled: true
+  golangci-lint:
+    enabled: true
+  gitleaks:
+    enabled: true
+  buf:
+    enabled: true
+  checkmake:
+    enabled: true
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  web_search:
+    enabled: true
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "**/CODING_STANDARDS.md"
+  learnings:
+    scope: global
+  issues:
+    scope: global
+
+
