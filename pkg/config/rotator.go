@@ -19,7 +19,7 @@ const (
 )
 
 var (
-	RenewInterval = 5 * time.Minute
+	RenewInterval = 1 * time.Minute
 )
 
 // Rotator holds the default and current configuration and allows atomic updates.
