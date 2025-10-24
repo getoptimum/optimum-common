@@ -214,6 +214,10 @@ func Test_RWMap_DoAndApply_Concurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	start := make(chan struct{})
 
+	for i := 0; i < keys; i++ {
+		m.Store(fmt.Sprintf("key-%d", i), 0)
+	}
+
 	wg.Add(goroutines)
 	for i := 0; i < goroutines; i++ {
 		go func(i int) {
