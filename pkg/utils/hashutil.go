@@ -42,7 +42,7 @@ func WriteBool(h hash.Hash, v bool) {
 }
 func WriteInt64(h hash.Hash, v int64) {
 	var buf [8]byte
-	binary.LittleEndian.PutUint64(buf[:], uint64(v))
+	binary.LittleEndian.PutUint64(buf[:], uint64(v)) //nolint:gosec // uint64 conversion is safe
 	h.Write(buf[:])
 }
 func WriteFloat32(h hash.Hash, v float32) {
