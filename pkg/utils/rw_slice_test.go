@@ -1,16 +1,17 @@
-package utils
+package utils_test
 
 import (
 	"sync"
 	"testing"
 
+	"github.com/getoptimum/optimum-common/pkg/utils"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRWSliceBasicOperations(t *testing.T) {
 	t.Parallel()
 
-	rwSlice := NewRWSlice[int]()
+	rwSlice := utils.NewRWSlice[int]()
 	rwSlice.Add(1)
 	rwSlice.Add(2)
 	rwSlice.AddBulk([]int{3, 4})
@@ -27,7 +28,7 @@ func TestRWSliceBasicOperations(t *testing.T) {
 func TestRWSliceErase(t *testing.T) {
 	t.Parallel()
 
-	rwSlice := NewRWSlice[string]()
+	rwSlice := utils.NewRWSlice[string]()
 	rwSlice.Add("hello")
 	rwSlice.Add("world")
 	require.Equal(t, []string{"hello", "world"}, rwSlice.LoadAll())
@@ -40,7 +41,7 @@ func TestRWSliceErase(t *testing.T) {
 func TestRWSliceConcurrentUsage(t *testing.T) {
 	t.Parallel()
 
-	rwSlice := NewRWSlice[int]()
+	rwSlice := utils.NewRWSlice[int]()
 	var wg sync.WaitGroup
 
 	for i := 0; i < 100; i++ {
