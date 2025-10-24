@@ -15,22 +15,6 @@ func SetLabeledRegistry(lr prometheus.Registerer, ns string) {
 	namespace = ns
 }
 
-// NewCounter creates and registers a new Prometheus counter metric with the given parameters.
-func NewCounter(name, subsystem, help string, labels []string) *prometheus.CounterVec {
-	return promauto.With(labeledRegistry).NewCounterVec(
-		prometheus.CounterOpts{Namespace: namespace, Subsystem: subsystem, Name: name, Help: help},
-		labels,
-	)
-}
-
-// NewGauge creates and registers a new Prometheus gauge metric with the given parameters.
-func NewGauge(name, subsystem, help string, labels []string) *prometheus.GaugeVec {
-	return promauto.With(labeledRegistry).NewGaugeVec(
-		prometheus.GaugeOpts{Namespace: namespace, Subsystem: subsystem, Name: name, Help: help},
-		labels,
-	)
-}
-
 // NewHistogram creates and registers a new Prometheus histogram metric with the given parameters.
 func NewHistogram(name, subsystem, help string, labels []string) *prometheus.HistogramVec {
 	return promauto.With(labeledRegistry).NewHistogramVec(

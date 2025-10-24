@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,10 +27,18 @@ type geoLocationResp struct {
 var (
 	geoLocation        *prometheus.GaugeVec
 	currentGeoLocation atomic.Pointer[geoLocationResp]
+	initOnce           sync.Once
 )
 
 func GetCoordinates() {
-	geoLocation = NewGauge("geo_location", "det_coordinates", "det_coordinates", []string{"country_iso", "latitude", "longitude"})
+	initOnce.Do(func() {
+		geoLocation = NewGaugeVec(
+			"geo_location",
+			"det_coordinates",
+			"Current geolocation coordinates with country information",
+			[]string{"country_iso", "latitude", "longitude"},
+		)
+	})
 	for {
 		fetchCoordinatesWithURL(defaultGeolocationServiceURL)
 		time.Sleep(10 * time.Minute) // Fetch every 10 minutes

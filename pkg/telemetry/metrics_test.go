@@ -43,7 +43,7 @@ func TestNewCounter_RegistersAndCollects(t *testing.T) {
 	telemetry.SetLabeledRegistry(reg, "customns")
 
 	//when
-	cv := telemetry.NewCounter("requests_total", "gateway", "number of requests", []string{"code"})
+	cv := telemetry.NewCounterVec("requests_total", "gateway", "number of requests", []string{"code"})
 	cv.WithLabelValues("200").Add(2)
 	cv.WithLabelValues("500").Inc()
 
@@ -69,7 +69,7 @@ func TestNewGauge_RegistersAndCollects(t *testing.T) {
 	telemetry.SetLabeledRegistry(reg, "ns2")
 
 	//when
-	gv := telemetry.NewGauge("inflight", "gateway", "inflight requests", []string{"route"})
+	gv := telemetry.NewGaugeVec("inflight", "gateway", "inflight requests", []string{"route"})
 	gv.WithLabelValues("/health").Set(7)
 	gv.WithLabelValues("/api").Set(3)
 
@@ -174,7 +174,7 @@ func TestSetLabeledRegistry_OverridesNamespace(t *testing.T) {
 	telemetry.SetLabeledRegistry(reg, "overridden")
 
 	//when
-	telemetry.NewCounter("foo_total", "sub", "help", []string{"l"}).WithLabelValues("v")
+	telemetry.NewCounterVec("foo_total", "sub", "help", []string{"l"}).WithLabelValues("v")
 
 	//then
 	mf := getMF(t, reg, fq("overridden", "sub", "foo_total"))
