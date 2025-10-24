@@ -38,16 +38,16 @@ func getMF(t *testing.T, reg *prometheus.Registry, name string) *ioprometheuscli
 }
 
 func TestNewCounter_RegistersAndCollects(t *testing.T) {
-	//given
+	// given
 	reg := prometheus.NewRegistry()
 	telemetry.SetLabeledRegistry(reg, "customns")
 
-	//when
+	// when
 	cv := telemetry.NewCounterVec("requests_total", "gateway", "number of requests", []string{"code"})
 	cv.WithLabelValues("200").Add(2)
 	cv.WithLabelValues("500").Inc()
 
-	//then
+	// then
 	mf := getMF(t, reg, fq("customns", "gateway", "requests_total"))
 	require.Equal(t, ioprometheusclient.MetricType_COUNTER, mf.GetType())
 

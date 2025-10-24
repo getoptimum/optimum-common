@@ -29,7 +29,7 @@ func (cfg *OptimumConfig) Validate() error {
 	if cfg.ClusterID == "" {
 		return fmt.Errorf("cluster_id is required")
 	}
-	if cfg.MaxMessageSize <= 0 || cfg.MaxMessageSize > math.MaxInt64 {
+	if cfg.MaxMessageSize <= 0 {
 		return fmt.Errorf("max_message_size_bytes must be > 0 and <= %d (got %d)", math.MaxInt64, cfg.MaxMessageSize)
 	}
 	if cfg.RandomMessageSize <= 0 {

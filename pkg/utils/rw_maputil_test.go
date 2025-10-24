@@ -1,10 +1,11 @@
-package utils
+package utils_test
 
 import (
 	"fmt"
 	"sync"
 	"testing"
 
+	"github.com/getoptimum/optimum-common/pkg/utils"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -12,9 +13,9 @@ import (
 func TestRWMapBasicOperations(t *testing.T) {
 	t.Parallel()
 
-	for name, ctor := range map[string]func() *RWMap[int, string]{
-		"empty":    func() *RWMap[int, string] { return NewRWMap[int, string]() },
-		"from map": func() *RWMap[int, string] { return NewRWMapFromStdMap(make(map[int]string)) },
+	for name, ctor := range map[string]func() *utils.RWMap[int, string]{
+		"empty":    func() *utils.RWMap[int, string] { return utils.NewRWMap[int, string]() },
+		"from map": func() *utils.RWMap[int, string] { return utils.NewRWMapFromStdMap(make(map[int]string)) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -89,7 +90,7 @@ func TestRWMapBasicOperations(t *testing.T) {
 }
 
 func TestRWMapReplaceAndLoadAllAndErase(t *testing.T) {
-	rwMap := NewRWMap[int, string]()
+	rwMap := utils.NewRWMap[int, string]()
 	rwMap.Store(1, "one")
 	rwMap.Store(2, "two")
 
@@ -105,7 +106,7 @@ func TestRWMapReplaceAndLoadAllAndErase(t *testing.T) {
 func TestRWMapConcurrentReplace(t *testing.T) {
 	t.Parallel()
 
-	rwMap := NewRWMap[int, string]()
+	rwMap := utils.NewRWMap[int, string]()
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
@@ -117,4 +118,186 @@ func TestRWMapConcurrentReplace(t *testing.T) {
 	wg.Wait()
 
 	require.Equal(t, 1, rwMap.Len())
+}
+
+const (
+	numGoroutines = 50
+	numFunctions  = 50
+	numOperations = 100
+)
+
+func TestRWMapConcurrent(t *testing.T) {
+	rwMap := utils.NewRWMap[int, int]()
+	var wg sync.WaitGroup
+
+	funcsList := []func(i, j int){
+		func(i, j int) {
+			rwMap.Store(i, j)
+		},
+		func(i, j int) {
+			rwMap.Load(i)
+		},
+		func(i, j int) {
+			rwMap.Delete(i)
+		},
+		func(_, _ int) {
+			rwMap.LoadAll()
+		},
+		func(_, _ int) {
+			rwMap.Keys()
+		},
+		func(_, _ int) {
+			rwMap.Len()
+		},
+		func(_, _ int) {
+			rwMap.Replace(map[int]int{13: 13, 21: 21, 34: 34})
+		},
+		func(i, j int) {
+			rwMap.DoAndApply(i, func(val int) int {
+				return val + j
+			})
+		},
+		func(i, _ int) {
+			rwMap.Do(i, func(val int) {
+				_ = val
+			})
+		},
+		func(_, _ int) {
+			rwMap.LoadAllAndErase()
+		},
+		func(_, _ int) {
+			rwMap.DeleteAll()
+		},
+		func(_, _ int) {
+			rwMap.Range(func(key, value int) bool {
+				_ = key
+				_ = value
+				return true
+			})
+		},
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		for _, f := range funcsList {
+			wg.Add(1)
+			go func(i int, f func(i, j int)) {
+				defer wg.Done()
+				wrapper(func() {
+					f(i, i)
+				})
+			}(i, f)
+		}
+	}
+	wg.Wait()
+}
+
+func wrapper(caller func()) {
+	var wg sync.WaitGroup
+	for i := 0; i < numFunctions; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := 0; j < numOperations; j++ {
+				caller()
+			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+func Test_RWMap_DoAndApply_Concurrent(t *testing.T) {
+	m := utils.NewRWMap[string, int]()
+
+	const goroutines = 50
+	const keys = 10
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+
+	for i := 0; i < keys; i++ {
+		m.Store(fmt.Sprintf("key-%d", i), 0)
+	}
+
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			key := fmt.Sprintf("key-%d", i%keys)
+			m.DoAndApply(key, func(v int) int { return v + 1 })
+		}(i)
+	}
+
+	close(start)
+	wg.Wait()
+
+	// Validate results
+	total := 0
+	for i := 0; i < keys; i++ {
+		val, ok := m.Load(fmt.Sprintf("key-%d", i))
+		require.True(t, ok)
+		total += val
+	}
+	require.Equal(t, goroutines, total)
+}
+
+func Test_RWMap_LoadAll_ConcurrentWithWrites(t *testing.T) {
+	m := utils.NewRWMap[int, string]()
+	var wg sync.WaitGroup
+	const ops = 100
+
+	for i := 0; i < ops; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			m.Store(i, uuid.NewString())
+		}(i)
+	}
+
+	for i := 0; i < ops; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = m.LoadAll() // should not panic even while writes happen
+		}()
+	}
+
+	wg.Wait()
+	require.GreaterOrEqual(t, len(m.LoadAll()), 0)
+}
+
+func Test_RWMap_DeleteAll_ConcurrentSafety(t *testing.T) {
+	m := utils.NewRWMap[int, string]()
+	for i := 0; i < 100; i++ {
+		m.Store(i, uuid.NewString())
+	}
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if i%10 == 0 {
+				m.DeleteAll()
+			} else {
+				m.Store(i, uuid.NewString())
+			}
+			_ = m.LoadAll()
+		}(i)
+	}
+	wg.Wait()
+
+	// Ensure map is still valid and not nil
+	all := m.LoadAll()
+	require.NotNil(t, all)
+}
+
+func Test_RWMap_LoadAllAndErase(t *testing.T) {
+	m := utils.NewRWMap[string, string]()
+	m.Store("a", "A")
+	m.Store("b", "B")
+
+	erasedCopy := m.LoadAllAndErase()
+	require.Equal(t, map[string]string{"a": "A", "b": "B"}, erasedCopy)
+	require.Equal(t, map[string]string{}, m.LoadAll(), "map should be empty after erase")
 }
