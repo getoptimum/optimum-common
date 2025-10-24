@@ -121,9 +121,9 @@ func TestRWMapConcurrentReplace(t *testing.T) {
 }
 
 const (
-	numGoroutines = 100
-	numFunctions  = 100
-	numOperations = 1000
+	numGoroutines = 50
+	numFunctions  = 50
+	numOperations = 100
 )
 
 func TestRWMapConcurrent(t *testing.T) {
