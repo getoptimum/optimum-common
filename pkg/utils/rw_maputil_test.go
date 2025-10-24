@@ -118,3 +118,88 @@ func TestRWMapConcurrentReplace(t *testing.T) {
 
 	require.Equal(t, 1, rwMap.Len())
 }
+
+const (
+	numGoroutines = 200
+	numFunctions  = 200
+	numOperations = 1000
+)
+
+func TestRWMapConcurrent(t *testing.T) {
+	rwMap := NewRWMap[int, int]()
+	var wg sync.WaitGroup
+
+	funcsList := []func(i, j int){
+		func(i, j int) {
+			rwMap.Store(i, j)
+		},
+		func(i, j int) {
+			rwMap.Load(i)
+		},
+		func(i, j int) {
+			rwMap.Delete(i)
+		},
+		func(_, _ int) {
+			rwMap.LoadAll()
+		},
+		func(_, _ int) {
+			rwMap.Keys()
+		},
+		func(_, _ int) {
+			rwMap.Len()
+		},
+		func(_, _ int) {
+			rwMap.Replace(map[int]int{13: 13, 21: 21, 34: 34})
+		},
+		func(i, j int) {
+			rwMap.DoAndApply(i, func(val int) int {
+				return val + j
+			})
+		},
+		func(i, _ int) {
+			rwMap.Do(i, func(val int) {
+				_ = val
+			})
+		},
+		func(_, _ int) {
+			rwMap.LoadAllAndErase()
+		},
+		func(_, _ int) {
+			rwMap.DeleteAll()
+		},
+		func(_, _ int) {
+			rwMap.Range(func(key, value int) bool {
+				_ = key
+				_ = value
+				return true
+			})
+		},
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		for _, f := range funcsList {
+			wg.Add(1)
+			go func(i int, f func(i, j int)) {
+				defer wg.Done()
+				wrapper(func() {
+					f(i, i)
+				})
+			}(i, f)
+		}
+	}
+	wg.Wait()
+}
+
+func wrapper(caller func()) {
+	var wg sync.WaitGroup
+	for i := 0; i < numFunctions; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := 0; j < numOperations; j++ {
+				caller()
+			}
+		}(i)
+	}
+	wg.Wait()
+}
