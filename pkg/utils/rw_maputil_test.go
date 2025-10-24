@@ -293,7 +293,7 @@ func Test_RWMap_LoadAllAndErase(t *testing.T) {
 	m.Store("a", "A")
 	m.Store("b", "B")
 
-	eraisedCopy := m.LoadAllAndErase()
-	require.Equal(t, map[string]string{"a": "A", "b": "B"}, eraisedCopy)
+	erasedCopy := m.LoadAllAndErase()
+	require.Equal(t, map[string]string{"a": "A", "b": "B"}, erasedCopy)
 	require.Equal(t, map[string]string{}, m.LoadAll(), "map should be empty after erase")
 }
