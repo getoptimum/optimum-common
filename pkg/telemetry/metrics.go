@@ -31,6 +31,13 @@ func NewCounterVec(name, subsystem, help string, labels []string) *prometheus.Co
 	)
 }
 
+// NewCounter creates a Counter metrics under the global namespace returns nop if metrics are disabled.
+func NewCounter(name, subsystem, help string) prometheus.Counter {
+	return promauto.With(labeledRegistry).NewCounter(
+		prometheus.CounterOpts{Namespace: namespace, Subsystem: subsystem, Name: name, Help: help},
+	)
+}
+
 // NewGaugeVec creates a Gauge metrics under the global namespace returns nop if metrics are disabled.
 func NewGaugeVec(name, subsystem, help string, labels []string) *prometheus.GaugeVec {
 	return promauto.With(labeledRegistry).NewGaugeVec(

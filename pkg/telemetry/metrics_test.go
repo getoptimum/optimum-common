@@ -87,18 +87,37 @@ func TestNewGauge_RegistersAndCollects(t *testing.T) {
 	require.Equal(t, 3.0, got["/api"])
 }
 
+func TestNewCounter_RegistersAndIncrements(t *testing.T) {
+	// given
+	reg := prometheus.NewRegistry()
+	telemetry.SetLabeledRegistry(reg, "ns_cnt")
+
+	// when
+	c := telemetry.NewCounter("processed_total", "worker", "number of processed items")
+	c.Add(2)
+	c.Inc() // now total should be 3
+
+	// then
+	mf := getMF(t, reg, fq("ns_cnt", "worker", "processed_total"))
+	require.Equal(t, ioprometheusclient.MetricType_COUNTER, mf.GetType())
+
+	require.Len(t, mf.Metric, 1, "expected exactly one metric (no labels)")
+	require.NotNil(t, mf.Metric[0].Counter, "expected counter value to be present")
+	require.Equal(t, 3.0, mf.Metric[0].GetCounter().GetValue())
+}
+
 func TestNewHistogramVec_RegistersAndObserves(t *testing.T) {
-	//given
+	// given
 	reg := prometheus.NewRegistry()
 	telemetry.SetLabeledRegistry(reg, "ns3")
 
-	//when
+	// when
 	hv := telemetry.NewHistogram("latency_seconds", "gateway", "request latency", []string{"route"})
 	hv.WithLabelValues("/api").Observe(0.05)
 	hv.WithLabelValues("/api").Observe(0.15)
 	hv.WithLabelValues("/health").Observe(0.01)
 
-	//then
+	// then
 	mf := getMF(t, reg, fq("ns3", "gateway", "latency_seconds"))
 	require.Equal(t, ioprometheusclient.MetricType_HISTOGRAM, mf.GetType())
 
