@@ -44,8 +44,12 @@ func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJ
 	if err != nil {
 		return res, 0, fmt.Errorf("unable to create request: %w", err)
 	}
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/json")
+	if _, ok := headers["Content-Type"]; !ok {
+		req.Header.Add("Content-Type", "application/json")
+	}
+	if _, ok := headers["Accept"]; !ok {
+		req.Header.Add("Accept", "application/json")
+	}
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
