@@ -47,7 +47,7 @@ func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJ
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	for k, v := range headers {
-		req.Header.Add(k, v)
+		req.Header.Set(k, v)
 	}
 	return executeWithDefaultClient[T](req, nil)
 }
