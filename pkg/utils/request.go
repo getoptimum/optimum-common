@@ -45,8 +45,10 @@ func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJ
 		return res, 0, fmt.Errorf("unable to create request: %w", err)
 	}
 	// Set custom headers first (using Set to allow override)
-	for k, v := range headers {
-		req.Header.Set(k, v)
+	if headers != nil {
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
 	}
 	// Add default headers only if not already set (case-insensitive check)
 	if req.Header.Get("Content-Type") == "" {
