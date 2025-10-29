@@ -44,19 +44,16 @@ func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJ
 	if err != nil {
 		return res, 0, fmt.Errorf("unable to create request: %w", err)
 	}
-	if headers == nil {
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Accept", "application/json")
-	} else {
-		if _, ok := headers["Content-Type"]; !ok {
-			req.Header.Add("Content-Type", "application/json")
-		}
-		if _, ok := headers["Accept"]; !ok {
-			req.Header.Add("Accept", "application/json")
-		}
-	}
+	// Set custom headers first (using Set to allow override)
 	for k, v := range headers {
-		req.Header.Add(k, v)
+		req.Header.Set(k, v)
+	}
+	// Add default headers only if not already set (case-insensitive check)
+	if req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if req.Header.Get("Accept") == "" {
+		req.Header.Set("Accept", "application/json")
 	}
 	return executeWithDefaultClient[T](req, nil)
 }
