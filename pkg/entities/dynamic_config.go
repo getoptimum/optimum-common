@@ -7,8 +7,8 @@ type DynamicConfig struct {
 	ClusterID       string    `json:"cluster_id"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	EnableABTesting bool      `json:"enable_ab_testing"`
-	// SkipMessageFromSelf flag that indicates whether messages originating from the node itself should be ignored.
-	// used for track eth latency measurements
+	// SkipMessageFromSelf is a flag that indicates whether messages originating from the node itself should be ignored.
+	// used for tracking eth latency measurements
 	SkipMessageFromSelf bool `json:"skip_message_from_self"`
 
 	// RLNC and message settings
