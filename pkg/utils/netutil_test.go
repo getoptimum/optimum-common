@@ -146,3 +146,47 @@ func BenchmarkExternalIP(b *testing.B) {
 		require.NoError(b, err, "ExternalIP() should not return an error")
 	}
 }
+
+func TestSortAddresses(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    []net.IP
+		expected []net.IP
+	}{
+		{
+			name:     "IPv4 before IPv6",
+			input:    []net.IP{net.ParseIP("2001:db8::1"), net.ParseIP("192.168.1.1")},
+			expected: []net.IP{net.ParseIP("192.168.1.1"), net.ParseIP("2001:db8::1")},
+		},
+		{
+			name:     "all IPv4",
+			input:    []net.IP{net.ParseIP("10.0.0.1"), net.ParseIP("192.168.1.1")},
+			expected: []net.IP{net.ParseIP("10.0.0.1"), net.ParseIP("192.168.1.1")},
+		},
+		{
+			name:     "all IPv6",
+			input:    []net.IP{net.ParseIP("2001:db8::2"), net.ParseIP("2001:db8::1")},
+			expected: []net.IP{net.ParseIP("2001:db8::2"), net.ParseIP("2001:db8::1")},
+		},
+		{
+			name:     "empty slice",
+			input:    []net.IP{},
+			expected: []net.IP{},
+		},
+		{
+			name:     "mixed order",
+			input:    []net.IP{net.ParseIP("2001:db8::1"), net.ParseIP("10.0.0.1"), net.ParseIP("2001:db8::2"), net.ParseIP("192.168.1.1")},
+			expected: []net.IP{net.ParseIP("10.0.0.1"), net.ParseIP("192.168.1.1"), net.ParseIP("2001:db8::1"), net.ParseIP("2001:db8::2")},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := utils.SortAddresses(tc.input)
+			require.Equal(t, len(tc.expected), len(result))
+			for i := range tc.expected {
+				require.True(t, tc.expected[i].Equal(result[i]), "mismatch at index %d: expected %s, got %s", i, tc.expected[i], result[i])
+			}
+		})
+	}
+}
