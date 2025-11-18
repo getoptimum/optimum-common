@@ -63,10 +63,16 @@ func ipAddresses() ([]net.IP, error) {
 			result = append(result, ip)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].To4() != nil && result[j].To4() == nil
+	return SortAddresses(result), nil
+}
+
+// SortAddresses sorts a set of addresses in the order of ipv4 -> ipv6.
+// IPv4 addresses are placed before IPv6 addresses.
+func SortAddresses(ipAddrs []net.IP) []net.IP {
+	sort.Slice(ipAddrs, func(i, j int) bool {
+		return ipAddrs[i].To4() != nil && ipAddrs[j].To4() == nil
 	})
-	return result, nil
+	return ipAddrs
 }
 
 // GetOutboundIP returns preferred outbound ip of this machine

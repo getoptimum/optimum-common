@@ -72,3 +72,49 @@ func TestAddressInfoFromString_InvalidJSON(t *testing.T) {
 	_, err := utils.AddressInfoFromString(`{invalid json}`)
 	require.Error(t, err)
 }
+
+func TestGetIPProtocol(t *testing.T) {
+	testCases := []struct {
+		name     string
+		ipStr    string
+		expected string
+	}{
+		{
+			name:     "IPv4 address",
+			ipStr:    "192.168.1.1",
+			expected: "ip4",
+		},
+		{
+			name:     "IPv6 address",
+			ipStr:    "2001:db8::1",
+			expected: "ip6",
+		},
+		{
+			name:     "IPv4 loopback",
+			ipStr:    "127.0.0.1",
+			expected: "ip4",
+		},
+		{
+			name:     "IPv6 loopback",
+			ipStr:    "::1",
+			expected: "ip6",
+		},
+		{
+			name:     "invalid IP defaults to ip4",
+			ipStr:    "invalid",
+			expected: "ip4",
+		},
+		{
+			name:     "empty string defaults to ip4",
+			ipStr:    "",
+			expected: "ip4",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := utils.GetIPProtocol(tc.ipStr)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
