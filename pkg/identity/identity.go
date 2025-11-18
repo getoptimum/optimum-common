@@ -13,7 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-const keyFilename = "p2p.key"
+const KeyFilename = "p2p.key"
 
 type IdentityInfo struct {
 	Key []byte
@@ -49,7 +49,7 @@ func GenIdentityEd25519() (crypto.PrivKey, error) {
 }
 
 func ExtractIdentityFromDir(dir string) (*IdentityInfo, error) {
-	path := filepath.Join(dir, keyFilename)
+	path := filepath.Join(dir, KeyFilename)
 	data, err := utils.LoadFromFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read file %s: %w", path, err)
@@ -95,7 +95,7 @@ func ensureIdentity(dir string, keygen func() (crypto.PrivKey, error)) (crypto.P
 		if err != nil {
 			return nil, err
 		}
-		if err = utils.AtomicallySaveToFile(filepath.Join(dir, keyFilename), data); err != nil {
+		if err = utils.AtomicallySaveToFile(filepath.Join(dir, KeyFilename), data); err != nil {
 			return nil, fmt.Errorf("write identity data: %w", err)
 		}
 		return key, nil
