@@ -62,7 +62,7 @@ func ExtractIdentityFromDir(dir string) (*IdentityInfo, error) {
 	return &info, nil
 }
 
-// EnsureIdentity generates an identity key file in given directory.
+// ensureIdentity is an internal helper that generates or loads an identity key file in the given directory using the provided key generation function.
 func ensureIdentity(dir string, keygen func() (crypto.PrivKey, error)) (crypto.PrivKey, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("ensure that directory %s exist: %w", dir, err)
@@ -82,11 +82,11 @@ func ensureIdentity(dir string, keygen func() (crypto.PrivKey, error)) (crypto.P
 		}
 		id, err := peer.IDFromPrivateKey(key)
 		if err != nil {
-			panic("generated key is malformed")
+			return nil, fmt.Errorf("generated key is malformed: %w", err)
 		}
 		raw, err := crypto.MarshalPrivateKey(key)
 		if err != nil {
-			panic("generated key can't be marshaled to bytes")
+			return nil, fmt.Errorf("marshal private key: %w", err)
 		}
 		data, err := json.Marshal(IdentityInfo{
 			Key: raw,
