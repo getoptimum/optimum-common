@@ -112,22 +112,30 @@ func TestSafeUint64ToInt64(t *testing.T) {
 func TestSafeAddUint64Ptr(t *testing.T) {
 	for _, tt := range []struct {
 		title    string
+		initial  uint64
 		keyLen   int
 		valueLen int
 		err      error
 		expect   uint64
 	}{
-		{"valid input", 5, 10, nil, 15},
-		{"negative key length", -1, 10, errors.New("value is negative"), 0},
-		{"negative value length", 5, -1, errors.New("value is negative"), 0},
-		{"integer overflow", int(^uint(0) >> 1), int(^uint(0) >> 1), errors.New("integer overflow detected"), 0},
+		{"valid input", 0, 5, 10, nil, 15},
+		{"negative key length", 0, -1, 10, errors.New("value is negative"), 0},
+		{"negative value length", 0, 5, -1, errors.New("value is negative"), 0},
+		{"integer overflow", 0, int(^uint(0) >> 1), int(^uint(0) >> 1), errors.New("integer overflow detected"), 0},
+		{"uint64 counter overflow", math.MaxUint64 - 5, 10, 5, errors.New("uint64 counter overflow"), math.MaxUint64 - 5},
+		{"uint64 counter near max", math.MaxUint64 - 20, 10, 5, nil, math.MaxUint64 - 5},
+		{"uint64 counter at max", math.MaxUint64, 1, 0, errors.New("uint64 counter overflow"), math.MaxUint64},
 	} {
-		var counter uint64
-		err := utils.SafeAddUint64Ptr(&counter, tt.keyLen, tt.valueLen)
-		if tt.err != nil {
-			require.Equal(t, err, tt.err, "%s: expected error %v, got %v", tt.title, tt.err, err)
-			continue
-		}
-		require.Equal(t, tt.expect, counter, "%s: expected counter to be %d, got %d", tt.title, tt.expect, counter)
+		t.Run(tt.title, func(t *testing.T) {
+			counter := tt.initial
+			err := utils.SafeAddUint64Ptr(&counter, tt.keyLen, tt.valueLen)
+			if tt.err != nil {
+				require.Equal(t, tt.err, err, "%s: expected error %v, got %v", tt.title, tt.err, err)
+				require.Equal(t, tt.expect, counter, "%s: counter should remain unchanged on error", tt.title)
+				return
+			}
+			require.NoError(t, err, "%s: expected no error", tt.title)
+			require.Equal(t, tt.expect, counter, "%s: expected counter to be %d, got %d", tt.title, tt.expect, counter)
+		})
 	}
 }

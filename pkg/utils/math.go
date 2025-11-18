@@ -63,6 +63,24 @@ func SafeAddUint64Ptr(counter *uint64, values ...int) error {
 		totalLen += values[i]
 	}
 
-	atomic.AddUint64(counter, uint64(totalLen)) //nolint:gosec // possible overflow is checked
-	return nil
+	// Convert to uint64 for counter addition
+	totalLenUint64 := uint64(totalLen)
+
+	// Use compare-and-swap loop to safely check for uint64 overflow
+	for {
+		current := atomic.LoadUint64(counter)
+
+		// Check if adding totalLen would overflow uint64
+		if totalLenUint64 > math.MaxUint64-current {
+			return errors.New("uint64 counter overflow")
+		}
+
+		newValue := current + totalLenUint64
+
+		// Attempt atomic compare-and-swap
+		if atomic.CompareAndSwapUint64(counter, current, newValue) {
+			return nil
+		}
+		// If CAS failed, another goroutine modified counter, retry
+	}
 }
