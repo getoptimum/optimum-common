@@ -42,3 +42,41 @@ func BenchmarkHashSHA256String(b *testing.B) {
 		utils.HashSHA256String(data)
 	}
 }
+
+func TestHashBytes(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    []byte
+		expected string
+	}{
+		{
+			name:     "empty input",
+			input:    []byte{},
+			expected: "",
+		},
+		{
+			name:     "simple string",
+			input:    []byte("Hello, World!"),
+			expected: "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f",
+		},
+		{
+			name:     "binary data",
+			input:    []byte{0x00, 0x01, 0x02, 0x03},
+			expected: "054edec1d0211f624fed0cbca9d4f9400b0e491c43742af2c5b0abebf0c990d8",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := utils.HashBytes(tc.input)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestHashBytes_MatchesHashSHA256(t *testing.T) {
+	data := []byte("test data")
+	hashBytes := utils.HashBytes(data)
+	hashSHA256 := utils.HashSHA256(data)
+	require.Equal(t, hashSHA256, hashBytes, "HashBytes should match HashSHA256 for non-empty input")
+}

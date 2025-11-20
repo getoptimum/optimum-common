@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -58,5 +59,19 @@ func MsgHash(topic string, message []byte) string {
 	h.Write([]byte(topic))
 	h.Write([]byte{0}) // delimiter to avoid collisions
 	h.Write(message)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// MsgHashWithTimestamp returns a hash of topic + message + timestamp.
+// This allows the same message content to be sent multiple times with different timestamps
+// for duplicate tracking purposes.
+func MsgHashWithTimestamp(topic string, message []byte, timestamp int64) string {
+	h := sha256.New()
+	h.Write([]byte(topic))
+	h.Write(message)
+	// Convert timestamp to bytes and include in hash
+	timestampBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(timestampBytes, uint64(timestamp))
+	h.Write(timestampBytes)
 	return hex.EncodeToString(h.Sum(nil))
 }
