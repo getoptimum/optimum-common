@@ -43,6 +43,20 @@ func HashBytes(b []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
+// MsgHashWithTimestamp returns a hash of topic + message + timestamp.
+// This allows the same message content to be sent multiple times with different timestamps
+// for duplicate tracking purposes.
+func MsgHashWithTimestamp(topic string, message []byte, timestamp int64) string {
+	h := sha256.New()
+	h.Write([]byte(topic))
+	h.Write(message)
+	// Convert timestamp to bytes and include in hash
+	timestampBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(timestampBytes, uint64(timestamp))
+	h.Write(timestampBytes)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 func WriteBool(h hash.Hash, v bool) {
 	if v {
 		h.Write([]byte{1})

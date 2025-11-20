@@ -217,7 +217,7 @@ func GetInterfaceIPs() []string {
 		return result
 	}
 	for _, itf := range interfaces {
-		if itf.Flags&net.FlagUp == 0 { // Skip down or loopback-only interfaces
+		if itf.Flags&net.FlagUp == 0 { // Skip down interfaces
 			continue
 		}
 		addresses, errA := itf.Addrs()
@@ -241,11 +241,7 @@ func GetInterfaceIPs() []string {
 				continue
 				// Maybe IPv6, but we just ignore it for now
 			}
-			if IsGlobalUnicast(ip) {
-				result = append(result, ip.String())
-				continue
-			}
-			if IsPrivateOrULA(ip) {
+			if IsGlobalUnicast(ip) || IsPrivateOrULA(ip) {
 				result = append(result, ip.String())
 			}
 		}

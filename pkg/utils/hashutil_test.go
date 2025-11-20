@@ -1,6 +1,7 @@
 package utils_test
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/utils"
@@ -79,4 +80,49 @@ func TestHashBytes_MatchesHashSHA256(t *testing.T) {
 	hashBytes := utils.HashBytes(data)
 	hashSHA256 := utils.HashSHA256(data)
 	require.Equal(t, hashSHA256, hashBytes, "HashBytes should match HashSHA256 for non-empty input")
+}
+
+func TestMsgHashWithTimestamp_Determinism(t *testing.T) {
+	t.Parallel()
+
+	topic := "topic"
+	msg := []byte("hello")
+	timestamp := int64(1234567890)
+
+	h1 := utils.MsgHashWithTimestamp(topic, msg, timestamp)
+	h2 := utils.MsgHashWithTimestamp(topic, msg, timestamp)
+	require.Equal(t, h1, h2, "same inputs should yield same hash")
+
+	// Different timestamp should produce different hash
+	h3 := utils.MsgHashWithTimestamp(topic, msg, timestamp+1)
+	require.NotEqual(t, h1, h3, "different timestamp should produce different hash")
+
+	// Same message with different timestamp should be different
+	h4 := utils.MsgHashWithTimestamp(topic, msg, timestamp-1)
+	require.NotEqual(t, h1, h4, "different timestamp should produce different hash")
+}
+
+func TestMsgHashWithTimestamp_DifferentFromMsgHash(t *testing.T) {
+	t.Parallel()
+
+	topic := "topic"
+	msg := []byte("hello")
+	timestamp := int64(1234567890)
+
+	hashWithTS := utils.MsgHashWithTimestamp(topic, msg, timestamp)
+	hashWithoutTS := utils.MsgHash(topic, msg)
+
+	require.NotEqual(t, hashWithTS, hashWithoutTS, "timestamp should affect hash")
+}
+
+func TestMsgHashWithTimestamp_IsHex_And_Length(t *testing.T) {
+	t.Parallel()
+
+	h := utils.MsgHashWithTimestamp("t", []byte("m"), 1234567890)
+	require.NotEmpty(t, h)
+
+	// expect hex
+	_, err := hex.DecodeString(h)
+	require.NoError(t, err, "hash must be hex-encoded")
+	require.Len(t, h, 64, "unexpected hash length (expecting SHA-256 hex)")
 }
