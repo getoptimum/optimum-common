@@ -171,3 +171,80 @@ func GetOutboundQUICP2PAddr(port int) (string, error) {
 	}
 	return fmt.Sprintf("/ip4/%s/udp/%d/quic-v1", ipaddr, port), nil
 }
+
+// IsPrivateOrULA checks if an IP address is in a private range (RFC1918) or IPv6 ULA (fc00::/7).
+func IsPrivateOrULA(ip net.IP) bool {
+	// IPv4 private ranges
+	if v4 := ip.To4(); v4 != nil {
+		switch {
+		case v4[0] == 10:
+			return true
+		case v4[0] == 172 && v4[1] >= 16 && v4[1] <= 31:
+			return true
+		case v4[0] == 192 && v4[1] == 168:
+			return true
+		}
+		return false
+	}
+	// IPv6 unique-local fc00::/7
+	return ip.To16() != nil && (ip[0]&0xfe) == 0xfc
+}
+
+// IsGlobalUnicast checks if an IP address is a global unicast address.
+// Excludes link-local, multicast, and private/ULA addresses.
+func IsGlobalUnicast(ip net.IP) bool {
+	// Go's IP.IsGlobalUnicast handles most cases well.
+	if !ip.IsGlobalUnicast() {
+		return false
+	}
+	// Exclude link-local (169.254/16, fe80::/10) and multicast.
+	if ip.IsLinkLocalUnicast() || ip.IsMulticast() {
+		return false
+	}
+	// Exclude RFC1918 & ULA here; those are handled via includePrivate.
+	if IsPrivateOrULA(ip) {
+		return false
+	}
+	return true
+}
+
+// GetInterfaceIPs returns all interface IP addresses (IPv4 only) that are either
+// global unicast or private/ULA addresses. Returns an empty slice on error.
+func GetInterfaceIPs() []string {
+	result := make([]string, 0)
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return result
+	}
+	for _, itf := range interfaces {
+		if itf.Flags&net.FlagUp == 0 { // Skip down interfaces
+			continue
+		}
+		addresses, errA := itf.Addrs()
+		if errA != nil {
+			continue
+		}
+		for _, a := range addresses {
+			var ip net.IP
+			switch v := a.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+
+			ip = ip.To4()
+			if ip == nil {
+				continue
+				// Maybe IPv6, but we just ignore it for now
+			}
+			if IsGlobalUnicast(ip) || IsPrivateOrULA(ip) {
+				result = append(result, ip.String())
+			}
+		}
+	}
+	return result
+}
