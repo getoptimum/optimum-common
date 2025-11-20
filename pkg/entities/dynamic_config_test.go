@@ -26,6 +26,26 @@ func TestDynamicConfigValidate(t *testing.T) {
 		// when, then
 		require.NoError(t, dc.Validate())
 	})
+	t.Run("invalid config", func(t *testing.T) {
+		// given
+		invalidConfigs := []*entities.DynamicConfig{
+			{RandomMessageSize: 0, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{RandomMessageSize: 512, ShardFactor: 0, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 0, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: -0.1, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 1.1, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 0, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 0, MeshDegreeMax: 12},
+			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 0},
+			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 3, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 13, MeshDegreeMin: 4, MeshDegreeMax: 12},
+		}
+
+		for _, dc := range invalidConfigs {
+			// when, then
+			require.Error(t, dc.Validate())
+		}
+	})
 }
 
 func TestDynamicConfig(t *testing.T) {
