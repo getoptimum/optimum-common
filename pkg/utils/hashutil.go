@@ -33,6 +33,30 @@ func HashXXHash(data []byte) uint64 {
 	return xxhash.Sum64(data)
 }
 
+// HashBytes returns a SHA256 hash of the given bytes as a hex string.
+// Returns empty string if input is empty.
+func HashBytes(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:])
+}
+
+// MsgHashWithTimestamp returns a hash of topic + message + timestamp.
+// This allows the same message content to be sent multiple times with different timestamps
+// for duplicate tracking purposes.
+func MsgHashWithTimestamp(topic string, message []byte, timestamp int64) string {
+	h := sha256.New()
+	h.Write([]byte(topic))
+	h.Write(message)
+	// Convert timestamp to bytes and include in hash
+	timestampBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(timestampBytes, uint64(timestamp))
+	h.Write(timestampBytes)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 func WriteBool(h hash.Hash, v bool) {
 	if v {
 		h.Write([]byte{1})

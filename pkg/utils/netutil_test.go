@@ -146,3 +146,185 @@ func BenchmarkExternalIP(b *testing.B) {
 		require.NoError(b, err, "ExternalIP() should not return an error")
 	}
 }
+
+func TestSortAddresses(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    []net.IP
+		expected []net.IP
+	}{
+		{
+			name:     "IPv4 before IPv6",
+			input:    []net.IP{net.ParseIP("2001:db8::1"), net.ParseIP("192.168.1.1")},
+			expected: []net.IP{net.ParseIP("192.168.1.1"), net.ParseIP("2001:db8::1")},
+		},
+		{
+			name:     "all IPv4",
+			input:    []net.IP{net.ParseIP("10.0.0.1"), net.ParseIP("192.168.1.1")},
+			expected: []net.IP{net.ParseIP("10.0.0.1"), net.ParseIP("192.168.1.1")},
+		},
+		{
+			name:     "all IPv6",
+			input:    []net.IP{net.ParseIP("2001:db8::2"), net.ParseIP("2001:db8::1")},
+			expected: []net.IP{net.ParseIP("2001:db8::2"), net.ParseIP("2001:db8::1")},
+		},
+		{
+			name:     "empty slice",
+			input:    []net.IP{},
+			expected: []net.IP{},
+		},
+		{
+			name:     "mixed order",
+			input:    []net.IP{net.ParseIP("2001:db8::1"), net.ParseIP("10.0.0.1"), net.ParseIP("2001:db8::2"), net.ParseIP("192.168.1.1")},
+			expected: []net.IP{net.ParseIP("10.0.0.1"), net.ParseIP("192.168.1.1"), net.ParseIP("2001:db8::1"), net.ParseIP("2001:db8::2")},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := utils.SortAddresses(tc.input)
+			require.Equal(t, len(tc.expected), len(result))
+			for i := range tc.expected {
+				require.True(t, tc.expected[i].Equal(result[i]), "mismatch at index %d: expected %s, got %s", i, tc.expected[i], result[i])
+			}
+		})
+	}
+}
+
+func TestIsPrivateOrULA(t *testing.T) {
+	testCases := []struct {
+		name     string
+		ip       string
+		expected bool
+	}{
+		{
+			name:     "IPv4 private 10.0.0.0/8",
+			ip:       "10.0.0.1",
+			expected: true,
+		},
+		{
+			name:     "IPv4 private 172.16.0.0/12",
+			ip:       "172.16.0.1",
+			expected: true,
+		},
+		{
+			name:     "IPv4 private 172.31.0.1",
+			ip:       "172.31.0.1",
+			expected: true,
+		},
+		{
+			name:     "IPv4 private 192.168.0.0/16",
+			ip:       "192.168.1.1",
+			expected: true,
+		},
+		{
+			name:     "IPv4 public",
+			ip:       "8.8.8.8",
+			expected: false,
+		},
+		{
+			name:     "IPv6 ULA fc00::1",
+			ip:       "fc00::1",
+			expected: true,
+		},
+		{
+			name:     "IPv6 ULA fd00::1",
+			ip:       "fd00::1",
+			expected: true,
+		},
+		{
+			name:     "IPv6 public",
+			ip:       "2001:db8::1",
+			expected: false,
+		},
+		{
+			name:     "loopback",
+			ip:       "127.0.0.1",
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ip := net.ParseIP(tc.ip)
+			require.NotNil(t, ip, "failed to parse IP: %s", tc.ip)
+			result := utils.IsPrivateOrULA(ip)
+			require.Equal(t, tc.expected, result, "IP %s", tc.ip)
+		})
+	}
+}
+
+func TestIsGlobalUnicast(t *testing.T) {
+	testCases := []struct {
+		name     string
+		ip       string
+		expected bool
+	}{
+		{
+			name:     "IPv4 public",
+			ip:       "8.8.8.8",
+			expected: true,
+		},
+		{
+			name:     "IPv4 private",
+			ip:       "192.168.1.1",
+			expected: false,
+		},
+		{
+			name:     "IPv4 loopback",
+			ip:       "127.0.0.1",
+			expected: false,
+		},
+		{
+			name:     "IPv4 link-local",
+			ip:       "169.254.0.1",
+			expected: false,
+		},
+		{
+			name:     "IPv4 multicast",
+			ip:       "224.0.0.1",
+			expected: false,
+		},
+		{
+			name:     "IPv6 public",
+			ip:       "2001:db8::1",
+			expected: true,
+		},
+		{
+			name:     "IPv6 ULA",
+			ip:       "fc00::1",
+			expected: false,
+		},
+		{
+			name:     "IPv6 link-local",
+			ip:       "fe80::1",
+			expected: false,
+		},
+		{
+			name:     "IPv6 multicast",
+			ip:       "ff02::1",
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ip := net.ParseIP(tc.ip)
+			require.NotNil(t, ip, "failed to parse IP: %s", tc.ip)
+			result := utils.IsGlobalUnicast(ip)
+			require.Equal(t, tc.expected, result, "IP %s", tc.ip)
+		})
+	}
+}
+
+func TestGetInterfaceIPs(t *testing.T) {
+	ips := utils.GetInterfaceIPs()
+	// Should return at least loopback or some interface IPs
+	// We can't predict exact values, but should not panic and should return valid IPs
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		require.NotNil(t, ip, "invalid IP returned: %s", ipStr)
+		require.NotNil(t, ip.To4(), "should return IPv4 addresses only: %s", ipStr)
+		require.False(t, ip.IsLoopback(), "should not return loopback: %s", ipStr)
+	}
+}
