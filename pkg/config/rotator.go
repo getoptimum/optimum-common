@@ -121,5 +121,6 @@ func HashRemoteConfig(cfg *entities.DynamicConfig) string {
 	utils.WriteInt64(h, cfg.MeshDegreeTarget)
 	utils.WriteInt64(h, cfg.MeshDegreeMin)
 	utils.WriteInt64(h, cfg.MeshDegreeMax)
+	utils.WriteBool(h, cfg.ExcludeSelfMessages)
 	return hex.EncodeToString(h.Sum(nil))
 }

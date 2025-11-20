@@ -90,8 +90,8 @@ func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 func TestHashRemoteConfig(t *testing.T) {
 	// given
 	table := map[string]*entities.DynamicConfig{
-		"78877fa898f0b4c45c9c33ae941e40617ad7c8657a307db62bc5691f92f4f60e": {},
-		"5dc7d121a6303c01bf14d296bd151d5992ba4910bbfa7920767663ce7616b151": {
+		"cc2786e1f9910a9d811400edcddaf7075195f7a16b216dcbefba3bc7c4f2ae51": {},
+		"db60d9b58747f20f922f9660d71631d4b26465836096857cd53eca21883dbad8": {
 			RandomMessageSize:        1,
 			ShardFactor:              1,
 			PublisherShardMultiplier: 1,
@@ -100,7 +100,7 @@ func TestHashRemoteConfig(t *testing.T) {
 			MeshDegreeMin:            1,
 			MeshDegreeMax:            1,
 		},
-		"4a6c2bc7e9e63af53026b4bce9b63d8587f7122b370215f62f02d8ac370467b7": {
+		"6a6daffb5ebc958a231ab5099b2d935bf5916e3e4eeab44f8f9c70016d72b672": {
 			RandomMessageSize:        2,
 			ShardFactor:              2,
 			PublisherShardMultiplier: 2,
@@ -108,6 +108,16 @@ func TestHashRemoteConfig(t *testing.T) {
 			MeshDegreeTarget:         2,
 			MeshDegreeMin:            2,
 			MeshDegreeMax:            2,
+		},
+		"f7dbb42586df129bfc7cadcaf952db8256c174915e4ac301cba67a3a2144153e": {
+			RandomMessageSize:        2,
+			ShardFactor:              2,
+			PublisherShardMultiplier: 2,
+			ForwardShardThreshold:    2,
+			MeshDegreeTarget:         2,
+			MeshDegreeMin:            2,
+			MeshDegreeMax:            2,
+			ExcludeSelfMessages:      true,
 		},
 	}
 	for k, v := range table {
