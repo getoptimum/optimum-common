@@ -8,6 +8,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDynamicConfigValidate(t *testing.T) {
+	t.Run("valid config", func(t *testing.T) {
+		// given
+		dc := &entities.DynamicConfig{
+			ChainID:                  "test",
+			ClusterID:                "test_cluster",
+			RandomMessageSize:        512,
+			ShardFactor:              4,
+			PublisherShardMultiplier: 3,
+			ForwardShardThreshold:    0.75,
+			MeshDegreeTarget:         6,
+			MeshDegreeMin:            4,
+			MeshDegreeMax:            12,
+		}
+
+		// when, then
+		require.NoError(t, dc.Validate())
+	})
+}
+
 func TestDynamicConfig(t *testing.T) {
 	// given
 	dc := &entities.DynamicConfig{
