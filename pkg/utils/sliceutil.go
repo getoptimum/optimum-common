@@ -30,3 +30,15 @@ func ContainsInSlice[T comparable](slice []T, value T) bool {
 	}
 	return false
 }
+
+// ExcludeFromSlice returns a new slice with all values from excludeValues removed from slice
+// not optimized for performance
+func ExcludeFromSlice[T comparable](slice, excludeValues []T) []T {
+	result := make([]T, 0, len(slice))
+	for _, entry := range slice {
+		if !ContainsInSlice(excludeValues, entry) {
+			result = append(result, entry)
+		}
+	}
+	return result
+}

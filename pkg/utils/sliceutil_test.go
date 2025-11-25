@@ -130,3 +130,13 @@ func TestContainsInSlice(t *testing.T) {
 		require.Equal(t, tc.want, utils.ContainsInSlice(tc.inputSlice, tc.input))
 	}
 }
+
+func TestExcludeFromSlice(t *testing.T) {
+	t.Parallel()
+	src := []string{"a", "b", "c", "d", "e"}
+	exclude := []string{"b", "d"}
+	require.Equal(t, []string{"a", "c", "e"}, utils.ExcludeFromSlice(src, exclude))
+
+	src = []string{"a", "", "", "c"}
+	require.Equal(t, []string{"a", "c"}, utils.ExcludeFromSlice(src, []string{""}))
+}
