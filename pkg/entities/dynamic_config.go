@@ -8,10 +8,20 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/getoptimum/optimum-common/pkg/utils"
 	"gopkg.in/yaml.v2"
+)
+
+var (
+	supportedChains = map[string]struct{}{
+		"eth_mainnet": {},
+		"eth_hoodi":   {},
+
+		"default": {},
+	}
 )
 
 type DynamicConfig struct {
@@ -54,6 +64,11 @@ func FromYAMLFile(path string) (*DynamicConfig, error) {
 }
 
 func (d *DynamicConfig) Validate() error {
+	d.ChainID = strings.ToLower(strings.TrimSpace(d.ChainID))
+	if _, ok := supportedChains[d.ChainID]; !ok {
+		return fmt.Errorf("unsupported chain_id: %s", d.ChainID)
+	}
+
 	if d.RandomMessageSize <= 0 {
 		return errors.New("random_message_size must be greater than zero")
 	}
