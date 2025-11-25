@@ -12,7 +12,7 @@ func TestDynamicConfigValidate(t *testing.T) {
 	t.Run("valid config", func(t *testing.T) {
 		// given
 		dc := &entities.DynamicConfig{
-			ChainID:                  "test",
+			ChainID:                  "default",
 			ClusterID:                "test_cluster",
 			RandomMessageSize:        512,
 			ShardFactor:              4,
@@ -29,6 +29,17 @@ func TestDynamicConfigValidate(t *testing.T) {
 	t.Run("invalid config", func(t *testing.T) {
 		// given
 		invalidConfigs := []*entities.DynamicConfig{
+			{
+				ChainID:                  "test",
+				ClusterID:                "test_cluster",
+				RandomMessageSize:        512,
+				ShardFactor:              4,
+				PublisherShardMultiplier: 3,
+				ForwardShardThreshold:    0.75,
+				MeshDegreeTarget:         6,
+				MeshDegreeMin:            4,
+				MeshDegreeMax:            12,
+			},
 			{RandomMessageSize: 0, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
 			{RandomMessageSize: 512, ShardFactor: 0, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
 			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 0, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
