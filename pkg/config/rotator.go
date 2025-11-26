@@ -2,8 +2,6 @@ package config
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"sync/atomic"
@@ -76,7 +74,7 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 			if err != nil {
 				continue
 			}
-			newObjHash := HashRemoteConfig(config)
+			newObjHash := entities.HashRemoteConfig(config)
 			if r.lastHash == newObjHash {
 				continue
 			}
@@ -109,18 +107,4 @@ func fetchRemoteConfig(ctx context.Context, url string) (*entities.DynamicConfig
 		return res, nil
 	}
 	return nil, fmt.Errorf("failed to fetch remote config, code %d: %w", code, err)
-}
-
-func HashRemoteConfig(cfg *entities.DynamicConfig) string {
-	h := sha256.New()
-	utils.WriteBool(h, cfg.EnableABTesting)
-	utils.WriteInt64(h, cfg.RandomMessageSize)
-	utils.WriteInt64(h, cfg.ShardFactor)
-	utils.WriteFloat32(h, cfg.PublisherShardMultiplier)
-	utils.WriteFloat32(h, cfg.ForwardShardThreshold)
-	utils.WriteInt64(h, cfg.MeshDegreeTarget)
-	utils.WriteInt64(h, cfg.MeshDegreeMin)
-	utils.WriteInt64(h, cfg.MeshDegreeMax)
-	utils.WriteBool(h, cfg.ExcludeSelfMessages)
-	return hex.EncodeToString(h.Sum(nil))
 }
