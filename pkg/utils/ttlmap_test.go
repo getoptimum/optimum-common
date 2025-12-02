@@ -67,6 +67,18 @@ func TestTTLMap(t *testing.T) {
 		ok = m.Do("missing", func(v int) {})
 		require.False(t, ok)
 	})
+	t.Run("upsert method", func(t *testing.T) {
+		m := utils.NewTTLMap[string, int](time.Minute, time.Minute)
+		m.Upsert("a", func(v int) int { return v + 1 }, 0)
+		val, ok := m.Get("a")
+		require.True(t, ok)
+		require.Equal(t, 0, val)
+
+		m.Upsert("a", func(v int) int { return v + 1 }, 0)
+		val, ok = m.Get("a")
+		require.True(t, ok)
+		require.Equal(t, 1, val)
+	})
 }
 
 func TestGetAndRefresh_ExtendsTTL(t *testing.T) {
