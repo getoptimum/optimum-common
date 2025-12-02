@@ -168,4 +168,5 @@ func (m *TTLMap[K, V]) Upsert(key K, fn func(value V) V, zeroValue V) {
 		return
 	}
 	m.m[key].value = fn(value.value)
+	m.m[key].expiryTime = time.Now().Add(m.maxTTL)
 }

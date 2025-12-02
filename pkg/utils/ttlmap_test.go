@@ -81,6 +81,32 @@ func TestTTLMap(t *testing.T) {
 	})
 }
 
+func TestUpsert_RefreshesTTLForExistingKey(t *testing.T) {
+	maxTTL := 80 * time.Millisecond
+	cleanup := 10 * time.Millisecond
+	m := utils.NewTTLMap[string, int](maxTTL, cleanup)
+	defer m.Close()
+
+	// create key
+	m.Upsert("k", func(v int) int { return v + 1 }, 0)
+	v, ok := m.Get("k")
+	require.True(t, ok)
+	require.Equal(t, 0, v)
+
+	// let it age
+	time.Sleep(maxTTL / 2)
+
+	// Upsert should both update value and refresh TTL
+	m.Upsert("k", func(v int) int { return v + 1 }, 0)
+
+	// after original TTL but before refreshed TTL, it must still be alive
+	time.Sleep(maxTTL / 2)
+
+	v, ok = m.Get("k")
+	require.True(t, ok)
+	require.Equal(t, 1, v)
+}
+
 func TestGetAndRefresh_ExtendsTTL(t *testing.T) {
 	maxTTL := 300 * time.Millisecond
 	cleanup := 50 * time.Millisecond
