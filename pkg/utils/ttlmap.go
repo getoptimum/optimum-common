@@ -153,3 +153,20 @@ func (m *TTLMap[K, V]) Do(k K, fn func(v V)) bool {
 	fn(val)
 	return true
 }
+
+// Upsert inserts a zero value if the key does not exist, or updates the value using the provided function
+func (m *TTLMap[K, V]) Upsert(key K, fn func(value V) V, zeroValue V) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	value, ok := m.m[key]
+	if !ok {
+		m.m[key] = &item[V]{
+			value:      zeroValue,
+			expiryTime: time.Now().Add(m.maxTTL),
+		}
+		return
+	}
+	m.m[key].value = fn(value.value)
+	m.m[key].expiryTime = time.Now().Add(m.maxTTL)
+}
