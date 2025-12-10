@@ -154,6 +154,23 @@ func (m *TTLMap[K, V]) Do(k K, fn func(v V)) bool {
 	return true
 }
 
+// DoAndApply modifies the value associated with the given key using the provided function
+// If key is missing, false is returned
+// Expiry time is not modified
+func (m *TTLMap[K, V]) DoAndApply(k K, fn func(v V) V) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if it, ok := m.m[k]; ok {
+		if time.Now().After(it.expiryTime) {
+			delete(m.m, k)
+			return false
+		}
+		it.value = fn(it.value)
+		return true
+	}
+	return false
+}
+
 // Upsert inserts a zero value if the key does not exist, or updates the value using the provided function
 func (m *TTLMap[K, V]) Upsert(key K, fn func(value V) V, zeroValue V) {
 	m.mu.Lock()

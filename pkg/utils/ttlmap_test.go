@@ -56,6 +56,27 @@ func TestTTLMap(t *testing.T) {
 		wg.Wait()
 	})
 
+	t.Run("DoAndApply method should modify value", func(t *testing.T) {
+		// given
+		m := utils.NewTTLMap[string, int](time.Minute, time.Minute)
+		m.Put("a", 1)
+		val, ok := m.Get("a")
+		require.True(t, ok)
+		require.Equal(t, 1, val)
+		require.False(t, m.DoAndApply("missing", func(v int) int { return v + 1 }))
+
+		// when
+		require.True(t, m.DoAndApply("a", func(v int) int {
+			v += 10
+			return v
+		}))
+
+		// then
+		val, ok = m.Get("a")
+		require.True(t, ok)
+		require.Equal(t, 11, val)
+	})
+
 	t.Run("do method", func(t *testing.T) {
 		m := utils.NewTTLMap[string, int](time.Minute, time.Minute)
 		m.Put("a", 1)
