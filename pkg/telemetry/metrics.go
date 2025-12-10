@@ -23,6 +23,14 @@ func NewHistogram(name, subsystem, help string, labels []string) *prometheus.His
 	)
 }
 
+// NewHistogramWithBuckets creates a Histogram metrics with custom buckets.
+func NewHistogramWithBuckets(name, subsystem, help string, labels []string, buckets []float64) *prometheus.HistogramVec {
+	return promauto.With(labeledRegistry).NewHistogramVec(
+		prometheus.HistogramOpts{Namespace: namespace, Subsystem: subsystem, Name: name, Help: help, Buckets: buckets},
+		labels,
+	)
+}
+
 // NewCounterVec creates a CounterVec metrics under the global namespace returns nop if metrics are disabled.
 func NewCounterVec(name, subsystem, help string, labels []string) *prometheus.CounterVec {
 	return promauto.With(labeledRegistry).NewCounterVec(
