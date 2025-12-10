@@ -106,6 +106,41 @@ func TestNewCounter_RegistersAndIncrements(t *testing.T) {
 	require.Equal(t, 3.0, mf.Metric[0].GetCounter().GetValue())
 }
 
+func TestNewHistogramWithBucketsVec_RegistersAndObserves(t *testing.T) {
+	// given
+	reg := prometheus.NewRegistry()
+	telemetry.SetLabeledRegistry(reg, "ns3")
+
+	// when
+	hv := telemetry.NewHistogramWithBuckets(
+		"latency_seconds",
+		"gateway",
+		"request latency",
+		[]string{"route"},
+		prometheus.ExponentialBuckets(1, 2, 60),
+	)
+	hv.WithLabelValues("/api").Observe(0.05)
+	hv.WithLabelValues("/api").Observe(0.15)
+	hv.WithLabelValues("/health").Observe(0.01)
+
+	// then
+	mf := getMF(t, reg, fq("ns3", "gateway", "latency_seconds"))
+	require.Equal(t, ioprometheusclient.MetricType_HISTOGRAM, mf.GetType())
+
+	counts := map[string]uint64{}
+	for _, m := range mf.Metric {
+		var route string
+		for _, l := range m.Label {
+			if l.GetName() == "route" {
+				route = l.GetValue()
+			}
+		}
+		counts[route] = m.GetHistogram().GetSampleCount()
+	}
+	require.EqualValues(t, 2, counts["/api"])
+	require.EqualValues(t, 1, counts["/health"])
+}
+
 func TestNewHistogramVec_RegistersAndObserves(t *testing.T) {
 	// given
 	reg := prometheus.NewRegistry()
