@@ -63,6 +63,7 @@ func TestTTLMap(t *testing.T) {
 		val, ok := m.Get("a")
 		require.True(t, ok)
 		require.Equal(t, 1, val)
+		require.False(t, m.DoAndApply("missing", func(v int) int { return v + 1 }))
 
 		// when
 		require.True(t, m.DoAndApply("a", func(v int) int {

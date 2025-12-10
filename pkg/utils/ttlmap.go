@@ -161,10 +161,11 @@ func (m *TTLMap[K, V]) DoAndApply(k K, fn func(v V) V) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if it, ok := m.m[k]; ok {
-		m.m[k] = &item[V]{
-			value:      fn(it.value),
-			expiryTime: it.expiryTime,
+		if time.Now().After(it.expiryTime) {
+			delete(m.m, k)
+			return false
 		}
+		it.value = fn(it.value)
 		return true
 	}
 	return false
