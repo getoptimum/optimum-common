@@ -43,7 +43,7 @@ func TestRenewConfig(t *testing.T) {
 		require.Equal(t, "default", cfgReceived.ChainID)
 		require.Equal(t, "optimum_hoodi_v0_2", cfgReceived.ClusterID)
 	case <-time.After(12 * time.Second):
-		t.Skip("timeout waiting for config update - API may be unavailable or slow")
+		t.Fatalf("timeout waiting for config update - boot node unavailable or config missing for cluster: %s", cfg.ClusterID)
 	}
 	require.Equal(t, "default", cfgRotator.Get().ChainID)
 	require.Equal(t, "optimum_hoodi_v0_2", cfgRotator.Get().ClusterID)
