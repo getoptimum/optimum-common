@@ -20,7 +20,7 @@ func TestNewRotatingFileWriter(t *testing.T) {
 		writer, err := NewRotatingFileWriter(filePath, DefaultMaxFileSize)
 		require.NoError(t, err)
 		require.NotNil(t, writer)
-		defer writer.Close()
+		defer writer.Close() //nolint:errcheck
 
 		// Verify file exists
 		_, err = os.Stat(filePath)
@@ -59,13 +59,13 @@ func TestNewRotatingFileWriter(t *testing.T) {
 		filePath := filepath.Join(tmpDir, "test.log")
 
 		// Create file with some content
-		err := os.WriteFile(filePath, []byte("existing content"), 0644)
+		err := os.WriteFile(filePath, []byte("existing content"), 0644) //nolint:gosec // test file permissions
 		require.NoError(t, err)
 
 		writer, err := NewRotatingFileWriter(filePath, DefaultMaxFileSize)
 		require.NoError(t, err)
 		require.NotNil(t, writer)
-		defer writer.Close()
+		defer writer.Close() //nolint:errcheck
 
 		require.Equal(t, int64(16), writer.bytesWritten) // "existing content" = 16 bytes
 	})
@@ -89,7 +89,7 @@ func TestRotatingFileWriter_Write(t *testing.T) {
 		require.Equal(t, len(data), n)
 
 		// Verify content
-		content, err := os.ReadFile(filePath)
+		content, err := os.ReadFile(filePath) //nolint:gosec // test file path
 		require.NoError(t, err)
 		require.Equal(t, data, content)
 	})
@@ -100,7 +100,7 @@ func TestRotatingFileWriter_Write(t *testing.T) {
 		filePath := filepath.Join(tmpDir, "test.log")
 
 		// Create file with initial content
-		err := os.WriteFile(filePath, []byte("initial "), 0644)
+		err := os.WriteFile(filePath, []byte("initial "), 0644) //nolint:gosec // test file permissions
 		require.NoError(t, err)
 
 		writer, err := NewRotatingFileWriter(filePath, DefaultMaxFileSize)
@@ -113,7 +113,7 @@ func TestRotatingFileWriter_Write(t *testing.T) {
 		require.Equal(t, len(data), n)
 
 		// Verify content
-		content, err := os.ReadFile(filePath)
+		content, err := os.ReadFile(filePath) //nolint:gosec // test file path
 		require.NoError(t, err)
 		require.Equal(t, []byte("initial appended"), content)
 	})

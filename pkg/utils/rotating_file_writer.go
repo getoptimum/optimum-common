@@ -36,12 +36,12 @@ func NewRotatingFileWriter(filePath string, maxSize int64) (*RotatingFileWriter,
 
 	// Ensure directory exists
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return nil, fmt.Errorf("failed create logs dir: %w", err)
 	}
 
 	// Open or create the file
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600) //nolint:gosec // log file permissions
 	if err != nil {
 		return nil, fmt.Errorf("failed open log file: %w", err)
 	}
@@ -122,7 +122,7 @@ func (r *RotatingFileWriter) rotate() error {
 	}
 
 	// Create new file
-	f, err := os.OpenFile(r.filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(r.filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600) //nolint:gosec // log file permissions
 	if err != nil {
 		return fmt.Errorf("failed create new log file: %w", err)
 	}

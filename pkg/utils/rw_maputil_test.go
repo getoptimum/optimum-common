@@ -195,12 +195,12 @@ func wrapper(caller func()) {
 	var wg sync.WaitGroup
 	for i := 0; i < numFunctions; i++ {
 		wg.Add(1)
-		go func(i int) {
+		go func() {
 			defer wg.Done()
 			for j := 0; j < numOperations; j++ {
 				caller()
 			}
-		}(i)
+		}()
 	}
 	wg.Wait()
 }
