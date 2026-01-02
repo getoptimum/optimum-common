@@ -52,7 +52,7 @@ func MsgHashWithTimestamp(topic string, message []byte, timestamp int64) string 
 	h.Write(message)
 	// Convert timestamp to bytes and include in hash
 	timestampBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(timestampBytes, uint64(timestamp))
+	binary.BigEndian.PutUint64(timestampBytes, uint64(timestamp)) //nolint:gosec // int64 to uint64 conversion is safe for timestamps
 	h.Write(timestampBytes)
 	return hex.EncodeToString(h.Sum(nil))
 }

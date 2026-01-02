@@ -64,16 +64,16 @@ func TestNewCounter_RegistersAndCollects(t *testing.T) {
 }
 
 func TestNewGauge_RegistersAndCollects(t *testing.T) {
-	//given
+	// given
 	reg := prometheus.NewRegistry()
 	telemetry.SetLabeledRegistry(reg, "ns2")
 
-	//when
+	// when
 	gv := telemetry.NewGaugeVec("inflight", "gateway", "inflight requests", []string{"route"})
 	gv.WithLabelValues("/health").Set(7)
 	gv.WithLabelValues("/api").Set(3)
 
-	//then
+	// then
 	mf := getMF(t, reg, fq("ns2", "gateway", "inflight"))
 	require.Equal(t, ioprometheusclient.MetricType_GAUGE, mf.GetType())
 
@@ -171,16 +171,16 @@ func TestNewHistogramVec_RegistersAndObserves(t *testing.T) {
 }
 
 func TestNewSimpleHistogram_BucketsCumulative(t *testing.T) {
-	//given
+	// given
 	reg := prometheus.NewRegistry()
 	telemetry.SetLabeledRegistry(reg, "ns4")
 
-	//when
+	// when
 	h := telemetry.NewSimpleHistogram("op_seconds", "worker", "op duration", []float64{0.1, 0.5, 1.0})
 	h.Observe(0.3)
 	h.Observe(0.9)
 
-	//then
+	// then
 	mf := getMF(t, reg, fq("ns4", "worker", "op_seconds"))
 	require.Equal(t, ioprometheusclient.MetricType_HISTOGRAM, mf.GetType())
 	require.Len(t, mf.Metric, 1)
@@ -197,17 +197,17 @@ func TestNewSimpleHistogram_BucketsCumulative(t *testing.T) {
 }
 
 func TestAliases_NewCounterVec_NewGaugeVec_Work(t *testing.T) {
-	//given
+	// given
 	reg := prometheus.NewRegistry()
 	telemetry.SetLabeledRegistry(reg, "ns5")
 
-	//when
+	// when
 	cv := telemetry.NewCounterVec("events_total", "core", "events", []string{"k"})
 	cv.WithLabelValues("x").Add(5)
 	gv := telemetry.NewGaugeVec("depth", "core", "queue depth", []string{"q"})
 	gv.WithLabelValues("main").Set(42)
 
-	//then
+	// then
 	mfC := getMF(t, reg, fq("ns5", "core", "events_total"))
 	require.Equal(t, ioprometheusclient.MetricType_COUNTER, mfC.GetType())
 	var csum float64
@@ -223,14 +223,14 @@ func TestAliases_NewCounterVec_NewGaugeVec_Work(t *testing.T) {
 }
 
 func TestSetLabeledRegistry_OverridesNamespace(t *testing.T) {
-	//given
+	// given
 	reg := prometheus.NewRegistry()
 	telemetry.SetLabeledRegistry(reg, "overridden")
 
-	//when
+	// when
 	telemetry.NewCounterVec("foo_total", "sub", "help", []string{"l"}).WithLabelValues("v")
 
-	//then
+	// then
 	mf := getMF(t, reg, fq("overridden", "sub", "foo_total"))
 	require.Equal(t, ioprometheusclient.MetricType_COUNTER, mf.GetType())
 }

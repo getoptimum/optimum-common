@@ -79,7 +79,7 @@ func Load(cfg any, opts ...Option) error {
 		if err != nil {
 			return fmt.Errorf("failed to read config file: %w", err) // fail if YAML path is specified but cannot be read by any reason
 		}
-		if err = yaml.Unmarshal(b, cfg); err != nil {
+		if err := yaml.Unmarshal(b, cfg); err != nil {
 			return err
 		}
 	}

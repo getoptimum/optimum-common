@@ -191,8 +191,23 @@ func TestSortAddresses(t *testing.T) {
 	}
 }
 
+func testIPFunction(t *testing.T, fn func(net.IP) bool, testCases []struct {
+	name     string
+	ip       string
+	expected bool
+}) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ip := net.ParseIP(tc.ip)
+			require.NotNil(t, ip, "failed to parse IP: %s", tc.ip)
+			result := fn(ip)
+			require.Equal(t, tc.expected, result, "IP %s", tc.ip)
+		})
+	}
+}
+
 func TestIsPrivateOrULA(t *testing.T) {
-	testCases := []struct {
+	testIPFunction(t, utils.IsPrivateOrULA, []struct {
 		name     string
 		ip       string
 		expected bool
@@ -242,20 +257,11 @@ func TestIsPrivateOrULA(t *testing.T) {
 			ip:       "127.0.0.1",
 			expected: false,
 		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ip := net.ParseIP(tc.ip)
-			require.NotNil(t, ip, "failed to parse IP: %s", tc.ip)
-			result := utils.IsPrivateOrULA(ip)
-			require.Equal(t, tc.expected, result, "IP %s", tc.ip)
-		})
-	}
+	})
 }
 
 func TestIsGlobalUnicast(t *testing.T) {
-	testCases := []struct {
+	testIPFunction(t, utils.IsGlobalUnicast, []struct {
 		name     string
 		ip       string
 		expected bool
@@ -305,16 +311,7 @@ func TestIsGlobalUnicast(t *testing.T) {
 			ip:       "ff02::1",
 			expected: false,
 		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ip := net.ParseIP(tc.ip)
-			require.NotNil(t, ip, "failed to parse IP: %s", tc.ip)
-			result := utils.IsGlobalUnicast(ip)
-			require.Equal(t, tc.expected, result, "IP %s", tc.ip)
-		})
-	}
+	})
 }
 
 func TestGetInterfaceIPs(t *testing.T) {

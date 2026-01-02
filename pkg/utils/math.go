@@ -64,7 +64,7 @@ func SafeAddUint64Ptr(counter *uint64, values ...int) error {
 	}
 
 	// Convert to uint64 for counter addition
-	totalLenUint64 := uint64(totalLen)
+	totalLenUint64 := uint64(totalLen) //nolint:gosec // int to uint64 conversion is safe after overflow check
 
 	// Use compare-and-swap loop to safely check for uint64 overflow
 	for {
