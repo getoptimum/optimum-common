@@ -64,7 +64,7 @@ func ExtractIdentityFromDir(dir string) (*IdentityInfo, error) {
 
 // ensureIdentity is an internal helper that generates or loads an identity key file in the given directory using the provided key generation function.
 func ensureIdentity(dir string, keygen func() (crypto.PrivKey, error)) (crypto.PrivKey, error) {
-	if err := os.MkdirAll(dir, 0o750); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // directory permissions
 		return nil, fmt.Errorf("ensure that directory %s exist: %w", dir, err)
 	}
 	info, err := ExtractIdentityFromDir(dir)
