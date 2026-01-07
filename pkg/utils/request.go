@@ -27,18 +27,22 @@ func PatchCurl[T any](ctx context.Context, targetURL string, payload any, header
 	if err != nil {
 		return res, 0, fmt.Errorf("unable to marshal payload: %w", err)
 	}
-	return CurlWithBody[T](ctx, http.MethodPatch, targetURL, payloadJSON, headers)
+	return CurlWithBody[T](ctx, http.MethodPatch, targetURL, payloadJSON, headers, nil)
 }
 
-func PostCurl[T any](ctx context.Context, targetURL string, payload any, headers map[string]string) (res *T, statusCode int, err error) {
+func PostCurl[T any](ctx context.Context, targetURL string, payload any, headers map[string]string, opts ...CurlOpts[T]) (res *T, statusCode int, err error) {
+	config := &CurlConf[T]{}
+	for _, opt := range opts {
+		opt(config)
+	}
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
 		return res, 0, fmt.Errorf("unable to marshal payload: %w", err)
 	}
-	return CurlWithBody[T](ctx, http.MethodPost, targetURL, payloadJSON, headers)
+	return CurlWithBody[T](ctx, http.MethodPost, targetURL, payloadJSON, headers, config)
 }
 
-func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJSON []byte, headers map[string]string) (res *T, statusCode int, err error) {
+func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJSON []byte, headers map[string]string, cfg *CurlConf[T]) (res *T, statusCode int, err error) {
 	// todo inject tracer
 	req, err := http.NewRequestWithContext(ctx, method, targetURL, bytes.NewBuffer(payloadJSON))
 	if err != nil {
@@ -48,6 +52,9 @@ func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJ
 	req.Header.Add("Content-Type", "application/json")
 	for k, v := range headers {
 		req.Header.Set(k, v)
+	}
+	if cfg != nil {
+		return executeWithDefaultClient[T](req, cfg.Decoder)
 	}
 	return executeWithDefaultClient[T](req, nil)
 }
