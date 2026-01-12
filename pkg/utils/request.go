@@ -23,8 +23,8 @@ func WithDecoder[T any](decoder func(io.Reader) error) func(*CurlConf[T]) {
 	}
 }
 
-// WithHttpClient allows using a custom HTTP client (e.g., with keep-alive, custom timeouts)
-func WithHttpClient[T any](client *http.Client) func(*CurlConf[T]) {
+// WithHTTPClient allows using a custom HTTP client (e.g., with keep-alive, custom timeouts)
+func WithHTTPClient[T any](client *http.Client) func(*CurlConf[T]) {
 	return func(c *CurlConf[T]) {
 		c.Client = client
 	}
