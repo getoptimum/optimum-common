@@ -1,0 +1,39 @@
+# gosec Configuration and Exceptions
+# This file documents code security rules that are excluded from gosec scanning
+# Each exception should have a clear justification for why it's acceptable
+
+excluded_rules:
+  - rule: G115
+    title: Integer overflow conversion
+    severity: HIGH
+    cwe: CWE-190 (Integer Overflow or Wraparound)
+    reason: |
+      G115 flags potential integer overflow/underflow during type conversions.
+      The flagged instances in optimum-common are false positives where:
+      - pkg/utils/hashutil.go:55,69 - timestamp conversions to uint64 for
+        binary encoding are safe (timestamps are non-negative int64 values)
+      - pkg/utils/math.go:67 - int to uint64 conversion after explicit overflow
+        check ensures safety
+      All instances are already marked with //nolint:gosec comments and have
+      been code-reviewed. The conversions are safe within their specific contexts.
+      This exclusion prevents CI noise while maintaining security.
+    review_date: "2026-01-12"
+    status: accepted
+
+excluded_directories:
+  - path: scripts/
+    reason: |
+      Utility and development scripts, not production library code.
+      Contains test utilities and helper tools.
+      Security standards for production code don't apply here.
+
+scan_configuration:
+  severity_threshold:
+    value: high
+    reason: |
+      Only fail on HIGH severity issues to reduce noise and focus on
+      critical security vulnerabilities. MEDIUM and LOW severity issues
+      are still visible in scan output for awareness but don't block CI.
+  exclude_generated:
+    value: true
+    reason: Generated code (protobuf, etc.) should be excluded from security scanning

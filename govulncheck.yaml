@@ -1,0 +1,56 @@
+# Known Vulnerabilities - Documentation
+# This file documents known vulnerabilities that are accepted risks or have no fix available
+# Note: govulncheck does not support automatic suppression, so the vulncheck job
+# in ci.yml is enhanced with filtering logic to handle accepted risks
+
+accepted_risks:
+  - id: GO-2025-4135
+    cve: N/A
+    package: golang.org/x/crypto/ssh/agent
+    title: Malformed constraint may cause denial of service
+    severity: Moderate
+    fixed_in: golang.org/x/crypto@v0.45.0
+    reason: |
+      This vulnerability affects the SSH agent implementation in golang.org/x/crypto.
+      A malformed constraint could cause denial of service. However, govulncheck
+      analysis shows this vulnerability is NOT called by any code in optimum-common.
+      The package is only pulled in as a transitive dependency, and we don't use
+      any SSH functionality. Risk is minimal but documenting for transparency.
+      Will upgrade when dependencies are updated or when we need to use crypto features.
+    review_date: "2026-01-12"
+    next_review: "2026-06-30"
+    status: module-only
+
+  - id: GO-2025-4134
+    cve: N/A
+    package: golang.org/x/crypto/ssh
+    title: Unbounded memory consumption in golang.org/x/crypto/ssh
+    severity: Moderate
+    fixed_in: golang.org/x/crypto@v0.45.0
+    reason: |
+      This vulnerability affects the SSH implementation in golang.org/x/crypto.
+      Unbounded memory consumption could be triggered in SSH operations. However,
+      govulncheck analysis shows this vulnerability is NOT called by any code in
+      optimum-common. The package is only pulled in as a transitive dependency,
+      and we don't use any SSH functionality. Risk is minimal but documenting
+      for transparency. Will upgrade when dependencies are updated.
+    review_date: "2026-01-12"
+    next_review: "2026-06-30"
+    status: module-only
+
+  - id: GO-2025-4116
+    cve: N/A
+    package: golang.org/x/crypto/ssh/agent
+    title: Potential denial of service in golang.org/x/crypto/ssh/agent
+    severity: Moderate
+    fixed_in: golang.org/x/crypto@v0.43.0
+    reason: |
+      This vulnerability affects the SSH agent implementation in golang.org/x/crypto.
+      A potential denial of service could be triggered through the SSH agent.
+      However, govulncheck analysis shows this vulnerability is NOT called by any
+      code in optimum-common. The package is only pulled in as a transitive
+      dependency, and we don't use any SSH functionality. Risk is minimal but
+      documenting for transparency. Will upgrade when dependencies are updated.
+    review_date: "2026-01-12"
+    next_review: "2026-06-30"
+    status: module-only
