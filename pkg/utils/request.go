@@ -12,6 +12,7 @@ import (
 
 type CurlConf[T any] struct {
 	Decoder func(io.Reader) error
+	Client  *http.Client
 }
 
 type CurlOpts[T any] func(*CurlConf[T])
@@ -19,6 +20,13 @@ type CurlOpts[T any] func(*CurlConf[T])
 func WithDecoder[T any](decoder func(io.Reader) error) func(*CurlConf[T]) {
 	return func(c *CurlConf[T]) {
 		c.Decoder = decoder
+	}
+}
+
+// WithHttpClient allows using a custom HTTP client (e.g., with keep-alive, custom timeouts)
+func WithHttpClient[T any](client *http.Client) func(*CurlConf[T]) {
+	return func(c *CurlConf[T]) {
+		c.Client = client
 	}
 }
 
@@ -38,7 +46,11 @@ func PostCurl[T any](ctx context.Context, targetURL string, payload any, headers
 	return CurlWithBody[T](ctx, http.MethodPost, targetURL, payloadJSON, headers)
 }
 
-func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJSON []byte, headers map[string]string) (res *T, statusCode int, err error) {
+func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJSON []byte, headers map[string]string, opts ...CurlOpts[T]) (res *T, statusCode int, err error) {
+	config := &CurlConf[T]{}
+	for _, opt := range opts {
+		opt(config)
+	}
 	// todo inject tracer
 	req, err := http.NewRequestWithContext(ctx, method, targetURL, bytes.NewBuffer(payloadJSON))
 	if err != nil {
@@ -49,7 +61,7 @@ func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJ
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
-	return executeWithDefaultClient[T](req, nil)
+	return executeRequest[T](req, config)
 }
 
 // GetCurl is a generic function to send GET request with headers and return response
@@ -69,19 +81,21 @@ func GetCurl[T any](ctx context.Context, targetURL string, headers map[string]st
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
-	return executeWithDefaultClient[T](req, config.Decoder)
+	return executeRequest[T](req, config)
 }
 
-// TODO: need to add timeout logic + regress-test it
-func executeWithDefaultClient[T any](req *http.Request, decoder func(io.Reader) error) (res *T, statusCode int, err error) {
+func executeRequest[T any](req *http.Request, config *CurlConf[T]) (res *T, statusCode int, err error) {
 	client := http.DefaultClient
+	if config != nil && config.Client != nil {
+		client = config.Client
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return res, 0, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
-	if decoder != nil {
-		return nil, resp.StatusCode, decoder(resp.Body)
+	if config != nil && config.Decoder != nil {
+		return nil, resp.StatusCode, config.Decoder(resp.Body)
 	}
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
