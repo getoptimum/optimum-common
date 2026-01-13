@@ -58,7 +58,7 @@ jobs:
       - name: Download Go dependencies
         run: go mod download
       - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@7387d225921a2efbcf1613bdb32f490285f9af65
+        run: go install github.com/securego/gosec/v2/cmd/gosec@424fc4cd9c82ea0fd6bee9cd49c2db2c3cc0c93f
       - name: Run gosec security scanner
         run: |
           # Read exclusions from gosec.yaml and trim whitespace
