@@ -11,8 +11,8 @@ import (
 
 func TestMaps(t *testing.T) {
 	m := map[int]string{228: "t", 1488: "e", 666: "s", 777: "t"}
-	keys := utils.Keys(m)
-	values := utils.Values(m)
+	keys := utils.MapKeys(m)
+	values := utils.MapValues(m)
 	require.Equal(t, len(keys), len(m))
 	require.Equal(t, len(values), len(m))
 	sort.Ints(keys)
