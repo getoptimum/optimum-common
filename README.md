@@ -28,6 +28,3 @@ require github.com/getoptimum/optimum-common v0.0.1-rc1
 2. Comments in tests follow Given/When/Then structure when possible
 3. Comments are capitalized, in full sentences ending with a period.
 
-## Pre-commit Hooks
-
-Security hooks automatically check for secrets, private keys, and merge conflicts on every commit. See [Security Hooks Documentation](./docs/security-hooks.md) for complete setup and usage details.
