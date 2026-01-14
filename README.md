@@ -30,17 +30,4 @@ require github.com/getoptimum/optimum-common v0.0.1-rc1
 
 ## Pre-commit Hooks
 
-Security hooks automatically check for secrets, private keys, and merge conflicts on every `git commit`. If issues are detected, the commit will be blocked until resolved.
-
-```bash
-# Linux/Other
-pip install pre-commit && pre-commit install
-
-# macOS
-brew install pre-commit && pre-commit install
-
-# Bypass (if needed)
-git commit --no-verify
-```
-
-Gitleaks scans for hardcoded secrets and credentials. To configure exceptions or allowlist specific files/patterns, edit `.gitleaks.toml` using regex patterns under `[allowlist]`.
+Security hooks automatically check for secrets, private keys, and merge conflicts on every commit. See [Security Hooks Documentation](./docs/security-hooks.md) for complete setup and usage details.
