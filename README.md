@@ -27,3 +27,18 @@ require github.com/getoptimum/optimum-common v0.0.1-rc1
 1. Tests employ `require` package, must be table driven where possible
 2. Comments in tests follow Given/When/Then structure when possible
 3. Comments are capitalized, in full sentences ending with a period.
+
+## Pre-commit Hooks
+
+```bash
+# Linux/Other
+pip install pre-commit && pre-commit install
+
+# macOS
+brew install pre-commit && pre-commit install
+
+# Bypass (if needed)
+git commit --no-verify
+```
+
+Config and exceptions: `.gitleaks.toml`
