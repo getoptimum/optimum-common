@@ -27,3 +27,4 @@ require github.com/getoptimum/optimum-common v0.0.1-rc1
 1. Tests employ `require` package, must be table driven where possible
 2. Comments in tests follow Given/When/Then structure when possible
 3. Comments are capitalized, in full sentences ending with a period.
+
