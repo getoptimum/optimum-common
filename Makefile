@@ -32,6 +32,28 @@ bench: ## Run benchmarks w/o tests
 	@echo "Running benchmarks..."
 	@$(GO) test ./... -bench=. -benchmem -run=^$
 
+FUZZ_TIME ?= 30s
+
+fuzz: ## Run fuzz tests (default 30s per test, override with FUZZ_TIME=10s)
+	@echo "Running fuzz tests ($(FUZZ_TIME) per test)..."
+	@echo "Fuzzing FuzzHashing..."
+	@$(GO) test -run='^$$' -fuzz=FuzzHashing -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@echo "Fuzzing FuzzMultiaddr..."
+	@$(GO) test -run='^$$' -fuzz=FuzzMultiaddr -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@echo "Fuzzing FuzzMultiAddressBuilder..."
+	@$(GO) test -run='^$$' -fuzz=FuzzMultiAddressBuilder -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@echo "Fuzzing FuzzIPClassification..."
+	@$(GO) test -run='^$$' -fuzz=FuzzIPClassification -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@echo "Fuzzing FuzzSortAddresses..."
+	@$(GO) test -run='^$$' -fuzz=FuzzSortAddresses -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@echo "Fuzzing FuzzMathConversions..."
+	@$(GO) test -run='^$$' -fuzz=FuzzMathConversions -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@echo "Fuzzing FuzzSafeAddUint64Ptr..."
+	@$(GO) test -run='^$$' -fuzz=FuzzSafeAddUint64Ptr -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@echo "Fuzzing FuzzConfigLoad..."
+	@$(GO) test -run='^$$' -fuzz=FuzzConfigLoad -fuzztime=$(FUZZ_TIME) ./pkg/config/
+	@echo "Fuzz tests completed."
+
 coverage: $(COVERPROFILE) ## Show summary and enforce threshold
 	@echo "Coverage summary"
 	@$(GO) tool cover -func=$(COVERPROFILE) | tail -1
@@ -93,5 +115,5 @@ release: ## Create a release with GoReleaser (requires tag)
 	@echo "Running goreleaser..."
 	@goreleaser release --clean
 
-.PHONY: coverage coverhtml lint vulcheck tools check ci all help tidy fmt vet clean tag-rc release bench test
+.PHONY: coverage coverhtml lint vulcheck tools check ci all help tidy fmt vet clean tag-rc release bench test fuzz
 .DEFAULT_GOAL := help
