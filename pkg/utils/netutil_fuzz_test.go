@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/utils"
+	"github.com/stretchr/testify/require"
 )
 
 // FuzzIPClassification tests IP address classification functions
@@ -25,9 +26,7 @@ func FuzzIPClassification(f *testing.F) {
 		isGlobal := utils.IsGlobalUnicast(ip)
 
 		// Cannot be both private/ULA AND global unicast
-		if isPrivate && isGlobal {
-			t.Fatalf("IP %v is both private and global", ip)
-		}
+		require.False(t, isPrivate && isGlobal, "IP %v is both private and global", ip)
 	})
 }
 
@@ -52,17 +51,13 @@ func FuzzSortAddresses(f *testing.F) {
 
 		result := utils.SortAddresses(ips)
 
-		if len(result) != len(ips) {
-			t.Fatalf("length changed: %d -> %d", len(ips), len(result))
-		}
+		require.Equal(t, len(ips), len(result), "length changed: %d -> %d", len(ips), len(result))
 
 		// IPv4 must come before IPv6
 		seenIPv6 := false
 		for _, ip := range result {
 			if ip.To4() != nil {
-				if seenIPv6 {
-					t.Fatal("IPv4 found after IPv6")
-				}
+				require.False(t, seenIPv6, "IPv4 found after IPv6")
 			} else {
 				seenIPv6 = true
 			}

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/utils"
+	"github.com/stretchr/testify/require"
 )
 
 // FuzzHashing tests all hash functions with arbitrary input
@@ -17,44 +18,32 @@ func FuzzHashing(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte, topic string, timestamp int64) {
 		// Test HashSHA256 - must always return 64 hex chars
 		sha256Result := utils.HashSHA256(data)
-		if len(sha256Result) != 64 {
-			t.Fatalf("HashSHA256: expected 64 chars, got %d", len(sha256Result))
-		}
+		require.Len(t, sha256Result, 64, "HashSHA256: expected 64 chars")
 
 		// Test HashSHA512 - must always return 128 hex chars
 		sha512Result := utils.HashSHA512(data)
-		if len(sha512Result) != 128 {
-			t.Fatalf("HashSHA512: expected 128 chars, got %d", len(sha512Result))
-		}
+		require.Len(t, sha512Result, 128, "HashSHA512: expected 128 chars")
 
 		// Test HashBytes - empty returns empty, otherwise 64 hex chars
 		hashBytesResult := utils.HashBytes(data)
 		if len(data) == 0 {
-			if hashBytesResult != "" {
-				t.Fatal("HashBytes: expected empty string for empty input")
-			}
-		} else if len(hashBytesResult) != 64 {
-			t.Fatalf("HashBytes: expected 64 chars, got %d", len(hashBytesResult))
+			require.Empty(t, hashBytesResult, "HashBytes: expected empty string for empty input")
+		} else {
+			require.Len(t, hashBytesResult, 64, "HashBytes: expected 64 chars")
 		}
 
 		// Test MsgHashWithTimestamp - must always return 64 hex chars
 		msgHash := utils.MsgHashWithTimestamp(topic, data, timestamp)
-		if len(msgHash) != 64 {
-			t.Fatalf("MsgHashWithTimestamp: expected 64 chars, got %d", len(msgHash))
-		}
+		require.Len(t, msgHash, 64, "MsgHashWithTimestamp: expected 64 chars")
 
 		// Test HashSHA256String - must always return [32]byte
 		rawHash := utils.HashSHA256String(data)
-		if len(rawHash) != 32 {
-			t.Fatalf("HashSHA256String: expected 32 bytes, got %d", len(rawHash))
-		}
+		require.Len(t, rawHash, 32, "HashSHA256String: expected 32 bytes")
 
 		// Test HashXXHash - just ensure no panic
 		_ = utils.HashXXHash(data)
 
 		// Verify determinism
-		if utils.HashSHA256(data) != sha256Result {
-			t.Fatal("HashSHA256 is not deterministic")
-		}
+		require.Equal(t, sha256Result, utils.HashSHA256(data), "HashSHA256 is not deterministic")
 	})
 }

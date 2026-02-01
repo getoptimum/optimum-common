@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/utils"
+	"github.com/stretchr/testify/require"
 )
 
 // FuzzMathConversions tests safe integer conversion functions
@@ -19,23 +20,15 @@ func FuzzMathConversions(f *testing.F) {
 		// Test SafeIntToUint32
 		val32, err32 := utils.SafeIntToUint32(int(i))
 		if err32 == nil {
-			if int(i) < 0 || int(i) > math.MaxUint32 {
-				t.Fatalf("SafeIntToUint32 should have failed for %d", i)
-			}
-			if uint32(i) != val32 {
-				t.Fatalf("SafeIntToUint32 returned wrong value")
-			}
+			require.False(t, int(i) < 0 || int(i) > math.MaxUint32, "SafeIntToUint32 should have failed for %d", i)
+			require.Equal(t, uint32(i), val32, "SafeIntToUint32 returned wrong value")
 		}
 
 		// Test SafeUint64ToInt64
 		val64, err64 := utils.SafeUint64ToInt64(u)
 		if err64 == nil {
-			if u > math.MaxInt64 {
-				t.Fatalf("SafeUint64ToInt64 should have failed for %d", u)
-			}
-			if int64(u) != val64 {
-				t.Fatalf("SafeUint64ToInt64 returned wrong value")
-			}
+			require.False(t, u > math.MaxInt64, "SafeUint64ToInt64 should have failed for %d", u)
+			require.Equal(t, int64(u), val64, "SafeUint64ToInt64 returned wrong value")
 		}
 	})
 }
@@ -53,22 +46,16 @@ func FuzzSafeAddUint64Ptr(f *testing.F) {
 		err := utils.SafeAddUint64Ptr(&counter, v1, v2)
 
 		if v1 < 0 || v2 < 0 {
-			if err == nil {
-				t.Fatal("should fail for negative values")
-			}
+			require.Error(t, err, "should fail for negative values")
 			return
 		}
 
 		sum := int64(v1) + int64(v2)
 		if sum < 0 || uint64(sum) > math.MaxUint64-initial {
-			if err == nil {
-				t.Fatal("should fail for overflow")
-			}
+			require.Error(t, err, "should fail for overflow")
 		} else if err == nil {
 			expected := initial + uint64(v1) + uint64(v2)
-			if counter != expected {
-				t.Fatalf("expected %d, got %d", expected, counter)
-			}
+			require.Equal(t, expected, counter, "expected %d, got %d", expected, counter)
 		}
 	})
 }

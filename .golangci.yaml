@@ -12,6 +12,7 @@ linters:
     - dupl
     - errcheck
     - errorlint
+    - forbidigo
     - funlen
     - goconst
     - gocritic
@@ -70,6 +71,10 @@ linters:
     funlen:
       lines: 300
       statements: 200
+    forbidigo:
+      forbid:
+        - 't\.Fatalf'
+        - 't\.Fatal'
   exclusions:
     paths:
       - .*_mock\.go$

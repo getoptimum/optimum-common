@@ -3,6 +3,7 @@ COVERAGE_THRESHOLD := 80
 COVERPROFILE    := coverage.out
 VULNCHECK_VER := v1.1.4
 VULNCHECK_RUN := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(VULNCHECK_VER)
+FUZZ_TIME ?= 30s
 SHELL := /bin/bash
 
 all: check ## run all checks
@@ -31,8 +32,6 @@ test: ## Run all tests with race detector and coverage
 bench: ## Run benchmarks w/o tests
 	@echo "Running benchmarks..."
 	@$(GO) test ./... -bench=. -benchmem -run=^$
-
-FUZZ_TIME ?= 30s
 
 fuzz: ## Run fuzz tests (default 30s per test, override with FUZZ_TIME=10s)
 	@echo "Running fuzz tests ($(FUZZ_TIME) per test)..."
