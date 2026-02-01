@@ -73,8 +73,8 @@ linters:
       statements: 200
     forbidigo:
       forbid:
-        - 't\.Fatalf'
-        - 't\.Fatal'
+        - p: 't\.Fatalf'
+        - p: 't\.Fatal'
   exclusions:
     paths:
       - .*_mock\.go$
