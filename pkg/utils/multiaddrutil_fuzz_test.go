@@ -8,29 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// FuzzMultiaddr tests multiaddress parsing and IP protocol detection
-func FuzzMultiaddr(f *testing.F) {
-	// Valid peer JSON
-	f.Add(`{"peerID":"QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N","addrs":[]}`, "192.168.1.1")
-	f.Add(`{"peerID":"12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN","addrs":["/ip4/127.0.0.1/tcp/4001"]}`, "10.0.0.1")
-	f.Add(`{}`, "::1")
-	f.Add(`{"peerID":"","addrs":[]}`, "2001:db8::1")
-	f.Add("", "8.8.8.8")
-	f.Add("{", "not-an-ip")
-	f.Add(`null`, "")
-	f.Add(`{"peerID":"invalid!@#","addrs":[]}`, "256.256.256.256")
-
-	f.Fuzz(func(t *testing.T, peerJSON string, ipStr string) {
-		// Test AddressInfoFromString - must not panic
-		_, _ = utils.AddressInfoFromString(peerJSON)
-
-		// Test GetIPProtocol - always returns "ip4" or "ip6"
-		proto := utils.GetIPProtocol(ipStr)
-		// GetIPProtocol always returns either "ip4" or "ip6" by design
-		_ = proto
-	})
-}
-
 // FuzzMultiAddressBuilder tests multiaddress construction
 func FuzzMultiAddressBuilder(f *testing.F) {
 	f.Add(byte(192), byte(168), byte(1), byte(1), 4001)

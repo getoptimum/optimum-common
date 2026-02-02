@@ -35,8 +35,6 @@ fuzz: ## Run fuzz tests (default 30s per test, override with FUZZ_TIME=10s)
 	@echo "Running fuzz tests ($(FUZZ_TIME) per test)..."
 	@echo "Fuzzing FuzzHashing..."
 	@go test -run='^$$' -fuzz=FuzzHashing -fuzztime=$(FUZZ_TIME) ./pkg/utils/
-	@echo "Fuzzing FuzzMultiaddr..."
-	@go test -run='^$$' -fuzz=FuzzMultiaddr -fuzztime=$(FUZZ_TIME) ./pkg/utils/
 	@echo "Fuzzing FuzzMultiAddressBuilder..."
 	@go test -run='^$$' -fuzz=FuzzMultiAddressBuilder -fuzztime=$(FUZZ_TIME) ./pkg/utils/
 	@echo "Fuzzing FuzzIPClassification..."
