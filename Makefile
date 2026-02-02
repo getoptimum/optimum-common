@@ -4,8 +4,6 @@ FUZZ_TIME ?= 30s
 SHELL := /bin/bash
 GOPATH := $(shell go env GOPATH)
 GOBIN := $(if $(shell go env GOBIN),$(shell go env GOBIN),$(GOPATH)/bin)
-PATH := $(GOBIN):$(PATH)
-export PATH
 
 all: check ## run all checks
 
@@ -76,7 +74,7 @@ tools: ## Install development tools
 
 lint: tools ## Run golangci-lint
 	@echo "Running linter..."
-	@golangci-lint run --timeout=7m
+	@$(GOBIN)/golangci-lint run --timeout=7m
 
 vulcheck: tools ## Run govulncheck for vulnerabilities
 	@echo "Running govulncheck..."
@@ -92,7 +90,7 @@ vulcheck: tools ## Run govulncheck for vulnerabilities
 	 fi; \
 	 echo "Running govulncheck..."; \
 	 set +e; \
-	 govulncheck -show verbose ./... 2>&1 | tee /tmp/govulncheck-output.txt; \
+	 $(GOBIN)/govulncheck -show verbose ./... 2>&1 | tee /tmp/govulncheck-output.txt; \
 	 govulncheck_exit=$$?; \
 	 set -e; \
 	 found_vulns=$$(grep -o 'GO-[0-9]\{4\}-[0-9]\+' /tmp/govulncheck-output.txt | sort -u || true); \
@@ -144,7 +142,7 @@ tag-rc: ## Tag new release candidate
 
 release: tools ## Create a release with GoReleaser (requires tag)
 	@echo "Running goreleaser..."
-	@goreleaser release --clean
+	@$(GOBIN)/goreleaser release --clean
 
 # guard target
 $(COVERPROFILE):
