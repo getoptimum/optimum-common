@@ -2,8 +2,6 @@ COVERAGE_THRESHOLD := 80
 COVERPROFILE := coverage.out
 FUZZ_TIME ?= 30s
 SHELL := /bin/bash
-GOPATH := $(shell go env GOPATH)
-GOBIN := $(if $(shell go env GOBIN),$(shell go env GOBIN),$(GOPATH)/bin)
 
 all: check ## run all checks
 
@@ -66,17 +64,11 @@ coverhtml: $(COVERPROFILE) ## Generate HTML coverage report
 	@go tool cover -html=$(COVERPROFILE) -o coverage.html
 	@echo "Open coverage.html to view the report"
 
-tools: ## Install development tools
-	@echo "Installing development tools..."
-	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-	@go install golang.org/x/vuln/cmd/govulncheck@latest
-	@go install github.com/goreleaser/goreleaser/v2@latest
-
-lint: tools ## Run golangci-lint
+lint: ## Run golangci-lint
 	@echo "Running linter..."
-	@$(GOBIN)/golangci-lint run --timeout=7m
+	@go tool golangci-lint run --timeout=7m
 
-vulcheck: tools ## Run govulncheck for vulnerabilities
+vulcheck: ## Run govulncheck for vulnerabilities
 	@echo "Running govulncheck..."
 	@go version
 	@go env GOPRIVATE
@@ -90,7 +82,7 @@ vulcheck: tools ## Run govulncheck for vulnerabilities
 	 fi; \
 	 echo "Running govulncheck..."; \
 	 set +e; \
-	 $(GOBIN)/govulncheck -show verbose ./... 2>&1 | tee /tmp/govulncheck-output.txt; \
+	 go tool govulncheck -show verbose ./... 2>&1 | tee /tmp/govulncheck-output.txt; \
 	 govulncheck_exit=$$?; \
 	 set -e; \
 	 found_vulns=$$(grep -o 'GO-[0-9]\{4\}-[0-9]\+' /tmp/govulncheck-output.txt | sort -u || true); \
@@ -140,13 +132,13 @@ tag-rc: ## Tag new release candidate
 	git tag -a "$$next_tag" -m "Release candidate $$next_tag"; \
 	git push origin "$$next_tag"
 
-release: tools ## Create a release with GoReleaser (requires tag)
+release: ## Create a release with GoReleaser (requires tag)
 	@echo "Running goreleaser..."
-	@$(GOBIN)/goreleaser release --clean
+	@go tool goreleaser release --clean
 
 # guard target
 $(COVERPROFILE):
 	@echo "No $(COVERPROFILE) found; run 'make test' first." >&2; exit 1
 
-.PHONY: coverage coverhtml lint vulcheck tools check ci all help tidy fmt vet clean tag-rc release bench test fuzz
+.PHONY: coverage coverhtml lint vulcheck check ci all help tidy fmt vet clean tag-rc release bench test fuzz
 .DEFAULT_GOAL := help
