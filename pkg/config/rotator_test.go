@@ -12,10 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
-	config.RenewInterval = 2 * time.Second
-}
-
 func TestRenewConfig(t *testing.T) {
 	// given
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -33,8 +29,8 @@ func TestRenewConfig(t *testing.T) {
 		received <- dcCfg
 	}
 
-	// when
-	cfgRotator := config.NewConfigRotator(ctx, l, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, updater)
+	// when (short interval for test)
+	cfgRotator := config.NewConfigRotator(ctx, l, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, updater, config.WithRenewInterval(2*time.Second))
 
 	// then
 	var cfgReceived *entities.DynamicConfig
@@ -43,7 +39,7 @@ func TestRenewConfig(t *testing.T) {
 		require.Equal(t, "default", cfgReceived.ChainID)
 		require.Equal(t, "optimum_hoodi_v0_2", cfgReceived.ClusterID)
 	case <-time.After(12 * time.Second):
-		t.Fatalf("timeout waiting for config update - boot node unavailable or config missing for cluster: %s", cfg.ClusterID)
+		require.Failf(t, "timeout waiting for config update", "boot node unavailable or config missing for cluster: %s", cfg.ClusterID)
 	}
 	require.Equal(t, "default", cfgRotator.Get().ChainID)
 	require.Equal(t, "optimum_hoodi_v0_2", cfgRotator.Get().ClusterID)

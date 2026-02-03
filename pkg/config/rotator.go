@@ -20,14 +20,20 @@ var (
 	RenewInterval = 1 * time.Minute
 )
 
+// RotatorOption configures a Rotator (e.g. WithRenewInterval).
+type RotatorOption func(*Rotator)
+
+// WithRenewInterval sets the interval between config fetch attempts. If not set, RenewInterval is used.
+func WithRenewInterval(d time.Duration) RotatorOption {
+	return func(r *Rotator) { r.renewInterval = d }
+}
+
 // Rotator holds the default and current configuration and allows atomic updates.
 // need dynamically update config in a thread-safe manner for all p2p nodes in the cluster
 type Rotator struct {
-	log logger.AppLogger
-	// lastHash stores the hash of the last applied dynamic configuration to avoid redundant updates.
-	lastHash string
-	// currentOptConfig holds the current active configuration, which may be updated at runtime.
-	// use atomic operations to ensure thread-safe access and updates.
+	log            logger.AppLogger
+	renewInterval  time.Duration
+	lastHash       string
 	currentOptConfig atomic.Pointer[entities.OptimumConfig]
 	updater          func(config *entities.DynamicConfig)
 }
@@ -39,10 +45,14 @@ func NewConfigRotator(
 	chainID,
 	clusterID string,
 	updater func(config *entities.DynamicConfig),
+	opts ...RotatorOption,
 ) *Rotator {
 	r := &Rotator{
 		log:     log.With(logger.WithService("config_rotator")),
 		updater: updater,
+	}
+	for _, o := range opts {
+		o(r)
 	}
 	r.currentOptConfig.Store(baseOptCfg.Clone())
 	go r.bgFetchConfig(ctx, chainID, clusterID)
@@ -62,7 +72,11 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 		}
 	}
 
-	ticker := time.NewTicker(RenewInterval)
+	interval := r.renewInterval
+	if interval == 0 {
+		interval = RenewInterval
+	}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {

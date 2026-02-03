@@ -1,5 +1,6 @@
 *.out
 coverage.html
+.DS_Store
 .env
 .idea
 vendor

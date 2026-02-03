@@ -43,9 +43,9 @@ func HashBytes(b []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
-// MsgHashWithTimestamp returns a hash of topic + message + timestamp.
-// This allows the same message content to be sent multiple times with different timestamps
-// for duplicate tracking purposes.
+// MsgHashWithTimestamp returns a hash of topic + message + timestamp for time-scoped identity
+// (e.g. duplicate detection when the same content can be sent at different times).
+// For content-only identity, use utils.MsgHash.
 func MsgHashWithTimestamp(topic string, message []byte, timestamp int64) string {
 	h := sha256.New()
 	h.Write([]byte(topic))
