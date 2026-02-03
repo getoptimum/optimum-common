@@ -140,3 +140,22 @@ func TestExcludeFromSlice(t *testing.T) {
 	src = []string{"a", "", "", "c"}
 	require.Equal(t, []string{"a", "c"}, utils.ExcludeFromSlice(src, []string{""}))
 }
+
+func TestChunkSlice(t *testing.T) {
+	t.Parallel()
+
+	// Exact division
+	require.Equal(t, [][]uint64{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}, utils.ChunkSlice([]uint64{1, 2, 3, 4, 5, 6, 7, 8, 9}, 3))
+
+	// Remainder
+	require.Equal(t, [][]uint64{{1, 2, 3}, {4, 5, 6}, {7, 8}}, utils.ChunkSlice([]uint64{1, 2, 3, 4, 5, 6, 7, 8}, 3))
+
+	// Single chunk
+	require.Equal(t, [][]int{{1, 2, 3}}, utils.ChunkSlice([]int{1, 2, 3}, 5))
+
+	// Empty slice
+	require.Equal(t, [][]string{}, utils.ChunkSlice([]string{}, 3))
+
+	// Chunk size larger than slice
+	require.Equal(t, [][]string{{"a", "b"}}, utils.ChunkSlice([]string{"a", "b"}, 10))
+}

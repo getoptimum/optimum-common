@@ -10,13 +10,13 @@ import (
 )
 
 func TestMaps(t *testing.T) {
-	m := map[int]string{228: "t", 1488: "e", 666: "s", 777: "t"}
+	m := map[int]string{228: "t", 1489: "e", 666: "s", 777: "t"}
 	keys := utils.MapKeys(m)
 	values := utils.MapValues(m)
-	require.Equal(t, len(keys), len(m))
-	require.Equal(t, len(values), len(m))
+	require.Equal(t, len(m), len(keys))
+	require.Equal(t, len(m), len(values))
 	sort.Ints(keys)
 	sort.Strings(values)
-	require.Equal(t, keys, []int{228, 666, 777, 1488})
-	require.Equal(t, strings.Join(values, ""), "estt")
+	require.Equal(t, []int{228, 666, 777, 1489}, keys)
+	require.Equal(t, "estt", strings.Join(values, ""))
 }
