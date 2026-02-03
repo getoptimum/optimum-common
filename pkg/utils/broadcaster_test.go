@@ -60,7 +60,7 @@ func TestBroadcasterBroadcast(t *testing.T) {
 		case _, ok := <-ch:
 			require.False(t, ok, "expected closed channel after unregister")
 		case <-time.After(250 * time.Millisecond):
-			t.Fatal("read from unregistered channel timed out (not closed?)")
+			require.Fail(t, "read from unregistered channel timed out (not closed?)")
 		}
 	})
 

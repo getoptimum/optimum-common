@@ -111,3 +111,19 @@ func NewTestLogger[T any](t testing.TB, factory func([]io.Writer) T) T {
 	writer := NewTestLogWriter(t)
 	return factory([]io.Writer{writer})
 }
+
+// RunConcurrently runs fn from nGoroutines goroutines, nOps times per goroutine, and waits for completion.
+// Useful for stress-testing concurrent access (e.g. RWMap, TTLMap).
+func RunConcurrently(nGoroutines, nOps int, fn func()) {
+	var wg sync.WaitGroup
+	for i := 0; i < nGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < nOps; j++ {
+				fn()
+			}
+		}()
+	}
+	wg.Wait()
+}

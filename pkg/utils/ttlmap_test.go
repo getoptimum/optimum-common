@@ -201,12 +201,12 @@ func TestGet_PrunesExpired_OnAccess(t *testing.T) {
 
 	// touching "old" should prune it
 	if _, ok := m.Get("old"); ok {
-		t.Fatalf("expected old to be expired")
+		require.Fail(t, "expected old to be expired")
 	}
 
 	// "alive" should still be alive; refresh it
 	if _, ok := m.GetAndRefresh("alive"); !ok {
-		t.Fatalf("expected alive to be present")
+		require.Fail(t, "expected alive to be present")
 	}
 
 	require.Equal(t, 1, m.Len())
@@ -245,7 +245,7 @@ func TestDo_DoesNotHoldLock_DuringUserFunction(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(500 * time.Millisecond):
-		t.Fatal("Do callback appears to deadlock (lock held during fn?)")
+		require.Fail(t, "Do callback appears to deadlock (lock held during fn?)")
 	}
 
 	val, ok := m.Get("b")

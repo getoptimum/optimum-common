@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/getoptimum/optimum-common/pkg/test_utils"
 	"github.com/getoptimum/optimum-common/pkg/utils"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -182,25 +183,9 @@ func TestRWMapConcurrent(t *testing.T) {
 			wg.Add(1)
 			go func(i int, f func(i, j int)) {
 				defer wg.Done()
-				wrapper(func() {
-					f(i, i)
-				})
+				test_utils.RunConcurrently(numFunctions, numOperations, func() { f(i, i) })
 			}(i, f)
 		}
-	}
-	wg.Wait()
-}
-
-func wrapper(caller func()) {
-	var wg sync.WaitGroup
-	for i := 0; i < numFunctions; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
-				caller()
-			}
-		}()
 	}
 	wg.Wait()
 }
