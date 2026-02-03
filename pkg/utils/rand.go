@@ -53,7 +53,7 @@ func Shuffle[T any](lst []T) {
 }
 
 // MsgHash returns a deterministic hash of topic + message for message identity (e.g. deduplication).
-// For time-scoped identity (e.g. same message at different times), use hashutil.MsgHashWithTimestamp.
+// For time-scoped identity (e.g. same message at different times), use utils.MsgHashWithTimestamp.
 func MsgHash(topic string, message []byte) string {
 	h := sha256.New()
 	h.Write([]byte(topic))
