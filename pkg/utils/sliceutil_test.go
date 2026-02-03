@@ -140,3 +140,28 @@ func TestExcludeFromSlice(t *testing.T) {
 	src = []string{"a", "", "", "c"}
 	require.Equal(t, []string{"a", "c"}, utils.ExcludeFromSlice(src, []string{""}))
 }
+
+func TestChunkSlice(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		slice     []int
+		chunkSize int
+		want      [][]int
+	}{
+		{"exact division", []int{1, 2, 3, 4, 5, 6}, 2, [][]int{{1, 2}, {3, 4}, {5, 6}}},
+		{"remainder", []int{1, 2, 3, 4, 5, 6, 7, 8}, 3, [][]int{{1, 2, 3}, {4, 5, 6}, {7, 8}}},
+		{"single chunk", []int{1, 2, 3}, 5, [][]int{{1, 2, 3}}},
+		{"empty slice", []int{}, 3, [][]int{}},
+		{"chunk size larger than slice", []int{1, 2}, 10, [][]int{{1, 2}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := utils.ChunkSlice(tt.slice, tt.chunkSize)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
