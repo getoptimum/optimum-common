@@ -30,6 +30,9 @@ var (
 	initOnce           sync.Once
 )
 
+// GetCoordinates initializes geolocation metrics and starts a background goroutine
+// that periodically fetches and updates geolocation data from a remote service.
+// Fetches occur every 10 minutes. This function should be called once at application startup.
 func GetCoordinates() {
 	initOnce.Do(func() {
 		geoLocation = NewGaugeVec(

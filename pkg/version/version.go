@@ -9,6 +9,8 @@ import (
 const defaultDevVersion = "dev"
 const defaultUnknownCommit = "unknown"
 
+// GetVersion returns the application version derived from build info.
+// Returns "dev" if version information is not available.
 func GetVersion() string {
 	bi, ok := debug.ReadBuildInfo()
 	if !ok || bi == nil {
@@ -21,6 +23,8 @@ func GetVersion() string {
 	return v
 }
 
+// GetCommitHash returns the short commit hash (7 characters) from build info.
+// Returns "unknown" if commit information is not available.
 func GetCommitHash() string {
 	bi, ok := debug.ReadBuildInfo()
 	if !ok || bi == nil {
@@ -51,6 +55,9 @@ var (
 	rePurePseudo = regexp.MustCompile(`^v0\.0\.0-\d{14}-[0-9a-fA-F]+$`)
 )
 
+// DeriveVersion normalizes a version string from build info.
+// Handles various version formats including semantic versions, pseudo-versions, and dev builds.
+// Returns "dev" for unrecognized formats or pure pseudo-versions without a base tag.
 func DeriveVersion(in string) string {
 	v := stripBuildMeta(in)
 

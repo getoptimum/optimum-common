@@ -2,6 +2,8 @@ package utils
 
 import "fmt"
 
+// MapSlice applies a converter function to each element of src and returns a new slice.
+// The result slice has the same length as src.
 func MapSlice[T, U any](src []T, converter func(T) U) []U {
 	result := make([]U, len(src)) // preallocate with exact length
 	for i, v := range src {
@@ -10,6 +12,9 @@ func MapSlice[T, U any](src []T, converter func(T) U) []U {
 	return result
 }
 
+// UniqueSlice returns a new slice containing only unique elements from the input.
+// Uniqueness is determined by the String() method of each element.
+// The order of elements is preserved (first occurrence is kept).
 func UniqueSlice[T fmt.Stringer](slice []T) []T {
 	seen := make(map[string]struct{})
 	result := make([]T, 0, len(slice))
@@ -22,6 +27,8 @@ func UniqueSlice[T fmt.Stringer](slice []T) []T {
 	return result
 }
 
+// ContainsInSlice checks if value exists in slice.
+// Returns true if found, false otherwise.
 func ContainsInSlice[T comparable](slice []T, value T) bool {
 	for i := range slice {
 		if slice[i] == value {

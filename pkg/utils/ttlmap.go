@@ -73,6 +73,8 @@ func (m *TTLMap[K, V]) Close() {
 	})
 }
 
+// Len returns the number of non-expired items currently in the map.
+// Thread-safe: uses read lock for concurrent access.
 func (m *TTLMap[K, V]) Len() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

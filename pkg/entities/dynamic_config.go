@@ -24,6 +24,8 @@ var (
 	}
 )
 
+// DynamicConfig represents runtime-configurable parameters for P2P network behavior.
+// These settings can be updated without restarting the node.
 type DynamicConfig struct {
 	ChainID         string    `db:"chain_id" yaml:"chain_id" json:"chain_id"`
 	ClusterID       string    `db:"cluster_id" yaml:"cluster_id" json:"cluster_id"`
@@ -45,6 +47,8 @@ type DynamicConfig struct {
 	MeshDegreeMax    int64 `db:"mesh_degree_max" yaml:"mesh_degree_max" json:"mesh_degree_max"`
 }
 
+// FromYAMLFile loads a DynamicConfig from a YAML file at the specified path.
+// Returns an error if the file cannot be opened or parsed.
 func FromYAMLFile(path string) (*DynamicConfig, error) {
 	file, err := os.Open(filepath.Clean(path))
 	if err != nil {
@@ -63,6 +67,9 @@ func FromYAMLFile(path string) (*DynamicConfig, error) {
 	return &cfg, nil
 }
 
+// Validate checks that all configuration values are within valid ranges.
+// Normalizes chainID by converting to lowercase and trimming whitespace.
+// Returns an error if validation fails.
 func (d *DynamicConfig) Validate() error {
 	d.ChainID = strings.ToLower(strings.TrimSpace(d.ChainID))
 	if _, ok := supportedChains[d.ChainID]; !ok {
@@ -93,6 +100,8 @@ func (d *DynamicConfig) Validate() error {
 	return nil
 }
 
+// ToMap converts the DynamicConfig to a map representation suitable for storage or serialization.
+// The updated_at field is set to the current time.
 func (d *DynamicConfig) ToMap() map[string]any {
 	return map[string]any{
 		"chain_id":              d.ChainID,
@@ -112,6 +121,9 @@ func (d *DynamicConfig) ToMap() map[string]any {
 	}
 }
 
+// HashRemoteConfig computes a SHA-256 hash of the configurable fields in DynamicConfig.
+// Used to detect when remote configuration has changed.
+// The hash includes: EnableABTesting, ExcludeSelfMessages, and all RLNC/mesh parameters.
 func HashRemoteConfig(cfg *DynamicConfig) string {
 	h := sha256.New()
 	utils.WriteBool(h, cfg.EnableABTesting)

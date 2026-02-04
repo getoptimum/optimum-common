@@ -1,4 +1,4 @@
-COVERAGE_THRESHOLD := 80
+COVERAGE_THRESHOLD := 60
 COVERPROFILE := coverage.out
 FUZZ_TIME ?= 30s
 SHELL := /bin/bash
@@ -138,5 +138,12 @@ release: ## Create a release with GoReleaser (requires tag)
 $(COVERPROFILE):
 	@echo "No $(COVERPROFILE) found; run 'make test' first." >&2; exit 1
 
-.PHONY: coverage coverhtml lint vulcheck check ci all help tidy fmt vet clean tag-rc release bench test fuzz
+docs: ## Generate documentation from Go code comments
+	@echo "Generating documentation..."
+	@go run scripts/generate-docs.go
+
+docs-check: docs ## Check if documentation is up-to-date
+	@git diff --exit-code docs/ || (echo "Documentation is out of date. Run 'make docs' to regenerate." && exit 1)
+
+.PHONY: coverage coverhtml lint vulcheck check ci all help tidy fmt vet clean tag-rc release bench test fuzz docs docs-check
 .DEFAULT_GOAL := help

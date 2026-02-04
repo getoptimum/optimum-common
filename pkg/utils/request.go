@@ -10,13 +10,17 @@ import (
 	"strings"
 )
 
+// CurlConf holds configuration options for HTTP requests.
 type CurlConf[T any] struct {
 	Decoder func(io.Reader) error
 	Client  *http.Client
 }
 
+// CurlOpts is a functional option type for configuring HTTP requests.
 type CurlOpts[T any] func(*CurlConf[T])
 
+// WithDecoder sets a custom decoder function for processing the response body.
+// If set, the decoder is called instead of JSON unmarshaling.
 func WithDecoder[T any](decoder func(io.Reader) error) func(*CurlConf[T]) {
 	return func(c *CurlConf[T]) {
 		c.Decoder = decoder
@@ -29,7 +33,8 @@ func WithHTTPClient[T any](client *http.Client) func(*CurlConf[T]) {
 		c.Client = client
 	}
 }
-
+// PatchCurl sends a PATCH request with JSON payload and returns the unmarshaled response.
+// The payload is automatically marshaled to JSON.
 func PatchCurl[T any](ctx context.Context, targetURL string, payload any, headers map[string]string) (res *T, statusCode int, err error) {
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
@@ -38,6 +43,8 @@ func PatchCurl[T any](ctx context.Context, targetURL string, payload any, header
 	return CurlWithBody[T](ctx, http.MethodPatch, targetURL, payloadJSON, headers)
 }
 
+// PostCurl sends a POST request with JSON payload and returns the unmarshaled response.
+// The payload is automatically marshaled to JSON.
 func PostCurl[T any](ctx context.Context, targetURL string, payload any, headers map[string]string) (res *T, statusCode int, err error) {
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
@@ -46,6 +53,9 @@ func PostCurl[T any](ctx context.Context, targetURL string, payload any, headers
 	return CurlWithBody[T](ctx, http.MethodPost, targetURL, payloadJSON, headers)
 }
 
+// CurlWithBody sends an HTTP request with the specified method, URL, JSON body, and headers.
+// Returns the unmarshaled response of type T, the HTTP status code, and any error.
+// Supports custom decoders and HTTP clients via options.
 func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJSON []byte, headers map[string]string, opts ...CurlOpts[T]) (res *T, statusCode int, err error) {
 	config := &CurlConf[T]{}
 	for _, opt := range opts {
