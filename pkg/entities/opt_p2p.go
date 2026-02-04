@@ -6,6 +6,9 @@ import (
 	"math"
 )
 
+// OptimumConfig holds configuration for P2P network settings including
+// cluster/chain identifiers, message size limits, RLNC sharding parameters,
+// mesh topology settings, and bootstrap peer addresses.
 type OptimumConfig struct {
 	ClusterID      string `yaml:"cluster_id" env:"CLUSTER_ID" flag:"cluster_id"`
 	ChainID        string `yaml:"chain_id" env:"CHAIN_ID" flag:"chain_id" default:"default"`
@@ -25,6 +28,8 @@ type OptimumConfig struct {
 	BootstrapPeers []string `yaml:"bootstrap_peers" env:"BOOTSTRAP_PEERS" flag:"bootstrap_peers"`
 }
 
+// Validate checks that required fields are set and values are within valid ranges.
+// Returns an error if validation fails.
 func (cfg *OptimumConfig) Validate() error {
 	if cfg.ClusterID == "" {
 		return fmt.Errorf("cluster_id is required")
@@ -38,6 +43,8 @@ func (cfg *OptimumConfig) Validate() error {
 	return nil
 }
 
+// ApplyDynamicConfig creates a new OptimumConfig by applying dynamic configuration
+// overrides to the current config. Returns a new config instance; does not modify the receiver.
 func (cfg *OptimumConfig) ApplyDynamicConfig(dcCfg *DynamicConfig) *OptimumConfig {
 	newCfg := cfg.Clone()
 	newCfg.RandomMessageSize = dcCfg.RandomMessageSize
@@ -50,6 +57,8 @@ func (cfg *OptimumConfig) ApplyDynamicConfig(dcCfg *DynamicConfig) *OptimumConfi
 	return newCfg
 }
 
+// Clone creates a deep copy of the configuration.
+// The BootstrapPeers slice is copied to avoid sharing references.
 func (cfg *OptimumConfig) Clone() *OptimumConfig {
 	out := *cfg
 	if cfg.BootstrapPeers != nil {

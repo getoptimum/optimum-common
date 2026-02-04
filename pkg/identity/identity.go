@@ -15,11 +15,15 @@ import (
 
 const KeyFilename = "p2p.key"
 
+// IdentityInfo contains the serialized private key and peer ID.
+// The ID field is included to simplify integration with testing tools.
 type IdentityInfo struct {
 	Key []byte
 	ID  peer.ID // this is needed only to simplify integration with some testing tools
 }
 
+// Option is a function that generates a private key.
+// Used to customize key generation in EnsureIdentity.
 type Option func() (crypto.PrivKey, error)
 
 // EnsureIdentity generates an identity key file in given directory.
@@ -48,6 +52,8 @@ func GenIdentityEd25519() (crypto.PrivKey, error) {
 	return pk, nil
 }
 
+// ExtractIdentityFromDir loads an existing identity from the specified directory.
+// Returns an error if the identity file does not exist or cannot be read/parsed.
 func ExtractIdentityFromDir(dir string) (*IdentityInfo, error) {
 	path := filepath.Join(dir, KeyFilename)
 	data, err := utils.LoadFromFile(path)

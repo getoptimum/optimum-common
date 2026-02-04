@@ -38,6 +38,11 @@ type Rotator struct {
 	updater          func(config *entities.DynamicConfig)
 }
 
+// NewConfigRotator creates a new config rotator that periodically fetches and applies
+// dynamic configuration from a remote endpoint.
+// The rotator starts a background goroutine that fetches config at the specified interval.
+// If chainID or clusterID is empty, fetching is disabled.
+// The updater function is called whenever a new config is successfully fetched and applied.
 func NewConfigRotator(
 	ctx context.Context,
 	log logger.AppLogger,
@@ -106,11 +111,15 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 	}
 }
 
+// RenewConfig atomically updates the current configuration by applying the dynamic config.
+// Thread-safe: uses atomic operations for concurrent access.
 func (r *Rotator) RenewConfig(cfg *entities.DynamicConfig) {
 	currCfg := r.currentOptConfig.Load()
 	r.currentOptConfig.Store(currCfg.ApplyDynamicConfig(cfg))
 }
 
+// Get returns the current configuration.
+// Thread-safe: uses atomic operations for concurrent access.
 func (r *Rotator) Get() *entities.OptimumConfig {
 	return r.currentOptConfig.Load()
 }
