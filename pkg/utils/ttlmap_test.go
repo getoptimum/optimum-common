@@ -56,6 +56,27 @@ func TestTTLMap(t *testing.T) {
 		wg.Wait()
 	})
 
+	t.Run("DoAndApply method should modify value", func(t *testing.T) {
+		// given
+		m := utils.NewTTLMap[string, int](time.Minute, time.Minute)
+		m.Put("a", 1)
+		val, ok := m.Get("a")
+		require.True(t, ok)
+		require.Equal(t, 1, val)
+		require.False(t, m.DoAndApply("missing", func(v int) int { return v + 1 }))
+
+		// when
+		require.True(t, m.DoAndApply("a", func(v int) int {
+			v += 10
+			return v
+		}))
+
+		// then
+		val, ok = m.Get("a")
+		require.True(t, ok)
+		require.Equal(t, 11, val)
+	})
+
 	t.Run("do method", func(t *testing.T) {
 		m := utils.NewTTLMap[string, int](time.Minute, time.Minute)
 		m.Put("a", 1)
@@ -67,6 +88,44 @@ func TestTTLMap(t *testing.T) {
 		ok = m.Do("missing", func(v int) {})
 		require.False(t, ok)
 	})
+	t.Run("upsert method", func(t *testing.T) {
+		m := utils.NewTTLMap[string, int](time.Minute, time.Minute)
+		m.Upsert("a", func(v int) int { return v + 1 }, 0)
+		val, ok := m.Get("a")
+		require.True(t, ok)
+		require.Equal(t, 0, val)
+
+		m.Upsert("a", func(v int) int { return v + 1 }, 0)
+		val, ok = m.Get("a")
+		require.True(t, ok)
+		require.Equal(t, 1, val)
+	})
+}
+
+func TestUpsert_RefreshesTTLForExistingKey(t *testing.T) {
+	maxTTL := 80 * time.Millisecond
+	cleanup := 10 * time.Millisecond
+	m := utils.NewTTLMap[string, int](maxTTL, cleanup)
+	defer m.Close()
+
+	// create key
+	m.Upsert("k", func(v int) int { return v + 1 }, 0)
+	v, ok := m.Get("k")
+	require.True(t, ok)
+	require.Equal(t, 0, v)
+
+	// let it age
+	time.Sleep(maxTTL / 2)
+
+	// Upsert should both update value and refresh TTL
+	m.Upsert("k", func(v int) int { return v + 1 }, 0)
+
+	// after original TTL but before refreshed TTL, it must still be alive
+	time.Sleep(maxTTL / 2)
+
+	v, ok = m.Get("k")
+	require.True(t, ok)
+	require.Equal(t, 1, v)
 }
 
 func TestGetAndRefresh_ExtendsTTL(t *testing.T) {
@@ -142,12 +201,12 @@ func TestGet_PrunesExpired_OnAccess(t *testing.T) {
 
 	// touching "old" should prune it
 	if _, ok := m.Get("old"); ok {
-		t.Fatalf("expected old to be expired")
+		require.Fail(t, "expected old to be expired")
 	}
 
 	// "alive" should still be alive; refresh it
 	if _, ok := m.GetAndRefresh("alive"); !ok {
-		t.Fatalf("expected alive to be present")
+		require.Fail(t, "expected alive to be present")
 	}
 
 	require.Equal(t, 1, m.Len())
@@ -186,7 +245,7 @@ func TestDo_DoesNotHoldLock_DuringUserFunction(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(500 * time.Millisecond):
-		t.Fatal("Do callback appears to deadlock (lock held during fn?)")
+		require.Fail(t, "Do callback appears to deadlock (lock held during fn?)")
 	}
 
 	val, ok := m.Get("b")

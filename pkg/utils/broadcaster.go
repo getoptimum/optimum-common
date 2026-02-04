@@ -10,6 +10,7 @@ type Broadcaster[T any] struct {
 	activeListeners uint64
 }
 
+// NewBroadcaster creates a new broadcaster for messages of type T.
 func NewBroadcaster[T any]() *Broadcaster[T] {
 	return &Broadcaster[T]{
 		messages: make(map[string]chan T),

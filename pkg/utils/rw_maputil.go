@@ -115,13 +115,26 @@ func (rm *RWMap[K, V]) Range(f func(key K, value V) bool) {
 // Do executes a function on a value under read lock. Returns false if the key is not found
 func (rm *RWMap[K, V]) Do(key K, fn func(value V)) bool {
 	rm.mu.RLock()
+	defer rm.mu.RUnlock()
 	value, ok := rm.internal[key]
-	rm.mu.RUnlock()
 	if !ok {
 		return false
 	}
 	fn(value)
 	return true
+}
+
+// Upsert inserts a zero value if the key does not exist, or updates the value using the provided function
+func (rm *RWMap[K, V]) Upsert(key K, fn func(value V) V, zeroValue V) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+
+	value, ok := rm.internal[key]
+	if !ok {
+		rm.internal[key] = zeroValue
+		return
+	}
+	rm.internal[key] = fn(value)
 }
 
 // DoAndApply executes a function on a value under write lock and stores the result back

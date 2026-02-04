@@ -48,7 +48,7 @@ func getNumber(m map[string]any, key string) float64 {
 
 func TestInitLogger_JSONShapeAndMappings(t *testing.T) {
 	var buf bytes.Buffer
-	// TODO: after logger refactor appHash argument will be deleted
+
 	l := logger.InitLogger([]io.Writer{&buf}, logger.Debug,
 		logger.WithString("svc", "api"),
 	)

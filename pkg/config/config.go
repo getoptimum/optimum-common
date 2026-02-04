@@ -58,24 +58,32 @@ func Load(cfg any, opts ...Option) error {
 		o(&l)
 	}
 
-	if l.path != "" {
-		b, err := os.ReadFile(l.path)
-		if err == nil {
-			if err := yaml.Unmarshal(b, cfg); err != nil {
-				return err
-			}
-		} else if !os.IsNotExist(err) {
-			return err
-		}
-	}
-
 	v := reflect.ValueOf(cfg)
 	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return fmt.Errorf("cfg must be pointer")
 	}
 	v = v.Elem()
-
+	// we populate defaults first, so they can be overridden by YAML/env/flags
 	fields := collectFields(v, nil, l.envPrefix)
+	for _, fi := range fields {
+		if fi.defaultValue == "" {
+			continue
+		}
+		if err := setValue(fi.value, fi.defaultValue); err != nil {
+			return fmt.Errorf("setting default for %q: %w", fi.flagName, err)
+		}
+	}
+
+	if l.path != "" {
+		b, err := os.ReadFile(l.path)
+		if err != nil {
+			return fmt.Errorf("failed to read config file: %w", err) // fail if YAML path is specified but cannot be read by any reason
+		}
+		if err := yaml.Unmarshal(b, cfg); err != nil {
+			return err
+		}
+	}
+
 	for _, fi := range fields {
 		if val, ok := os.LookupEnv(fi.envName); ok {
 			if err := setValue(fi.value, val); err != nil {
@@ -103,9 +111,10 @@ func Load(cfg any, opts ...Option) error {
 }
 
 type fieldInfo struct {
-	value    reflect.Value
-	flagName string
-	envName  string
+	value        reflect.Value
+	flagName     string
+	envName      string
+	defaultValue string
 }
 
 func collectFields(v reflect.Value, path []string, envPrefix string) []fieldInfo {
@@ -142,7 +151,12 @@ func collectFields(v reflect.Value, path []string, envPrefix string) []fieldInfo
 			}
 			flagName = strings.Join(parts, "-")
 		}
-		out = append(out, fieldInfo{value: fv, flagName: flagName, envName: envName})
+		out = append(out, fieldInfo{
+			value:        fv,
+			flagName:     flagName,
+			envName:      envName,
+			defaultValue: f.Tag.Get("default"),
+		})
 	}
 	return out
 }
@@ -152,6 +166,15 @@ func setValue(v reflect.Value, s string) error {
 		return nil
 	}
 	switch v.Kind() {
+	case reflect.Slice:
+		parts := strings.Split(s, ",")
+		slice := reflect.MakeSlice(v.Type(), len(parts), len(parts))
+		for i, p := range parts {
+			if err := setValue(slice.Index(i), strings.TrimSpace(p)); err != nil {
+				return err
+			}
+		}
+		v.Set(slice)
 	case reflect.String:
 		v.SetString(s)
 	case reflect.Bool:

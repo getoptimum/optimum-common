@@ -12,6 +12,11 @@ consolidating logging, configuration, utilities, and version helpers used across
 - `pkg/test_utils` provides testing adapters like `TestLogWriter` and `NewTestLogger` to capture structured logs during CI runs while mirroring them locally.
 - `pkg/version` derives semantic versions and short commit hashes from Go build metadata, normalizes various pseudo-version formats into stable identifiers.
 
+## Documentation
+Documentation is automatically generated from Go code comments:
+- `make docs` generates Markdown documentation from code comments in `docs/pkg/`
+- `make docs-check` verifies that documentation is up-to-date
+
 ## Versioning and Releases
 Use the Makefile helpers to manage release versions:
 - `make tag-rc` creates and pushes the next `vX.Y.Z-rcN` release candidate tag.
@@ -27,3 +32,4 @@ require github.com/getoptimum/optimum-common v0.0.1-rc1
 1. Tests employ `require` package, must be table driven where possible
 2. Comments in tests follow Given/When/Then structure when possible
 3. Comments are capitalized, in full sentences ending with a period.
+

@@ -10,18 +10,31 @@ import (
 	"strings"
 )
 
+// CurlConf holds configuration options for HTTP requests.
 type CurlConf[T any] struct {
 	Decoder func(io.Reader) error
+	Client  *http.Client
 }
 
+// CurlOpts is a functional option type for configuring HTTP requests.
 type CurlOpts[T any] func(*CurlConf[T])
 
+// WithDecoder sets a custom decoder function for processing the response body.
+// If set, the decoder is called instead of JSON unmarshaling.
 func WithDecoder[T any](decoder func(io.Reader) error) func(*CurlConf[T]) {
 	return func(c *CurlConf[T]) {
 		c.Decoder = decoder
 	}
 }
 
+// WithHTTPClient allows using a custom HTTP client (e.g., with keep-alive, custom timeouts)
+func WithHTTPClient[T any](client *http.Client) func(*CurlConf[T]) {
+	return func(c *CurlConf[T]) {
+		c.Client = client
+	}
+}
+// PatchCurl sends a PATCH request with JSON payload and returns the unmarshaled response.
+// The payload is automatically marshaled to JSON.
 func PatchCurl[T any](ctx context.Context, targetURL string, payload any, headers map[string]string) (res *T, statusCode int, err error) {
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
@@ -30,6 +43,8 @@ func PatchCurl[T any](ctx context.Context, targetURL string, payload any, header
 	return CurlWithBody[T](ctx, http.MethodPatch, targetURL, payloadJSON, headers)
 }
 
+// PostCurl sends a POST request with JSON payload and returns the unmarshaled response.
+// The payload is automatically marshaled to JSON.
 func PostCurl[T any](ctx context.Context, targetURL string, payload any, headers map[string]string) (res *T, statusCode int, err error) {
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
@@ -38,7 +53,14 @@ func PostCurl[T any](ctx context.Context, targetURL string, payload any, headers
 	return CurlWithBody[T](ctx, http.MethodPost, targetURL, payloadJSON, headers)
 }
 
-func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJSON []byte, headers map[string]string) (res *T, statusCode int, err error) {
+// CurlWithBody sends an HTTP request with the specified method, URL, JSON body, and headers.
+// Returns the unmarshaled response of type T, the HTTP status code, and any error.
+// Supports custom decoders and HTTP clients via options.
+func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJSON []byte, headers map[string]string, opts ...CurlOpts[T]) (res *T, statusCode int, err error) {
+	config := &CurlConf[T]{}
+	for _, opt := range opts {
+		opt(config)
+	}
 	// todo inject tracer
 	req, err := http.NewRequestWithContext(ctx, method, targetURL, bytes.NewBuffer(payloadJSON))
 	if err != nil {
@@ -47,9 +69,9 @@ func CurlWithBody[T any](ctx context.Context, method, targetURL string, payloadJ
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	for k, v := range headers {
-		req.Header.Add(k, v)
+		req.Header.Set(k, v)
 	}
-	return executeWithDefaultClient[T](req, nil)
+	return executeRequest[T](req, config)
 }
 
 // GetCurl is a generic function to send GET request with headers and return response
@@ -69,19 +91,21 @@ func GetCurl[T any](ctx context.Context, targetURL string, headers map[string]st
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
-	return executeWithDefaultClient[T](req, config.Decoder)
+	return executeRequest[T](req, config)
 }
 
-// TODO: need to add timeout logic + regress-test it
-func executeWithDefaultClient[T any](req *http.Request, decoder func(io.Reader) error) (res *T, statusCode int, err error) {
+func executeRequest[T any](req *http.Request, config *CurlConf[T]) (res *T, statusCode int, err error) {
 	client := http.DefaultClient
+	if config != nil && config.Client != nil {
+		client = config.Client
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return res, 0, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
-	if decoder != nil {
-		return nil, resp.StatusCode, decoder(resp.Body)
+	if config != nil && config.Decoder != nil {
+		return nil, resp.StatusCode, config.Decoder(resp.Body)
 	}
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {

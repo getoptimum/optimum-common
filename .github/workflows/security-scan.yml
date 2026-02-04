@@ -1,0 +1,74 @@
+name: Security Scanning
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+  security-events: write
+
+env:
+  go-version: "1.25.6"
+  GOPRIVATE: "github.com/getoptimum"
+
+jobs:
+  secrets-scan:
+    name: Secrets Scanning (TruffleHog)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0  # Full history needed for TruffleHog
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@ef6e76c3c4023279497fab4721ffa071a722fd05
+        with:
+          extra_args: --only-verified
+
+  code-security-scan:
+    name: Code Security Scanning (gosec)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.go-version }}
+          cache: true
+      - name: Generate token from GitHub App
+        id: generate-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: getoptimum
+      - name: Configure git for private modules
+        run: git config --global url."https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
+      - name: Download Go dependencies
+        run: go mod download
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@424fc4cd9c82ea0fd6bee9cd49c2db2c3cc0c93f
+      - name: Run gosec security scanner
+        run: |
+          # Read exclusions from gosec.yaml and trim whitespace
+          EXCLUDED_RULES=$(grep '^\s*- rule:' gosec.yaml | sed 's/.*rule:\s*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '\n' ',' | sed 's/,$//')
+
+          if [ -z "$EXCLUDED_RULES" ]; then
+            echo "No excluded rules configured in gosec.yaml"
+            echo "Running gosec -exclude-generated -exclude-dir=scripts -severity high ./..."
+            gosec -exclude-generated -exclude-dir=scripts -severity high ./...
+          else
+            echo "Running gosec with exclusions: $EXCLUDED_RULES"
+            gosec -exclude-generated -exclude=$EXCLUDED_RULES -exclude-dir=scripts -severity high ./...
+          fi
