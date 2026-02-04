@@ -1,9 +1,5 @@
 name: Security Scanning
 
-env:
-  go-version: "1.25.6"
-  GOPRIVATE: "github.com/getoptimum"
-
 on:
   push:
     branches:
@@ -21,6 +17,10 @@ permissions:
   pull-requests: read
   checks: write
   security-events: write
+
+env:
+  go-version: "1.25.6"
+  GOPRIVATE: "github.com/getoptimum"
 
 jobs:
   secrets-scan:
