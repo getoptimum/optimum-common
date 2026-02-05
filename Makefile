@@ -24,7 +24,7 @@ vet: ## go vet
 
 test: ## Run all tests with race detector and coverage
 	@echo "Running tests..."
-	@go test ./... -race -covermode=atomic -coverprofile=$(COVERPROFILE)
+	@go test ./... -race -covermode=atomic -coverprofile=$(COVERPROFILE) -count=1
 	@grep -v 'test_utils/' $(COVERPROFILE) > $(COVERPROFILE).tmp && mv $(COVERPROFILE).tmp $(COVERPROFILE)
 
 bench: ## Run benchmarks w/o tests
@@ -34,17 +34,17 @@ bench: ## Run benchmarks w/o tests
 fuzz: ## Run fuzz tests (default 30s per test, override with FUZZ_TIME=10s)
 	@echo "Running fuzz tests ($(FUZZ_TIME) per test)..."
 	@echo "Fuzzing FuzzHashing..."
-	@go test -run='^$$' -fuzz=FuzzHashing -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@go test -run='^$$' -fuzz=FuzzHashing -fuzztime=$(FUZZ_TIME) ./pkg/hash/
 	@echo "Fuzzing FuzzMultiAddressBuilder..."
-	@go test -run='^$$' -fuzz=FuzzMultiAddressBuilder -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@go test -run='^$$' -fuzz=FuzzMultiAddressBuilder -fuzztime=$(FUZZ_TIME) ./pkg/net/
 	@echo "Fuzzing FuzzIPClassification..."
-	@go test -run='^$$' -fuzz=FuzzIPClassification -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@go test -run='^$$' -fuzz=FuzzIPClassification -fuzztime=$(FUZZ_TIME) ./pkg/net/
 	@echo "Fuzzing FuzzSortAddresses..."
-	@go test -run='^$$' -fuzz=FuzzSortAddresses -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@go test -run='^$$' -fuzz=FuzzSortAddresses -fuzztime=$(FUZZ_TIME) ./pkg/net/
 	@echo "Fuzzing FuzzMathConversions..."
-	@go test -run='^$$' -fuzz=FuzzMathConversions -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@go test -run='^$$' -fuzz=FuzzMathConversions -fuzztime=$(FUZZ_TIME) ./pkg/math/
 	@echo "Fuzzing FuzzSafeAddUint64Ptr..."
-	@go test -run='^$$' -fuzz=FuzzSafeAddUint64Ptr -fuzztime=$(FUZZ_TIME) ./pkg/utils/
+	@go test -run='^$$' -fuzz=FuzzSafeAddUint64Ptr -fuzztime=$(FUZZ_TIME) ./pkg/math/
 	@echo "Fuzzing FuzzConfigLoad..."
 	@go test -run='^$$' -fuzz=FuzzConfigLoad -fuzztime=$(FUZZ_TIME) ./pkg/config/
 	@echo "Fuzz tests completed."
@@ -137,13 +137,6 @@ release: ## Create a release with GoReleaser (requires tag)
 # guard target
 $(COVERPROFILE):
 	@echo "No $(COVERPROFILE) found; run 'make test' first." >&2; exit 1
-
-docs: ## Generate documentation from Go code comments
-	@echo "Generating documentation..."
-	@go run scripts/generate-docs.go
-
-docs-check: docs ## Check if documentation is up-to-date
-	@git diff --exit-code docs/ || (echo "Documentation is out of date. Run 'make docs' to regenerate." && exit 1)
 
 .PHONY: coverage coverhtml lint vulcheck check ci all help tidy fmt vet clean tag-rc release bench test fuzz docs docs-check
 .DEFAULT_GOAL := help

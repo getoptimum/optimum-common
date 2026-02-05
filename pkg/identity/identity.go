@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/getoptimum/optimum-common/pkg/utils"
+	optio "github.com/getoptimum/optimum-common/pkg/io"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -56,7 +56,7 @@ func GenIdentityEd25519() (crypto.PrivKey, error) {
 // Returns an error if the identity file does not exist or cannot be read/parsed.
 func ExtractIdentityFromDir(dir string) (*IdentityInfo, error) {
 	path := filepath.Join(dir, KeyFilename)
-	data, err := utils.LoadFromFile(path)
+	data, err := optio.LoadFromFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read file %s: %w", path, err)
 	}
@@ -101,7 +101,7 @@ func ensureIdentity(dir string, keygen func() (crypto.PrivKey, error)) (crypto.P
 		if err != nil {
 			return nil, err
 		}
-		if err = utils.AtomicallySaveToFile(filepath.Join(dir, KeyFilename), data); err != nil {
+		if err = optio.AtomicallySaveToFile(filepath.Join(dir, KeyFilename), data); err != nil {
 			return nil, fmt.Errorf("write identity data: %w", err)
 		}
 		return key, nil

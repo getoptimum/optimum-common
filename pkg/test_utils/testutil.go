@@ -8,14 +8,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/getoptimum/optimum-common/pkg/utils"
+	netpkg "github.com/getoptimum/optimum-common/pkg/net"
 	"github.com/stretchr/testify/require"
 )
 
 // GetFreePortT is a wrapper around GetFreePort
 func GetFreePortT(t *testing.T) int {
 	t.Helper()
-	port, err := utils.GetFreePort()
+	port, err := netpkg.GetFreePort()
 	require.NoError(t, err, "failed to allocate free TCP port")
 	return port
 }
@@ -102,7 +102,7 @@ func (tl *TestLogWriter) close() {
 //
 // Example:
 //
-//	logger := testutils.NewTestLogger(t, func(w []io.Writer) logger.AppLogger {
+//	logger := testnetutil.NewTestLogger(t, func(w []io.Writer) logger.AppLogger {
 //	    return logger.InitLogger(w, logger.Debug)
 //	})
 func NewTestLogger[T any](t testing.TB, factory func([]io.Writer) T) T {

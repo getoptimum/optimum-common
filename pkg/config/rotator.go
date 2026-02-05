@@ -9,7 +9,7 @@ import (
 
 	"github.com/getoptimum/optimum-common/pkg/entities"
 	"github.com/getoptimum/optimum-common/pkg/logger"
-	"github.com/getoptimum/optimum-common/pkg/utils"
+	netpkg "github.com/getoptimum/optimum-common/pkg/net"
 )
 
 const (
@@ -31,9 +31,9 @@ func WithRenewInterval(d time.Duration) RotatorOption {
 // Rotator holds the default and current configuration and allows atomic updates.
 // need dynamically update config in a thread-safe manner for all p2p nodes in the cluster
 type Rotator struct {
-	log            logger.AppLogger
-	renewInterval  time.Duration
-	lastHash       string
+	log              logger.AppLogger
+	renewInterval    time.Duration
+	lastHash         string
 	currentOptConfig atomic.Pointer[entities.OptimumConfig]
 	updater          func(config *entities.DynamicConfig)
 }
@@ -125,7 +125,7 @@ func (r *Rotator) Get() *entities.OptimumConfig {
 }
 
 func fetchRemoteConfig(ctx context.Context, url string) (*entities.DynamicConfig, error) {
-	res, code, err := utils.GetCurl[entities.DynamicConfig](ctx, url, nil)
+	res, code, err := netpkg.GetCurl[entities.DynamicConfig](ctx, url, nil)
 	if code == http.StatusOK && res != nil {
 		return res, nil
 	}

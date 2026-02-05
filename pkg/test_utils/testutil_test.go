@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net"
+	stdnet "net"
 	"testing"
 
-	"github.com/getoptimum/optimum-common/pkg/test_utils"
-	"github.com/getoptimum/optimum-common/pkg/utils"
+	netpkg "github.com/getoptimum/optimum-common/pkg/net"
+	test_utils "github.com/getoptimum/optimum-common/pkg/test_utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,7 +24,7 @@ func TestGetFreePortFunctions(t *testing.T) {
 			name: "GetFreePort",
 			port: func(t *testing.T) int {
 				t.Helper()
-				p, err := utils.GetFreePort()
+				p, err := netpkg.GetFreePort()
 				require.NoError(t, err)
 				return p
 			},
@@ -50,7 +50,7 @@ func TestGetFreePortFunctions(t *testing.T) {
 func ensurePortBindable(t *testing.T, port int) {
 	t.Helper()
 
-	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	listener, err := stdnet.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
