@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/getoptimum/optimum-common/pkg/utils"
+	netpkg "github.com/getoptimum/optimum-common/pkg/net"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -52,7 +52,7 @@ func fetchCoordinatesWithURL(serviceURL string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	res, code, err := utils.GetCurl[geoLocationResp](ctx, serviceURL, nil)
+	res, code, err := netpkg.GetCurl[geoLocationResp](ctx, serviceURL, nil)
 	if code != http.StatusOK || err != nil {
 		return
 	}

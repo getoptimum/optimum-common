@@ -10,9 +10,9 @@ excluded_rules:
     reason: |
       G115 flags potential integer overflow/underflow during type conversions.
       The flagged instances in optimum-common are false positives where:
-      - pkg/utils/hashutil.go:55,69 - timestamp conversions to uint64 for
+      - pkg/hash/hashutil.go:65,82 - timestamp conversions to uint64 for
         binary encoding are safe (timestamps are non-negative int64 values)
-      - pkg/utils/math.go:67 - int to uint64 conversion after explicit overflow
+      - pkg/math/math.go:67 - int to uint64 conversion after explicit overflow
         check ensures safety
       All instances are already marked with //nolint:gosec comments and have
       been code-reviewed. The conversions are safe within their specific contexts.

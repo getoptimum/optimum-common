@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/getoptimum/optimum-common/pkg/utils"
+	"github.com/getoptimum/optimum-common/pkg/hash"
 	"gopkg.in/yaml.v3"
 )
 
@@ -126,14 +126,14 @@ func (d *DynamicConfig) ToMap() map[string]any {
 // The hash includes: EnableABTesting, ExcludeSelfMessages, and all RLNC/mesh parameters.
 func HashRemoteConfig(cfg *DynamicConfig) string {
 	h := sha256.New()
-	utils.WriteBool(h, cfg.EnableABTesting)
-	utils.WriteInt64(h, cfg.RandomMessageSize)
-	utils.WriteInt64(h, cfg.ShardFactor)
-	utils.WriteFloat32(h, cfg.PublisherShardMultiplier)
-	utils.WriteFloat32(h, cfg.ForwardShardThreshold)
-	utils.WriteInt64(h, cfg.MeshDegreeTarget)
-	utils.WriteInt64(h, cfg.MeshDegreeMin)
-	utils.WriteInt64(h, cfg.MeshDegreeMax)
-	utils.WriteBool(h, cfg.ExcludeSelfMessages)
+	hash.WriteBool(h, cfg.EnableABTesting)
+	hash.WriteInt64(h, cfg.RandomMessageSize)
+	hash.WriteInt64(h, cfg.ShardFactor)
+	hash.WriteFloat32(h, cfg.PublisherShardMultiplier)
+	hash.WriteFloat32(h, cfg.ForwardShardThreshold)
+	hash.WriteInt64(h, cfg.MeshDegreeTarget)
+	hash.WriteInt64(h, cfg.MeshDegreeMin)
+	hash.WriteInt64(h, cfg.MeshDegreeMax)
+	hash.WriteBool(h, cfg.ExcludeSelfMessages)
 	return hex.EncodeToString(h.Sum(nil))
 }
