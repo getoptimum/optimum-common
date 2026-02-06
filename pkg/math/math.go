@@ -85,16 +85,16 @@ func SafeAddUint64Ptr(counter *uint64, values ...int) error {
 	}
 }
 
-// Clamp restricts a value to a range [min, max].
-// If v < min, returns min.
-// If v > max, returns max.
+// Clamp restricts a value to a range [lower, upper].
+// If v < lower, returns lower.
+// If v > upper, returns upper.
 // Otherwise, returns v.
-func Clamp(v, min, max float64) float64 {
-	if v < min {
-		return min
+func Clamp(v, lower, upper float64) float64 {
+	if v < lower {
+		return lower
 	}
-	if v > max {
-		return max
+	if v > upper {
+		return upper
 	}
 	return v
 }
