@@ -194,9 +194,10 @@ func (m *TTLMap[K, V]) LoadAll() map[K]V {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	now := time.Now()
 	result := make(map[K]V, len(m.m))
 	for k, v := range m.m {
-		if time.Now().Before(v.expiryTime) {
+		if now.Before(v.expiryTime) {
 			result[k] = v.value
 		}
 	}
