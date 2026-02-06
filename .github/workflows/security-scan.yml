@@ -19,7 +19,7 @@ permissions:
   security-events: write
 
 env:
-  go-version: "1.25.6"
+  go-version: "1.25.7"
   GOPRIVATE: "github.com/getoptimum"
 
 jobs:
