@@ -189,3 +189,17 @@ func (m *TTLMap[K, V]) Upsert(key K, fn func(value V) V, zeroValue V) {
 	m.m[key].value = fn(value.value)
 	m.m[key].expiryTime = time.Now().Add(m.maxTTL)
 }
+
+func (m *TTLMap[K, V]) LoadAll() map[K]V {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	now := time.Now()
+	result := make(map[K]V, len(m.m))
+	for k, v := range m.m {
+		if now.Before(v.expiryTime) {
+			result[k] = v.value
+		}
+	}
+	return result
+}

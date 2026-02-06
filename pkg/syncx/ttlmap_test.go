@@ -126,6 +126,7 @@ func TestUpsert_RefreshesTTLForExistingKey(t *testing.T) {
 	v, ok = m.Get("k")
 	require.True(t, ok)
 	require.Equal(t, 1, v)
+	require.Equal(t, 1, len(m.LoadAll()))
 }
 
 func TestGetAndRefresh_ExtendsTTL(t *testing.T) {
@@ -153,6 +154,7 @@ func TestGetAndRefresh_ExtendsTTL(t *testing.T) {
 		_, ok = m.Get("x")
 		return !ok
 	}, time.Second, 50*time.Millisecond)
+	require.Equal(t, 0, len(m.LoadAll()))
 }
 
 func TestDelete_RemovesKey(t *testing.T) {
