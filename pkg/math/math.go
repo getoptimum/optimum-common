@@ -84,3 +84,17 @@ func SafeAddUint64Ptr(counter *uint64, values ...int) error {
 		// If CAS failed, another goroutine modified counter, retry
 	}
 }
+
+// Clamp restricts a value to a range [lower, upper].
+// If v < lower, returns lower.
+// If v > upper, returns upper.
+// Otherwise, returns v.
+func Clamp(v, lower, upper float64) float64 {
+	if v < lower {
+		return lower
+	}
+	if v > upper {
+		return upper
+	}
+	return v
+}
