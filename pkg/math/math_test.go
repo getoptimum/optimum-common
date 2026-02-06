@@ -139,3 +139,70 @@ func TestSafeAddUint64Ptr(t *testing.T) {
 		})
 	}
 }
+
+func TestClamp(t *testing.T) {
+	testCases := []struct {
+		name     string
+		v        float64
+		min      float64
+		max      float64
+		expected float64
+	}{
+		{
+			name:     "value within range",
+			v:        5.0,
+			min:      0.0,
+			max:      10.0,
+			expected: 5.0,
+		},
+		{
+			name:     "value below min",
+			v:        -5.0,
+			min:      0.0,
+			max:      10.0,
+			expected: 0.0,
+		},
+		{
+			name:     "value above max",
+			v:        15.0,
+			min:      0.0,
+			max:      10.0,
+			expected: 10.0,
+		},
+		{
+			name:     "value equals min",
+			v:        0.0,
+			min:      0.0,
+			max:      10.0,
+			expected: 0.0,
+		},
+		{
+			name:     "value equals max",
+			v:        10.0,
+			min:      0.0,
+			max:      10.0,
+			expected: 10.0,
+		},
+		{
+			name:     "negative range",
+			v:        -3.0,
+			min:      -5.0,
+			max:      -1.0,
+			expected: -3.0,
+		},
+		{
+			name:     "negative value below negative min",
+			v:        -10.0,
+			min:      -5.0,
+			max:      -1.0,
+			expected: -5.0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := mathutil.Clamp(tc.v, tc.min, tc.max)
+			require.Equal(t, tc.expected, result, "Clamp(%f, %f, %f) = %f, want %f", tc.v, tc.min, tc.max, result, tc.expected)
+		})
+	}
+}
