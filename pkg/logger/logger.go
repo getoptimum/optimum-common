@@ -33,6 +33,11 @@ type Field struct {
 }
 
 // AppLogger defines the structured logger interface.
+//
+// Deprecated: The AppLogger interface is deprecated and will be removed in a
+// future release. Use slog.Logger directly instead with NewMultiHandler if
+// multiple handlers are needed. The logging package may still exist and provide
+// a simple helper for a standardized slog logger creation.
 type AppLogger interface {
 	Info(message string, fields ...Field)
 	Error(message string, err error, fields ...Field)
