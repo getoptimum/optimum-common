@@ -136,18 +136,6 @@ func prepareSlogParams(err error, fields []Field) []any {
 	return params
 }
 
-// func (l *SLogger) processWriters(processor func(*slog.Logger)) {
-// 	var wg sync.WaitGroup
-// 	wg.Add(len(l.logWriters))
-// 	for i := range l.logWriters {
-// 		go func(j int) {
-// 			processor(l.logWriters[j])
-// 			wg.Done()
-// 		}(i)
-// 	}
-// 	wg.Wait()
-// }
-
 func logLevelFromMode(mode LogMode) slog.Level {
 	switch mode {
 	case Debug:
