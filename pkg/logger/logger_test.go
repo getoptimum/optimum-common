@@ -54,19 +54,17 @@ func TestInitLogger_JSONShapeAndMappings(t *testing.T) {
 	)
 	l.Info("hello world",
 		logger.WithInt("n", 3),
-		logger.WithInt64("gray_log_level", 5), // should be remapped
 	)
 
 	recs := parseJSONLines(t, &buf)
 	require.Len(t, recs, 1)
 	r := recs[0]
 
-	require.Equal(t, "hello world", r["short_message"])
-	require.Equal(t, "info", r["_level"])
+	require.Equal(t, "hello world", r["msg"])
+	require.Equal(t, "INFO", r["level"])
 	require.Equal(t, version.GetVersion(), r["version"])
 	require.Equal(t, "api", r["svc"])
 	require.EqualValues(t, 3, getNumber(r, "n"))
-	require.EqualValues(t, 5, getNumber(r, "level"))
 }
 
 func TestLogLevelFiltering_PerMode(t *testing.T) {
@@ -110,7 +108,7 @@ func TestLogger_Fatal_ExitsWithCode1AndLogs(t *testing.T) {
 	for _, ln := range lines {
 		var m map[string]any
 		_ = json.Unmarshal([]byte(ln), &m)
-		if m["short_message"] == "fatal error, exiting" {
+		if m["msg"] == "fatal error; exiting" {
 			found = true
 		}
 	}
