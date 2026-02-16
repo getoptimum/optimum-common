@@ -48,7 +48,7 @@ type SLogger struct {
 
 var _ AppLogger = (*SLogger)(nil)
 
-// NewAppSLogger creates a default AppLogger writing to stdout.
+// NewAppSLogger creates a default AppLogger writing to STDERR.
 func NewAppSLogger(mode LogMode, fields ...Field) AppLogger {
 	return InitLogger([]io.Writer{os.Stderr}, validateLogMode(mode), fields...)
 }
