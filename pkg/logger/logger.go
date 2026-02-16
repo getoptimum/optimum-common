@@ -63,7 +63,8 @@ func NewAppSLoggerFromSLog(logger *slog.Logger) AppLogger {
 	return &SLogger{logger: logger}
 }
 
-// InitLogger initializes a multi-output JSON logger with slog.
+// InitLogger initializes a multi-output JSON logger with slog. At least one writer
+// must be provided.
 func InitLogger(writers []io.Writer, mode LogMode, fields ...Field) AppLogger {
 	handlers := make([]slog.Handler, len(writers))
 	for i, w := range writers {
