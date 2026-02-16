@@ -60,6 +60,10 @@ func NewAppSLogger(mode LogMode, fields ...Field) AppLogger {
 
 // NewAppSLoggerFromSLog returns a new AppLogger from an existing slog.Logger.
 func NewAppSLoggerFromSLog(logger *slog.Logger) AppLogger {
+	if logger == nil {
+		panic("logger is nil")
+	}
+
 	return &SLogger{logger: logger}
 }
 
