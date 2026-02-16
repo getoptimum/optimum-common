@@ -3,7 +3,9 @@ package telemetry
 import (
 	"context"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,6 +17,11 @@ import (
 const (
 	// defaultGeolocationServiceURL is the default URL for geolocation service
 	defaultGeolocationServiceURL = "https://bootstrap.getoptimum.io/api/v1/ip/location"
+
+	// geolocationServiceURLEnv defines the environment variable for geolocation
+	// service URL. This can be used to override the default URL or to use a
+	// different geolocation service for testing purposes.
+	geolocationServiceURLEnv = "OPTIMUM_GEOLOCATION_SERVICE_URL"
 )
 
 type geoLocationResp struct {
@@ -43,9 +50,16 @@ func GetCoordinates() {
 		)
 	})
 	for {
-		fetchCoordinatesWithURL(defaultGeolocationServiceURL)
+		fetchCoordinatesWithURL(getGeolocationServiceURL())
 		time.Sleep(10 * time.Minute) // Fetch every 10 minutes
 	}
+}
+
+func getGeolocationServiceURL() string {
+	if serviceURL := strings.TrimSpace(os.Getenv(geolocationServiceURLEnv)); serviceURL != "" {
+		return serviceURL
+	}
+	return defaultGeolocationServiceURL
 }
 
 func fetchCoordinatesWithURL(serviceURL string) {

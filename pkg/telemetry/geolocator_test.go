@@ -1,18 +1,26 @@
 package telemetry_test
 
 import (
-	"strconv"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/getoptimum/optimum-common/pkg/telemetry"
 	"github.com/prometheus/client_golang/prometheus"
-	io_prom "github.com/prometheus/client_model/go"
+	ioprom "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/require"
 )
 
-// --- tests ---
-func Test_GetCoordinates_RealService_CachesAndRegistersMetric(t *testing.T) {
+func TestGetCoordinates_RealService_CachesAndRegistersMetric(t *testing.T) {
+	svc := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, err := w.Write([]byte(`{"country":"United States","countryCode":"US","lat":37.7749,"lon":-122.4194}`))
+		require.NoError(t, err)
+	}))
+	defer svc.Close()
+	t.Setenv("OPTIMUM_GEOLOCATION_SERVICE_URL", svc.URL)
+
 	// given: fresh registry/namespace so we can find the metric cleanly
 	reg := prometheus.NewRegistry()
 	telemetry.SetLabeledRegistry(reg, "testns_real")
@@ -20,22 +28,21 @@ func Test_GetCoordinates_RealService_CachesAndRegistersMetric(t *testing.T) {
 	// when: start the loop (it fetches once immediately, then sleeps 10min)
 	go telemetry.GetCoordinates()
 
-	// then: cache should become non-"unknown" shortly if the service is reachable
+	// then: cache should update shortly after the first fetch
 	require.Eventually(t, func() bool {
-		return telemetry.GetCurrentCountryISO() != "unknown"
+		return telemetry.GetCurrentCountryISO() == "US"
 	}, 10*time.Second, 100*time.Millisecond)
 
 	iso := telemetry.GetCurrentCountryISO()
-	require.NotEmpty(t, iso)
-	require.NotEqual(t, "unknown", iso)
-	require.NotEmpty(t, telemetry.GetCurrentCountry())
+	require.Equal(t, "US", iso)
+	require.Equal(t, "United States", telemetry.GetCurrentCountry())
 
 	// and the metric should exist with correct labels and value=1
 	mf := getMF(t, reg, fq("testns_real", "det_coordinates", "geo_location"))
-	require.Equal(t, io_prom.MetricType_GAUGE, mf.GetType())
+	require.Equal(t, ioprom.MetricType_GAUGE, mf.GetType())
 	require.GreaterOrEqual(t, len(mf.Metric), 1)
 
-	// we don’t know exact coords ahead of time; assert label presence & consistency
+	// assert expected labels and value
 	found := false
 	for _, m := range mf.Metric {
 		lbls := m.GetLabel()
@@ -54,17 +61,12 @@ func Test_GetCoordinates_RealService_CachesAndRegistersMetric(t *testing.T) {
 		lonStr, hasLon := got["longitude"]
 		require.True(t, hasISO && hasLat && hasLon, "missing expected labels")
 
-		// iso matches cached iso; coords are numeric strings (not necessarily stable)
-		if got["country_iso"] == iso {
-			// numeric check
-			if _, err := strconv.ParseFloat(latStr, 64); err == nil {
-				if _, err := strconv.ParseFloat(lonStr, 64); err == nil {
-					require.Equal(t, 1.0, m.GetGauge().GetValue())
-					found = true
-					break
-				}
-			}
+		if got["country_iso"] == iso && latStr == "37.774900" && lonStr == "-122.419400" {
+			require.Equal(t, 1.0, m.GetGauge().GetValue())
+			found = true
+			break
 		}
 	}
-	require.True(t, found, "no metric sample matched cached ISO/valid coords")
+
+	require.True(t, found, "no metric sample matched expected labels")
 }
