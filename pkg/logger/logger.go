@@ -76,7 +76,7 @@ func InitLogger(writers []io.Writer, mode LogMode, fields ...Field) AppLogger {
 			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 				switch a.Key {
 				case "time":
-					return slog.Int64("timestamp", a.Value.Int64())
+					return slog.Int64("timestamp", a.Value.Time().Unix())
 
 				case "gray_log_level":
 					return slog.Int64("level", a.Value.Int64())
