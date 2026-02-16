@@ -4,7 +4,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/getoptimum/optimum-common/pkg/version"
 )
@@ -77,7 +76,7 @@ func InitLogger(writers []io.Writer, mode LogMode, fields ...Field) AppLogger {
 			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 				switch a.Key {
 				case "time":
-					return slog.Int64("timestamp", time.Now().Unix())
+					return slog.Int64("timestamp", a.Value.Int64())
 
 				case "gray_log_level":
 					return slog.Int64("level", a.Value.Int64())
