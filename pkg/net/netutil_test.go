@@ -343,7 +343,7 @@ func withOverrides(bootstrapURL string, extServices []string, fn func()) {
 
 func TestGetOutboundIP_BootstrapPublicIP(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ip":"35.200.1.1"}`)
+			_, _ = fmt.Fprint(w, `{"ip":"35.200.1.1"}`)
 	}))
 	defer srv.Close()
 
@@ -356,12 +356,12 @@ func TestGetOutboundIP_BootstrapPublicIP(t *testing.T) {
 
 func TestGetOutboundIP_BootstrapPrivateIP_FallsBackToExternal(t *testing.T) {
 	bootstrap := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ip":"10.0.0.13"}`)
+			_, _ = fmt.Fprint(w, `{"ip":"10.0.0.13"}`)
 	}))
 	defer bootstrap.Close()
 
 	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "  203.0.113.50\n")
+		_, _ = fmt.Fprint(w, "  203.0.113.50\n")
 	}))
 	defer external.Close()
 
@@ -374,7 +374,7 @@ func TestGetOutboundIP_BootstrapPrivateIP_FallsBackToExternal(t *testing.T) {
 
 func TestGetOutboundIP_BootstrapDown_FallsBackToExternal(t *testing.T) {
 	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "198.51.100.1")
+		_, _ = fmt.Fprint(w, "198.51.100.1")
 	}))
 	defer external.Close()
 
@@ -387,12 +387,12 @@ func TestGetOutboundIP_BootstrapDown_FallsBackToExternal(t *testing.T) {
 
 func TestGetOutboundIP_AllExternalReturnPrivate_FallsBackToUDP(t *testing.T) {
 	bootstrap := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ip":"172.16.0.5"}`)
+		_, _ = fmt.Fprint(w, `{"ip":"172.16.0.5"}`)
 	}))
 	defer bootstrap.Close()
 
 	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "10.0.0.1")
+		_, _ = fmt.Fprint(w, "10.0.0.1")
 	}))
 	defer external.Close()
 
@@ -412,7 +412,7 @@ func TestGetOutboundIP_ExternalSkipsBadResponses(t *testing.T) {
 	defer badSrv.Close()
 
 	goodSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "93.184.216.34")
+		_, _ = fmt.Fprint(w, "93.184.216.34")
 	}))
 	defer goodSrv.Close()
 
