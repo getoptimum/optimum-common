@@ -1,7 +1,10 @@
 package net_test
 
 import (
+	"fmt"
 	stdnet "net"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -324,4 +327,98 @@ func TestGetInterfaceIPs(t *testing.T) {
 		require.NotNil(t, ip.To4(), "should return IPv4 addresses only: %s", ipStr)
 		require.False(t, ip.IsLoopback(), "should not return loopback: %s", ipStr)
 	}
+}
+
+func withOverrides(bootstrapURL string, extServices []string, fn func()) {
+	origBootstrap := netpkg.BootstrapURL
+	origServices := netpkg.ExternalIPServices
+	defer func() {
+		netpkg.BootstrapURL = origBootstrap
+		netpkg.ExternalIPServices = origServices
+	}()
+	netpkg.BootstrapURL = bootstrapURL
+	netpkg.ExternalIPServices = extServices
+	fn()
+}
+
+func TestGetOutboundIP_BootstrapPublicIP(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"ip":"35.200.1.1"}`)
+	}))
+	defer srv.Close()
+
+	withOverrides(srv.URL, nil, func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.Equal(t, "35.200.1.1", ip)
+	})
+}
+
+func TestGetOutboundIP_BootstrapPrivateIP_FallsBackToExternal(t *testing.T) {
+	bootstrap := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"ip":"10.0.0.13"}`)
+	}))
+	defer bootstrap.Close()
+
+	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "  203.0.113.50\n")
+	}))
+	defer external.Close()
+
+	withOverrides(bootstrap.URL, []string{external.URL}, func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.Equal(t, "203.0.113.50", ip)
+	})
+}
+
+func TestGetOutboundIP_BootstrapDown_FallsBackToExternal(t *testing.T) {
+	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "198.51.100.1")
+	}))
+	defer external.Close()
+
+	withOverrides("http://127.0.0.1:1", []string{external.URL}, func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.Equal(t, "198.51.100.1", ip)
+	})
+}
+
+func TestGetOutboundIP_AllExternalReturnPrivate_FallsBackToUDP(t *testing.T) {
+	bootstrap := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"ip":"172.16.0.5"}`)
+	}))
+	defer bootstrap.Close()
+
+	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "10.0.0.1")
+	}))
+	defer external.Close()
+
+	withOverrides(bootstrap.URL, []string{external.URL}, func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.NotEmpty(t, ip)
+		parsed := stdnet.ParseIP(ip)
+		require.NotNil(t, parsed)
+	})
+}
+
+func TestGetOutboundIP_ExternalSkipsBadResponses(t *testing.T) {
+	badSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer badSrv.Close()
+
+	goodSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "93.184.216.34")
+	}))
+	defer goodSrv.Close()
+
+	withOverrides("http://127.0.0.1:1", []string{badSrv.URL, goodSrv.URL}, func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.Equal(t, "93.184.216.34", ip)
+	})
 }

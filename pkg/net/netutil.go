@@ -11,10 +11,7 @@ import (
 	"time"
 )
 
-const (
-	// optimumBootstrapURL internal service to get public IP
-	optimumBootstrapURL = "https://bootstrap.getoptimum.io"
-)
+var BootstrapURL = "https://bootstrap.getoptimum.io"
 
 type bootstrapRemoteIP struct {
 	IP string `json:"ip"`
@@ -77,7 +74,7 @@ func SortAddresses(ipAddrs []stdnet.IP) []stdnet.IP {
 	return ipAddrs
 }
 
-var externalIPServices = []string{
+var ExternalIPServices = []string{
 	"https://ifconfig.me/ip",
 	"https://api.ipify.org",
 }
@@ -96,7 +93,7 @@ func GetOutboundIP() (string, error) {
 }
 
 func ipFromBootstrap() string {
-	url := fmt.Sprintf("%s/api/v1/ip", optimumBootstrapURL)
+	url := fmt.Sprintf("%s/api/v1/ip", BootstrapURL)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -108,7 +105,7 @@ func ipFromBootstrap() string {
 }
 
 func ipFromExternalServices() string {
-	for _, svc := range externalIPServices {
+	for _, svc := range ExternalIPServices {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, svc, stdhttp.NoBody)
 		if err != nil {
