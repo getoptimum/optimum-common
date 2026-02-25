@@ -150,7 +150,7 @@ func DetectIPViaCloudflareTrace(ctx context.Context, traceURL, network string) (
 		Timeout:   10 * time.Second,
 	}
 
-	req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, traceURL, nil)
+	req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, traceURL, stdhttp.NoBody)
 	if err != nil {
 		return "", fmt.Errorf("cloudflare trace: create request: %w", err)
 	}
