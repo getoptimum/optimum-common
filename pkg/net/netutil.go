@@ -3,9 +3,11 @@ package net
 import (
 	"context"
 	"fmt"
+	"io"
 	stdnet "net"
 	stdhttp "net/http"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -75,18 +77,64 @@ func SortAddresses(ipAddrs []stdnet.IP) []stdnet.IP {
 	return ipAddrs
 }
 
-// GetOutboundIP returns preferred outbound ip of this machine
-// then falls back to local detection
+var externalIPServices = []string{
+	"https://ifconfig.me/ip",
+	"https://api.ipify.org",
+}
+
+// GetOutboundIP returns the public outbound IP of this machine.
 func GetOutboundIP() (string, error) {
+	if ip := ipFromBootstrap(); ip != "" && !IsPrivateOrULA(stdnet.ParseIP(ip)) {
+		return ip, nil
+	}
+
+	if ip := ipFromExternalServices(); ip != "" {
+		return ip, nil
+	}
+
+	return ipFromUDPDial()
+}
+
+func ipFromBootstrap() string {
 	url := fmt.Sprintf("%s/api/v1/ip", optimumBootstrapURL)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	resp, code, _ := GetCurl[bootstrapRemoteIP](ctx, url, nil)
 	if code == stdhttp.StatusOK && resp != nil {
-		return resp.IP, nil
+		return resp.IP
 	}
+	return ""
+}
 
+func ipFromExternalServices() string {
+	for _, svc := range externalIPServices {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, svc, nil)
+		if err != nil {
+			cancel()
+			continue
+		}
+		resp, err := stdhttp.DefaultClient.Do(req)
+		if err != nil {
+			cancel()
+			continue
+		}
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 256))
+		resp.Body.Close() //nolint:errcheck
+		cancel()
+		if err != nil || resp.StatusCode != stdhttp.StatusOK {
+			continue
+		}
+		ip := strings.TrimSpace(string(body))
+		if parsed := stdnet.ParseIP(ip); parsed != nil && !IsPrivateOrULA(parsed) {
+			return ip
+		}
+	}
+	return ""
+}
+
+func ipFromUDPDial() (string, error) {
 	conn, err := stdnet.Dial("udp", "8.8.8.8:80")
 	if err != nil {
 		return "", fmt.Errorf("dial fallback failed: %w", err)
