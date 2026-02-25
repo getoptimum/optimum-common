@@ -11,39 +11,18 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
 const (
 	// optimumBootstrapURL internal service to get public IP
 	optimumBootstrapURL = "https://bootstrap.getoptimum.io"
-
-	// ipCacheTTL is how long a cached IP result remains valid.
-	ipCacheTTL = 5 * time.Minute
 )
 
 // ExternalIPs holds separately-discovered IPv4 and IPv6 public addresses.
 type ExternalIPs struct {
 	IPv4 string
 	IPv6 string
-}
-
-// cachedIPResult stores a single IP detection result with an expiry time.
-type cachedIPResult struct {
-	ip        string
-	expiresAt time.Time
-}
-
-var ipCache atomic.Pointer[cachedIPResult]
-
-// IPProvider is a function that attempts to detect the public IP address.
-type IPProvider func(ctx context.Context) (string, error)
-
-// IPProviders is the ordered detection chain, extracted as a package-level
-// variable so tests can swap it out.
-var IPProviders = []IPProvider{
-	func(ctx context.Context) (string, error) { return DetectIPViaCloudflareTrace(ctx, cloudflareTraceURL, "tcp") },
 }
 
 // ExternalIP returns the first non-loopback IP address available.
@@ -104,41 +83,10 @@ func SortAddresses(ipAddrs []stdnet.IP) []stdnet.IP {
 }
 
 // GetOutboundIP returns preferred outbound ip of this machine.
-// It delegates to GetOutboundIPContext with a 15-second timeout.
 func GetOutboundIP() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	return GetOutboundIPContext(ctx)
-}
-
-// GetOutboundIPContext detects the public IP of this machine via the
-// Cloudflare /cdn-cgi/trace endpoint on the bootstrap host.
-// Results are cached for ipCacheTTL to avoid repeated network calls.
-func GetOutboundIPContext(ctx context.Context) (string, error) {
-	// Check cache first.
-	if cached := ipCache.Load(); cached != nil && time.Now().Before(cached.expiresAt) {
-		return cached.ip, nil
-	}
-
-	var errs []error
-	for _, provider := range IPProviders {
-		ip, err := provider(ctx)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		if stdnet.ParseIP(ip) == nil {
-			errs = append(errs, fmt.Errorf("provider returned invalid IP: %q", ip))
-			continue
-		}
-		// Cache successful result.
-		ipCache.Store(&cachedIPResult{
-			ip:        ip,
-			expiresAt: time.Now().Add(ipCacheTTL),
-		})
-		return ip, nil
-	}
-	return "", fmt.Errorf("all IP detection methods failed: %w", errors.Join(errs...))
+	return DetectIPViaCloudflareTrace(ctx, cloudflareTraceURL, "tcp")
 }
 
 // GetExternalIPs discovers IPv4 and IPv6 public addresses separately by
@@ -179,12 +127,6 @@ func GetExternalIPs(ctx context.Context) (*ExternalIPs, error) {
 		return nil, fmt.Errorf("no external IPs discovered: %w", errors.Join(errs...))
 	}
 	return result, nil
-}
-
-// InvalidateIPCache clears the cached IP result, forcing the next call
-// to GetOutboundIPContext to perform a fresh detection.
-func InvalidateIPCache() {
-	ipCache.Store(nil)
 }
 
 // newIPTransport creates an http.Transport that forces connections to

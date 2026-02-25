@@ -385,161 +385,6 @@ func TestParseCloudflareTrace(t *testing.T) {
 	}
 }
 
-func TestGetOutboundIPContext_CacheHit(t *testing.T) {
-	// Save and restore original providers.
-	origProviders := netpkg.IPProviders
-	defer func() {
-		netpkg.IPProviders = origProviders
-		netpkg.InvalidateIPCache()
-	}()
-
-	callCount := 0
-	netpkg.IPProviders = []netpkg.IPProvider{
-		func(ctx context.Context) (string, error) {
-			callCount++
-			return "198.51.100.1", nil
-		},
-	}
-	netpkg.InvalidateIPCache()
-
-	ctx := context.Background()
-
-	// First call populates cache.
-	ip1, err := netpkg.GetOutboundIPContext(ctx)
-	require.NoError(t, err)
-	require.Equal(t, "198.51.100.1", ip1)
-	require.Equal(t, 1, callCount)
-
-	// Second call should hit cache.
-	ip2, err := netpkg.GetOutboundIPContext(ctx)
-	require.NoError(t, err)
-	require.Equal(t, "198.51.100.1", ip2)
-	require.Equal(t, 1, callCount, "provider should not be called again on cache hit")
-}
-
-func TestGetOutboundIPContext_CacheExpiry(t *testing.T) {
-	origProviders := netpkg.IPProviders
-	defer func() {
-		netpkg.IPProviders = origProviders
-		netpkg.InvalidateIPCache()
-	}()
-
-	callCount := 0
-	netpkg.IPProviders = []netpkg.IPProvider{
-		func(ctx context.Context) (string, error) {
-			callCount++
-			return "198.51.100.1", nil
-		},
-	}
-
-	// Invalidate to clear any state, then manually set an expired cache entry.
-	netpkg.InvalidateIPCache()
-
-	ctx := context.Background()
-
-	// First call.
-	_, err := netpkg.GetOutboundIPContext(ctx)
-	require.NoError(t, err)
-	require.Equal(t, 1, callCount)
-
-	// Invalidate to simulate expiry.
-	netpkg.InvalidateIPCache()
-
-	// Next call should re-detect.
-	_, err = netpkg.GetOutboundIPContext(ctx)
-	require.NoError(t, err)
-	require.Equal(t, 2, callCount, "provider should be called again after cache invalidation")
-}
-
-func TestGetOutboundIPContext_FallbackChain(t *testing.T) {
-	origProviders := netpkg.IPProviders
-	defer func() {
-		netpkg.IPProviders = origProviders
-		netpkg.InvalidateIPCache()
-	}()
-	netpkg.InvalidateIPCache()
-
-	netpkg.IPProviders = []netpkg.IPProvider{
-		func(ctx context.Context) (string, error) {
-			return "", fmt.Errorf("tier1 failed")
-		},
-		func(ctx context.Context) (string, error) {
-			return "203.0.113.10", nil
-		},
-	}
-
-	ip, err := netpkg.GetOutboundIPContext(context.Background())
-	require.NoError(t, err)
-	require.Equal(t, "203.0.113.10", ip)
-}
-
-func TestGetOutboundIPContext_AllFail(t *testing.T) {
-	origProviders := netpkg.IPProviders
-	defer func() {
-		netpkg.IPProviders = origProviders
-		netpkg.InvalidateIPCache()
-	}()
-	netpkg.InvalidateIPCache()
-
-	netpkg.IPProviders = []netpkg.IPProvider{
-		func(ctx context.Context) (string, error) {
-			return "", fmt.Errorf("fail1")
-		},
-		func(ctx context.Context) (string, error) {
-			return "", fmt.Errorf("fail2")
-		},
-	}
-
-	_, err := netpkg.GetOutboundIPContext(context.Background())
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "all IP detection methods failed")
-	require.Contains(t, err.Error(), "fail1")
-	require.Contains(t, err.Error(), "fail2")
-}
-
-func TestGetOutboundIPContext_InvalidIPSkipped(t *testing.T) {
-	origProviders := netpkg.IPProviders
-	defer func() {
-		netpkg.IPProviders = origProviders
-		netpkg.InvalidateIPCache()
-	}()
-	netpkg.InvalidateIPCache()
-
-	netpkg.IPProviders = []netpkg.IPProvider{
-		func(ctx context.Context) (string, error) {
-			return "not-an-ip", nil // garbage
-		},
-		func(ctx context.Context) (string, error) {
-			return "198.51.100.5", nil
-		},
-	}
-
-	ip, err := netpkg.GetOutboundIPContext(context.Background())
-	require.NoError(t, err)
-	require.Equal(t, "198.51.100.5", ip)
-}
-
-func TestGetOutboundIPContext_ContextCanceled(t *testing.T) {
-	origProviders := netpkg.IPProviders
-	defer func() {
-		netpkg.IPProviders = origProviders
-		netpkg.InvalidateIPCache()
-	}()
-	netpkg.InvalidateIPCache()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // cancel immediately
-
-	netpkg.IPProviders = []netpkg.IPProvider{
-		func(ctx context.Context) (string, error) {
-			return "", ctx.Err()
-		},
-	}
-
-	_, err := netpkg.GetOutboundIPContext(ctx)
-	require.Error(t, err)
-}
-
 func TestGetExternalIPs_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in -short mode")
@@ -564,84 +409,74 @@ func TestGetExternalIPs_Integration(t *testing.T) {
 
 // --- Mock HTTP server tests for DetectIPViaCloudflareTrace ---
 
-// withMockTraceServer starts an httptest.Server, swaps IPProviders to call
-// DetectIPViaCloudflareTrace with the server's URL, and restores on cleanup.
-func withMockTraceServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
-	t.Helper()
-	srv := httptest.NewServer(handler)
+func TestCloudflareTrace_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "fl=abc\nh=example.com\nip=93.184.216.34\nts=123\n")
+	}))
 	t.Cleanup(srv.Close)
 
-	origProviders := netpkg.IPProviders
-	t.Cleanup(func() {
-		netpkg.IPProviders = origProviders
-		netpkg.InvalidateIPCache()
-	})
-
-	netpkg.IPProviders = []netpkg.IPProvider{
-		func(ctx context.Context) (string, error) {
-			return netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
-		},
-	}
-	netpkg.InvalidateIPCache()
-	return srv
-}
-
-func TestCloudflareTrace_Success(t *testing.T) {
-	withMockTraceServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "fl=abc\nh=example.com\nip=93.184.216.34\nts=123\n")
-	})
-
-	ip, err := netpkg.GetOutboundIPContext(context.Background())
+	ctx := context.Background()
+	ip, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
 	require.NoError(t, err)
 	require.Equal(t, "93.184.216.34", ip)
 }
 
 func TestCloudflareTrace_Non200Status(t *testing.T) {
-	withMockTraceServer(t, func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
-	})
+	}))
+	t.Cleanup(srv.Close)
 
-	_, err := netpkg.GetOutboundIPContext(context.Background())
+	ctx := context.Background()
+	_, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unexpected status 503")
 }
 
 func TestCloudflareTrace_MissingIPField(t *testing.T) {
-	withMockTraceServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "fl=abc\nh=example.com\nts=123\n")
-	})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "fl=abc\nh=example.com\nts=123\n")
+	}))
+	t.Cleanup(srv.Close)
 
-	_, err := netpkg.GetOutboundIPContext(context.Background())
+	ctx := context.Background()
+	_, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "ip field not found")
 }
 
 func TestCloudflareTrace_InvalidIPInResponse(t *testing.T) {
-	withMockTraceServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "ip=not-a-valid-ip\n")
-	})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "ip=not-a-valid-ip\n")
+	}))
+	t.Cleanup(srv.Close)
 
-	_, err := netpkg.GetOutboundIPContext(context.Background())
+	ctx := context.Background()
+	_, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid IP")
 }
 
 func TestCloudflareTrace_EmptyBody(t *testing.T) {
-	withMockTraceServer(t, func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 200 OK but empty body
-	})
+	}))
+	t.Cleanup(srv.Close)
 
-	_, err := netpkg.GetOutboundIPContext(context.Background())
+	ctx := context.Background()
+	_, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "ip field not found")
 }
 
 func TestCloudflareTrace_IPv6Response(t *testing.T) {
-	withMockTraceServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "fl=xyz\nip=2001:db8::abcd\nts=999\n")
-	})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "fl=xyz\nip=2001:db8::abcd\nts=999\n")
+	}))
+	t.Cleanup(srv.Close)
 
-	ip, err := netpkg.GetOutboundIPContext(context.Background())
+	ctx := context.Background()
+	ip, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
 	require.NoError(t, err)
 	require.Equal(t, "2001:db8::abcd", ip)
 }
@@ -652,20 +487,8 @@ func TestCloudflareTrace_ServerDown(t *testing.T) {
 	srvURL := srv.URL
 	srv.Close()
 
-	origProviders := netpkg.IPProviders
-	defer func() {
-		netpkg.IPProviders = origProviders
-		netpkg.InvalidateIPCache()
-	}()
-
-	netpkg.IPProviders = []netpkg.IPProvider{
-		func(ctx context.Context) (string, error) {
-			return netpkg.DetectIPViaCloudflareTrace(ctx, srvURL, "tcp")
-		},
-	}
-	netpkg.InvalidateIPCache()
-
-	_, err := netpkg.GetOutboundIPContext(context.Background())
+	ctx := context.Background()
+	_, err := netpkg.DetectIPViaCloudflareTrace(ctx, srvURL, "tcp")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "request failed")
 }
