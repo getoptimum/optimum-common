@@ -110,7 +110,7 @@ func ipFromBootstrap() string {
 func ipFromExternalServices() string {
 	for _, svc := range externalIPServices {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, svc, nil)
+		req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, svc, stdhttp.NoBody)
 		if err != nil {
 			cancel()
 			continue
@@ -121,7 +121,7 @@ func ipFromExternalServices() string {
 			continue
 		}
 		body, err := io.ReadAll(io.LimitReader(resp.Body, 256))
-		resp.Body.Close() //nolint:errcheck
+		_ = resp.Body.Close()
 		cancel()
 		if err != nil || resp.StatusCode != stdhttp.StatusOK {
 			continue
