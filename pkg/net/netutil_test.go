@@ -343,7 +343,7 @@ func withOverrides(bootstrapURL string, extServices []string, fn func()) {
 
 func TestGetOutboundIP_BootstrapPublicIP(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_, _ = fmt.Fprint(w, `{"ip":"35.200.1.1"}`)
+		_, _ = fmt.Fprint(w, `{"ip":"35.200.1.1"}`)
 	}))
 	defer srv.Close()
 
@@ -356,7 +356,7 @@ func TestGetOutboundIP_BootstrapPublicIP(t *testing.T) {
 
 func TestGetOutboundIP_BootstrapPrivateIP_FallsBackToExternal(t *testing.T) {
 	bootstrap := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_, _ = fmt.Fprint(w, `{"ip":"10.0.0.13"}`)
+		_, _ = fmt.Fprint(w, `{"ip":"10.0.0.13"}`)
 	}))
 	defer bootstrap.Close()
 
