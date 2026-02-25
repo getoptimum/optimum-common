@@ -1,21 +1,49 @@
 package net
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	stdnet "net"
 	stdhttp "net/http"
 	"sort"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const (
 	// optimumBootstrapURL internal service to get public IP
 	optimumBootstrapURL = "https://bootstrap.getoptimum.io"
+
+	// ipCacheTTL is how long a cached IP result remains valid.
+	ipCacheTTL = 5 * time.Minute
 )
 
-type bootstrapRemoteIP struct {
-	IP string `json:"ip"`
+// ExternalIPs holds separately-discovered IPv4 and IPv6 public addresses.
+type ExternalIPs struct {
+	IPv4 string
+	IPv6 string
+}
+
+// cachedIPResult stores a single IP detection result with an expiry time.
+type cachedIPResult struct {
+	ip        string
+	expiresAt time.Time
+}
+
+var ipCache atomic.Pointer[cachedIPResult]
+
+// IPProvider is a function that attempts to detect the public IP address.
+type IPProvider func(ctx context.Context) (string, error)
+
+// IPProviders is the ordered detection chain, extracted as a package-level
+// variable so tests can swap it out.
+var IPProviders = []IPProvider{
+	func(ctx context.Context) (string, error) { return DetectIPViaCloudflareTrace(ctx, cloudflareTraceURL, "tcp") },
 }
 
 // ExternalIP returns the first non-loopback IP address available.
@@ -75,29 +103,153 @@ func SortAddresses(ipAddrs []stdnet.IP) []stdnet.IP {
 	return ipAddrs
 }
 
-// GetOutboundIP returns preferred outbound ip of this machine
-// then falls back to local detection
+// GetOutboundIP returns preferred outbound ip of this machine.
+// It delegates to GetOutboundIPContext with a 15-second timeout.
 func GetOutboundIP() (string, error) {
-	url := fmt.Sprintf("%s/api/v1/ip", optimumBootstrapURL)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+	return GetOutboundIPContext(ctx)
+}
 
-	resp, code, _ := GetCurl[bootstrapRemoteIP](ctx, url, nil)
-	if code == stdhttp.StatusOK && resp != nil {
-		return resp.IP, nil
+// GetOutboundIPContext detects the public IP of this machine via the
+// Cloudflare /cdn-cgi/trace endpoint on the bootstrap host.
+// Results are cached for ipCacheTTL to avoid repeated network calls.
+func GetOutboundIPContext(ctx context.Context) (string, error) {
+	// Check cache first.
+	if cached := ipCache.Load(); cached != nil && time.Now().Before(cached.expiresAt) {
+		return cached.ip, nil
 	}
 
-	conn, err := stdnet.Dial("udp", "8.8.8.8:80")
+	var errs []error
+	for _, provider := range IPProviders {
+		ip, err := provider(ctx)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if stdnet.ParseIP(ip) == nil {
+			errs = append(errs, fmt.Errorf("provider returned invalid IP: %q", ip))
+			continue
+		}
+		// Cache successful result.
+		ipCache.Store(&cachedIPResult{
+			ip:        ip,
+			expiresAt: time.Now().Add(ipCacheTTL),
+		})
+		return ip, nil
+	}
+	return "", fmt.Errorf("all IP detection methods failed: %w", errors.Join(errs...))
+}
+
+// GetExternalIPs discovers IPv4 and IPv6 public addresses separately by
+// forcing the address family at the transport layer. Both fields may be
+// empty if the corresponding address family is unavailable. At least one
+// must succeed or an error is returned.
+func GetExternalIPs(ctx context.Context) (*ExternalIPs, error) {
+	result := &ExternalIPs{}
+	var (
+		mu   sync.Mutex
+		errs []error
+		wg   sync.WaitGroup
+	)
+
+	for _, entry := range []struct {
+		network string
+		target  *string
+	}{
+		{"tcp4", &result.IPv4},
+		{"tcp6", &result.IPv6},
+	} {
+		wg.Add(1)
+		go func(network string, target *string) {
+			defer wg.Done()
+			ip, err := DetectIPViaCloudflareTrace(ctx, cloudflareTraceURL, network)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", network, err))
+				return
+			}
+			*target = ip
+		}(entry.network, entry.target)
+	}
+	wg.Wait()
+
+	if result.IPv4 == "" && result.IPv6 == "" {
+		return nil, fmt.Errorf("no external IPs discovered: %w", errors.Join(errs...))
+	}
+	return result, nil
+}
+
+// InvalidateIPCache clears the cached IP result, forcing the next call
+// to GetOutboundIPContext to perform a fresh detection.
+func InvalidateIPCache() {
+	ipCache.Store(nil)
+}
+
+// newIPTransport creates an http.Transport that forces connections to
+// use the given network (e.g. "tcp4", "tcp6", "tcp").
+func newIPTransport(network string) *stdhttp.Transport {
+	return &stdhttp.Transport{
+		DialContext: func(ctx context.Context, _, addr string) (stdnet.Conn, error) {
+			return (&stdnet.Dialer{}).DialContext(ctx, network, addr)
+		},
+	}
+}
+
+const cloudflareTraceURL = optimumBootstrapURL + "/cdn-cgi/trace"
+
+// DetectIPViaCloudflareTrace fetches the Cloudflare /cdn-cgi/trace endpoint
+// and parses the ip= field. The traceURL parameter specifies the endpoint URL,
+// and the network parameter controls the address family ("tcp", "tcp4", or "tcp6").
+func DetectIPViaCloudflareTrace(ctx context.Context, traceURL, network string) (string, error) {
+	client := &stdhttp.Client{
+		Transport: newIPTransport(network),
+		Timeout:   10 * time.Second,
+	}
+
+	req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, traceURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("dial fallback failed: %w", err)
+		return "", fmt.Errorf("cloudflare trace: create request: %w", err)
 	}
-	defer conn.Close() //nolint:errcheck
 
-	udp, ok := conn.LocalAddr().(*stdnet.UDPAddr)
-	if !ok || udp.IP == nil {
-		return "", fmt.Errorf("unexpected LocalAddr type: %T", conn.LocalAddr())
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("cloudflare trace: request failed: %w", err)
 	}
-	return udp.IP.String(), nil
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != stdhttp.StatusOK {
+		return "", fmt.Errorf("cloudflare trace: unexpected status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if err != nil {
+		return "", fmt.Errorf("cloudflare trace: read body: %w", err)
+	}
+
+	return ParseCloudflareTrace(string(body))
+}
+
+// ParseCloudflareTrace extracts and validates the ip= field from the
+// Cloudflare trace response body (key=value\n format).
+func ParseCloudflareTrace(body string) (string, error) {
+	scanner := bufio.NewScanner(strings.NewReader(body))
+	for scanner.Scan() {
+		line := scanner.Text()
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		if key == "ip" {
+			ip := strings.TrimSpace(value)
+			if stdnet.ParseIP(ip) == nil {
+				return "", fmt.Errorf("cloudflare trace: invalid IP %q", ip)
+			}
+			return ip, nil
+		}
+	}
+	return "", fmt.Errorf("cloudflare trace: ip field not found")
 }
 
 var (
