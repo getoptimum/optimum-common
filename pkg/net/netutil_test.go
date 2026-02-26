@@ -12,12 +12,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDetectDetectIPViaCloudflareTrace(t *testing.T) {
-	t.Skip("local run")
-	ip4, ip6, err := netpkg.GetExternalIPs()
+func TestGetExternalIPs_Integration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode")
+	}
+
+	ipV4, ipV6, err := netpkg.GetExternalIPs()
 	require.NoError(t, err)
-	t.Log(ip4)
-	t.Log(ip6)
+
+	// At least IPv4 should be available in most environments.
+	require.NotEmpty(t, ipV4, "expected IPv4 address")
+	require.NotNil(t, stdnet.ParseIP(ipV4), "IPv4 should be a valid IP")
+
+	// IPv6 may or may not be available, but if present it should be valid.
+	if ipV6 != "" {
+		require.NotNil(t, stdnet.ParseIP(ipV6), "IPv6 should be a valid IP")
+	}
 }
 
 func TestGetOutboundQUICP2PAddr(t *testing.T) {
@@ -325,24 +335,6 @@ func TestParseCloudflareTrace(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tt.wantIP, ip)
 		})
-	}
-}
-
-func TestGetExternalIPs_Integration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in -short mode")
-	}
-
-	ipV4, ipV6, err := netpkg.GetExternalIPs()
-	require.NoError(t, err)
-
-	// At least IPv4 should be available in most environments.
-	require.NotEmpty(t, ipV4, "expected IPv4 address")
-	require.NotNil(t, stdnet.ParseIP(ipV4), "IPv4 should be a valid IP")
-
-	// IPv6 may or may not be available, but if present it should be valid.
-	if ipV6 != "" {
-		require.NotNil(t, stdnet.ParseIP(ipV6), "IPv6 should be a valid IP")
 	}
 }
 
