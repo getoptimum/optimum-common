@@ -179,7 +179,7 @@ func ParseCloudflareTrace(res io.Reader) (string, error) {
 	scanner := bufio.NewScanner(res)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !strings.HasPrefix(line, "ip") {
+		if !strings.HasPrefix(line, "ip=") {
 			continue
 		}
 		_, value, ok := strings.Cut(line, "=")
