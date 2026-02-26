@@ -17,14 +17,6 @@ const (
 	cloudflareTraceURL = "https://cloudflare.com/cdn-cgi/trace"
 )
 
-var (
-	ipTraceEndpoints = map[string]func(traceURL, network string) (ip string, err error){
-		cloudflareTraceURL: DetectIPViaCloudflareTrace,
-		"https://bootstrap.getoptimum.io/cdn-cgi/trace": DetectIPViaCloudflareTrace,
-		"https://ifconfig.me/ip":                        DetectIPIfConfigTrace,
-	}
-)
-
 // ExternalIP returns the first non-loopback IP address available.
 func ExternalIP() (string, error) {
 	ips, err := ipAddresses()
@@ -92,21 +84,37 @@ func GetOutboundIP() (string, error) {
 // empty if the corresponding address family is unavailable. At least one
 // must succeed or an error is returned.
 func GetExternalIPs() (ipV4, ipV6 string, err error) {
+	ipTraceEndpoints := []struct {
+		traceURL string
+		detector func(traceURL, network string) (ip string, err error)
+	}{
+		{
+			traceURL: cloudflareTraceURL,
+			detector: DetectIPViaCloudflareTrace,
+		},
+		{
+			traceURL: "https://bootstrap.getoptimum.io/cdn-cgi/trace",
+			detector: DetectIPViaCloudflareTrace,
+		},
+		{
+			traceURL: "https://ifconfig.me/ip",
+			detector: DetectIPIfConfigTrace,
+		},
+	}
 	errList := make([]error, 0, len(ipTraceEndpoints)*2)
-	for traceURL, detector := range ipTraceEndpoints {
+	for _, cnt := range ipTraceEndpoints {
 		if ipV4 == "" {
-			ipV4, err = detector(traceURL, "tcp4")
+			ipV4, err = cnt.detector(cnt.traceURL, "tcp4")
 			if err != nil {
-				errList = append(errList, fmt.Errorf("detect ipv4 via %s: %w", traceURL, err))
+				errList = append(errList, fmt.Errorf("detect ipv4 via %s: %w", cnt.traceURL, err))
 			}
 		}
 		if ipV6 == "" {
-			ipV6, err = detector(traceURL, "tcp6")
+			ipV6, err = cnt.detector(cnt.traceURL, "tcp6")
 			if err != nil {
-				errList = append(errList, fmt.Errorf("detect ipv6 via %s: %w", traceURL, err))
+				errList = append(errList, fmt.Errorf("detect ipv6 via %s: %w", cnt.traceURL, err))
 			}
 		}
-
 	}
 	if ipV4 != "" || ipV6 != "" {
 		return ipV4, ipV6, nil
