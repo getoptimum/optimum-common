@@ -1,7 +1,10 @@
 package net_test
 
 import (
+	"fmt"
 	stdnet "net"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -324,4 +327,75 @@ func TestGetInterfaceIPs(t *testing.T) {
 		require.NotNil(t, ip.To4(), "should return IPv4 addresses only: %s", ipStr)
 		require.False(t, ip.IsLoopback(), "should not return loopback: %s", ipStr)
 	}
+}
+
+func withTraceOverride(traceURL string, fn func()) {
+	orig := netpkg.BootstrapTraceURL
+	defer func() { netpkg.BootstrapTraceURL = orig }()
+	netpkg.BootstrapTraceURL = traceURL
+	fn()
+}
+
+func fakeCFTrace(ip string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, "fl=740f82\nh=bootstrap.getoptimum.io\nip=%s\nts=1772102985.000\ncolo=SIN\n", ip)
+	}))
+}
+
+func TestGetOutboundIP_CFTracePublicIP(t *testing.T) {
+	srv := fakeCFTrace("35.200.1.1")
+	defer srv.Close()
+
+	withTraceOverride(srv.URL, func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.Equal(t, "35.200.1.1", ip)
+	})
+}
+
+func TestGetOutboundIP_CFTraceIPv6(t *testing.T) {
+	srv := fakeCFTrace("2600:1f18:abcd::1")
+	defer srv.Close()
+
+	withTraceOverride(srv.URL, func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.Equal(t, "2600:1f18:abcd::1", ip)
+	})
+}
+
+func TestGetOutboundIP_CFTracePrivateIP_FallsBackToUDP(t *testing.T) {
+	srv := fakeCFTrace("10.0.0.13")
+	defer srv.Close()
+
+	withTraceOverride(srv.URL, func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.NotEmpty(t, ip)
+		parsed := stdnet.ParseIP(ip)
+		require.NotNil(t, parsed)
+	})
+}
+
+func TestGetOutboundIP_CFTraceDown_FallsBackToUDP(t *testing.T) {
+	withTraceOverride("http://127.0.0.1:1", func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.NotEmpty(t, ip)
+		parsed := stdnet.ParseIP(ip)
+		require.NotNil(t, parsed)
+	})
+}
+
+func TestGetOutboundIP_CFTraceBadResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	withTraceOverride(srv.URL, func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.NotEmpty(t, ip)
+	})
 }
