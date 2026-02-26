@@ -97,7 +97,7 @@ func GetExternalIPs() (ipV4, ipV6 string, err error) {
 			detector: DetectIPViaCloudflareTrace,
 		},
 		{
-			traceURL: "https://ifconfig.me/ip",
+			traceURL: "https://checkip.amazonaws.com/",
 			detector: DetectIPIfConfigTrace,
 		},
 	}
@@ -148,7 +148,8 @@ func DetectIPIfConfigTrace(traceURL, network string) (ip string, err error) {
 	if err != nil {
 		return "", err
 	}
-	if stdnet.ParseIP(strings.TrimSpace(ip)) == nil {
+	ip = strings.TrimSpace(ip)
+	if stdnet.ParseIP(ip) == nil {
 		return "", fmt.Errorf("ifconfig trace: invalid IP %q", ip)
 	}
 	return ip, nil
