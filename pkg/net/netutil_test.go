@@ -367,7 +367,7 @@ func TestCloudflareTrace_Non200Status(t *testing.T) {
 
 	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "unexpected status 503")
+	require.Contains(t, err.Error(), fmt.Sprintf("%d", http.StatusServiceUnavailable))
 }
 
 func TestCloudflareTrace_MissingIPField(t *testing.T) {

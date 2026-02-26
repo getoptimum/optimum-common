@@ -149,7 +149,7 @@ func getIPViaTraceURL(ctx context.Context, traceURL, network string, decoder fun
 		return err
 	}))
 	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
+		return "", fmt.Errorf("request failed, code: %d, err: %w", code, err)
 	}
 	if code != stdhttp.StatusOK {
 		return "", fmt.Errorf("unexpected status %d", code)
