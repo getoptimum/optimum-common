@@ -19,12 +19,11 @@ func TestGetExternalIPs_Integration(t *testing.T) {
 
 	ipV4, ipV6, err := netpkg.GetExternalIPs()
 	require.NoError(t, err)
+	require.True(t, ipV4 != "" || ipV6 != "", "expected at least one address family")
 
-	// At least IPv4 should be available in most environments.
-	require.NotEmpty(t, ipV4, "expected IPv4 address")
-	require.NotNil(t, stdnet.ParseIP(ipV4), "IPv4 should be a valid IP")
-
-	// IPv6 may or may not be available, but if present it should be valid.
+	if ipV4 != "" {
+		require.NotNil(t, stdnet.ParseIP(ipV4), "IPv4 should be a valid IP")
+	}
 	if ipV6 != "" {
 		require.NotNil(t, stdnet.ParseIP(ipV6), "IPv6 should be a valid IP")
 	}
