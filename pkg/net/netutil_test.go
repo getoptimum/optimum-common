@@ -1,7 +1,6 @@
 package net_test
 
 import (
-	"context"
 	"fmt"
 	stdnet "net"
 	"net/http"
@@ -355,8 +354,7 @@ func TestCloudflareTrace_Success(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	ctx := context.Background()
-	ip, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
+	ip, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
 	require.NoError(t, err)
 	require.Equal(t, "93.184.216.34", ip)
 }
@@ -367,8 +365,7 @@ func TestCloudflareTrace_Non200Status(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	ctx := context.Background()
-	_, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unexpected status 503")
 }
@@ -379,8 +376,7 @@ func TestCloudflareTrace_MissingIPField(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	ctx := context.Background()
-	_, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "ip field not found")
 }
@@ -391,8 +387,7 @@ func TestCloudflareTrace_InvalidIPInResponse(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	ctx := context.Background()
-	_, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid IP")
 }
@@ -403,8 +398,7 @@ func TestCloudflareTrace_EmptyBody(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	ctx := context.Background()
-	_, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "ip field not found")
 }
@@ -415,8 +409,7 @@ func TestCloudflareTrace_IPv6Response(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	ctx := context.Background()
-	ip, err := netpkg.DetectIPViaCloudflareTrace(ctx, srv.URL, "tcp")
+	ip, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
 	require.NoError(t, err)
 	require.Equal(t, "2001:db8::abcd", ip)
 }
@@ -427,8 +420,7 @@ func TestCloudflareTrace_ServerDown(t *testing.T) {
 	srvURL := srv.URL
 	srv.Close()
 
-	ctx := context.Background()
-	_, err := netpkg.DetectIPViaCloudflareTrace(ctx, srvURL, "tcp")
+	_, err := netpkg.DetectIPViaCloudflareTrace(srvURL, "tcp")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "request failed")
 }
