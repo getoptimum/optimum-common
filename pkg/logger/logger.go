@@ -33,8 +33,8 @@ type Field struct {
 
 // AppLogger defines the structured logger interface.
 //
-// Deprecated: The AppLogger interface is deprecated and will be removed in a
-// future release. Use SLogger directly instead
+// Deprecated: The AppLogger interface is deprecated and will be removed in a future release.
+// Use SLogger directly instead
 type AppLogger interface {
 	Info(message string, fields ...Field)
 	Error(message string, err error, fields ...Field)
