@@ -1,7 +1,9 @@
 package net
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	stdnet "net"
@@ -11,8 +13,11 @@ import (
 	"time"
 )
 
-var BootstrapTraceURL = "https://bootstrap.getoptimum.io/cdn-cgi/trace"
+const (
+	cloudflareTraceURL = "https://cloudflare.com/cdn-cgi/trace"
+)
 
+// ExternalIP returns the first non-loopback IP address available.
 func ExternalIP() (string, error) {
 	ips, err := ipAddresses()
 	if err != nil {
@@ -65,54 +70,139 @@ func SortAddresses(ipAddrs []stdnet.IP) []stdnet.IP {
 	return ipAddrs
 }
 
+// GetOutboundIP returns preferred outbound ip of this machine.
 func GetOutboundIP() (string, error) {
-	if ip := ipFromCFTrace(); ip != "" {
-		return ip, nil
-	}
-	return ipFromUDPDial()
+	return DetectIPViaCloudflareTrace(cloudflareTraceURL, "tcp4")
 }
 
-func ipFromCFTrace() string {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, BootstrapTraceURL, stdhttp.NoBody)
-	if err != nil {
-		return ""
+// GetExternalIPs discovers IPv4 and IPv6 public addresses separately by
+// forcing the address family at the transport layer. Both fields may be
+// empty if the corresponding address family is unavailable. At least one
+// must succeed or an error is returned.
+func GetExternalIPs() (ipV4, ipV6 string, err error) {
+	ipTraceEndpoints := []struct {
+		traceURL string
+		detector func(traceURL, network string) (ip string, err error)
+	}{
+		{
+			traceURL: cloudflareTraceURL,
+			detector: DetectIPViaCloudflareTrace,
+		},
+		{
+			traceURL: "https://bootstrap.getoptimum.io/cdn-cgi/trace",
+			detector: DetectIPViaCloudflareTrace,
+		},
+		{
+			traceURL: "https://checkip.amazonaws.com/",
+			detector: DetectIPIfConfigTrace,
+		},
 	}
-	resp, err := stdhttp.DefaultClient.Do(req)
-	if err != nil {
-		return ""
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
-	_ = resp.Body.Close()
-	if err != nil || resp.StatusCode != stdhttp.StatusOK {
-		return ""
-	}
-
-	for _, line := range strings.Split(string(body), "\n") {
-		if strings.HasPrefix(line, "ip=") {
-			ip := strings.TrimSpace(strings.TrimPrefix(line, "ip="))
-			if parsed := stdnet.ParseIP(ip); parsed != nil && !IsPrivateOrULA(parsed) {
-				return ip
+	errList := make([]error, 0, len(ipTraceEndpoints)*2)
+	for _, ep := range ipTraceEndpoints {
+		if ipV4 == "" {
+			ipV4, err = ep.detector(ep.traceURL, "tcp4")
+			if err != nil {
+				errList = append(errList, fmt.Errorf("detect ipv4 via %s: %w", ep.traceURL, err))
 			}
 		}
+		if ipV6 == "" {
+			ipV6, err = ep.detector(ep.traceURL, "tcp6")
+			if err != nil {
+				errList = append(errList, fmt.Errorf("detect ipv6 via %s: %w", ep.traceURL, err))
+			}
+		}
+		if ipV4 != "" && ipV6 != "" {
+			break
+		}
 	}
-	return ""
+	if ipV4 != "" || ipV6 != "" {
+		return ipV4, ipV6, nil
+	}
+	return ipV4, ipV6, fmt.Errorf("failed to detect external IPs: %w", errors.Join(errList...))
 }
 
-func ipFromUDPDial() (string, error) {
-	conn, err := stdnet.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		return "", fmt.Errorf("dial fallback failed: %w", err)
+// newIPTransport creates an http.Transport that forces connections to
+// use the given network (e.g. "tcp4", "tcp6", "tcp").
+func newIPTransport(network string) *stdhttp.Transport {
+	return &stdhttp.Transport{
+		DialContext: func(ctx context.Context, _, addr string) (stdnet.Conn, error) {
+			return (&stdnet.Dialer{}).DialContext(ctx, network, addr)
+		},
 	}
-	defer conn.Close() //nolint:errcheck
+}
 
-	udp, ok := conn.LocalAddr().(*stdnet.UDPAddr)
-	if !ok || udp.IP == nil {
-		return "", fmt.Errorf("unexpected LocalAddr type: %T", conn.LocalAddr())
+// DetectIPViaCloudflareTrace fetches the Cloudflare /cdn-cgi/trace endpoint
+// and parses the ip= field. The traceURL parameter specifies the endpoint URL,
+// and the network parameter controls the address family ("tcp", "tcp4", or "tcp6").
+func DetectIPViaCloudflareTrace(traceURL, network string) (ip string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	return getIPViaTraceURL(ctx, traceURL, network, ParseCloudflareTrace)
+}
+
+func DetectIPIfConfigTrace(traceURL, network string) (ip string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	ip, err = getIPViaTraceURL(ctx, traceURL, network, parseIfConfigTrace)
+	if err != nil {
+		return "", err
 	}
-	return udp.IP.String(), nil
+	ip = strings.TrimSpace(ip)
+	if stdnet.ParseIP(ip) == nil {
+		return "", fmt.Errorf("ifconfig trace: invalid IP %q", ip)
+	}
+	return ip, nil
+}
+
+func getIPViaTraceURL(ctx context.Context, traceURL, network string, decoder func(io.Reader) (string, error)) (ip string, err error) {
+	client := &stdhttp.Client{
+		Transport: newIPTransport(network),
+		Timeout:   10 * time.Second,
+	}
+	_, code, err := GetCurl[any](ctx, traceURL, nil, WithHTTPClient[any](client), WithDecoder[any](func(res io.Reader) error {
+		ip, err = decoder(res)
+		return err
+	}))
+	if err != nil {
+		return "", fmt.Errorf("request failed, code: %d, err: %w", code, err)
+	}
+	if code != stdhttp.StatusOK {
+		return "", fmt.Errorf("unexpected status %d", code)
+	}
+	return ip, nil
+}
+
+func parseIfConfigTrace(res io.Reader) (string, error) {
+	data, err := io.ReadAll(res)
+	if err != nil {
+		return "", fmt.Errorf("read response: %w", err)
+	}
+	return string(data), nil
+}
+
+// ParseCloudflareTrace extracts and validates the ip= field from the
+// Cloudflare trace response body (key=value\n format).
+func ParseCloudflareTrace(res io.Reader) (string, error) {
+	scanner := bufio.NewScanner(res)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "ip=") {
+			continue
+		}
+		_, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		ip := strings.TrimSpace(value)
+		if stdnet.ParseIP(ip) == nil {
+			return "", fmt.Errorf("cloudflare trace: invalid IP %q", ip)
+		}
+		return ip, nil
+	}
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("cloudflare trace: %w", err)
+	}
+	return "", fmt.Errorf("cloudflare trace: ip field not found")
 }
 
 var (

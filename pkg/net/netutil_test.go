@@ -1,6 +1,7 @@
 package net_test
 
 import (
+	"errors"
 	"fmt"
 	stdnet "net"
 	"net/http"
@@ -11,6 +12,23 @@ import (
 	netpkg "github.com/getoptimum/optimum-common/pkg/net"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGetExternalIPs_Integration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode")
+	}
+
+	ipV4, ipV6, err := netpkg.GetExternalIPs()
+	require.NoError(t, err)
+	require.True(t, ipV4 != "" || ipV6 != "", "expected at least one address family")
+
+	if ipV4 != "" {
+		require.NotNil(t, stdnet.ParseIP(ipV4), "IPv4 should be a valid IP")
+	}
+	if ipV6 != "" {
+		require.NotNil(t, stdnet.ParseIP(ipV6), "IPv6 should be a valid IP")
+	}
+}
 
 func TestGetOutboundQUICP2PAddr(t *testing.T) {
 	addr, err := netpkg.GetOutboundQUICP2PAddr(3030)
@@ -194,11 +212,13 @@ func TestSortAddresses(t *testing.T) {
 	}
 }
 
-func testIPFunction(t *testing.T, fn func(stdnet.IP) bool, testCases []struct {
+type ipTestCase struct {
 	name     string
 	ip       string
 	expected bool
-}) {
+}
+
+func testIPFunction(t *testing.T, fn func(stdnet.IP) bool, testCases []ipTestCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ip := stdnet.ParseIP(tc.ip)
@@ -209,112 +229,47 @@ func testIPFunction(t *testing.T, fn func(stdnet.IP) bool, testCases []struct {
 	}
 }
 
-func TestIsPrivateOrULA(t *testing.T) {
-	testIPFunction(t, netpkg.IsPrivateOrULA, []struct {
-		name     string
-		ip       string
-		expected bool
+func TestIPClassifiers(t *testing.T) {
+	for _, group := range []struct {
+		name  string
+		fn    func(stdnet.IP) bool
+		cases []ipTestCase
 	}{
 		{
-			name:     "IPv4 private 10.0.0.0/8",
-			ip:       "10.0.0.1",
-			expected: true,
+			name: "IsPrivateOrULA",
+			fn:   netpkg.IsPrivateOrULA,
+			cases: []ipTestCase{
+				{"IPv4 private 10.0.0.0/8", "10.0.0.1", true},
+				{"IPv4 private 172.16.0.0/12", "172.16.0.1", true},
+				{"IPv4 private 172.31.0.1", "172.31.0.1", true},
+				{"IPv4 private 192.168.0.0/16", "192.168.1.1", true},
+				{"IPv4 public", "8.8.8.8", false},
+				{"IPv6 ULA fc00::1", "fc00::1", true},
+				{"IPv6 ULA fd00::1", "fd00::1", true},
+				{"IPv6 public", "2001:db8::1", false},
+				{"loopback", "127.0.0.1", false},
+			},
 		},
 		{
-			name:     "IPv4 private 172.16.0.0/12",
-			ip:       "172.16.0.1",
-			expected: true,
+			name: "IsGlobalUnicast",
+			fn:   netpkg.IsGlobalUnicast,
+			cases: []ipTestCase{
+				{"IPv4 public", "8.8.8.8", true},
+				{"IPv4 private", "192.168.1.1", false},
+				{"IPv4 loopback", "127.0.0.1", false},
+				{"IPv4 link-local", "169.254.0.1", false},
+				{"IPv4 multicast", "224.0.0.1", false},
+				{"IPv6 public", "2001:db8::1", true},
+				{"IPv6 ULA", "fc00::1", false},
+				{"IPv6 link-local", "fe80::1", false},
+				{"IPv6 multicast", "ff02::1", false},
+			},
 		},
-		{
-			name:     "IPv4 private 172.31.0.1",
-			ip:       "172.31.0.1",
-			expected: true,
-		},
-		{
-			name:     "IPv4 private 192.168.0.0/16",
-			ip:       "192.168.1.1",
-			expected: true,
-		},
-		{
-			name:     "IPv4 public",
-			ip:       "8.8.8.8",
-			expected: false,
-		},
-		{
-			name:     "IPv6 ULA fc00::1",
-			ip:       "fc00::1",
-			expected: true,
-		},
-		{
-			name:     "IPv6 ULA fd00::1",
-			ip:       "fd00::1",
-			expected: true,
-		},
-		{
-			name:     "IPv6 public",
-			ip:       "2001:db8::1",
-			expected: false,
-		},
-		{
-			name:     "loopback",
-			ip:       "127.0.0.1",
-			expected: false,
-		},
-	})
-}
-
-func TestIsGlobalUnicast(t *testing.T) {
-	testIPFunction(t, netpkg.IsGlobalUnicast, []struct {
-		name     string
-		ip       string
-		expected bool
-	}{
-		{
-			name:     "IPv4 public",
-			ip:       "8.8.8.8",
-			expected: true,
-		},
-		{
-			name:     "IPv4 private",
-			ip:       "192.168.1.1",
-			expected: false,
-		},
-		{
-			name:     "IPv4 loopback",
-			ip:       "127.0.0.1",
-			expected: false,
-		},
-		{
-			name:     "IPv4 link-local",
-			ip:       "169.254.0.1",
-			expected: false,
-		},
-		{
-			name:     "IPv4 multicast",
-			ip:       "224.0.0.1",
-			expected: false,
-		},
-		{
-			name:     "IPv6 public",
-			ip:       "2001:db8::1",
-			expected: true,
-		},
-		{
-			name:     "IPv6 ULA",
-			ip:       "fc00::1",
-			expected: false,
-		},
-		{
-			name:     "IPv6 link-local",
-			ip:       "fe80::1",
-			expected: false,
-		},
-		{
-			name:     "IPv6 multicast",
-			ip:       "ff02::1",
-			expected: false,
-		},
-	})
+	} {
+		t.Run(group.name, func(t *testing.T) {
+			testIPFunction(t, group.fn, group.cases)
+		})
+	}
 }
 
 func TestGetInterfaceIPs(t *testing.T) {
@@ -329,73 +284,148 @@ func TestGetInterfaceIPs(t *testing.T) {
 	}
 }
 
-func withTraceOverride(traceURL string, fn func()) {
-	orig := netpkg.BootstrapTraceURL
-	defer func() { netpkg.BootstrapTraceURL = orig }()
-	netpkg.BootstrapTraceURL = traceURL
-	fn()
+// --- New tests for improved external IP detection ---
+
+func TestParseCloudflareTrace(t *testing.T) {
+	tests := []struct {
+		name    string
+		body    string
+		wantIP  string
+		wantErr bool
+	}{
+		{
+			name:   "valid IPv4",
+			body:   "fl=123abc\nh=bootstrap.getoptimum.io\nip=203.0.113.42\nts=1234567890\nvisit_scheme=https\n",
+			wantIP: "203.0.113.42",
+		},
+		{
+			name:   "valid IPv6",
+			body:   "fl=456def\nh=bootstrap.getoptimum.io\nip=2001:db8::1\nts=1234567890\n",
+			wantIP: "2001:db8::1",
+		},
+		{
+			name:    "missing ip field",
+			body:    "fl=123abc\nh=bootstrap.getoptimum.io\nts=1234567890\n",
+			wantErr: true,
+		},
+		{
+			name:    "empty body",
+			body:    "",
+			wantErr: true,
+		},
+		{
+			name:    "invalid IP value",
+			body:    "ip=not-an-ip\n",
+			wantErr: true,
+		},
+		{
+			name:   "lines without equals sign are skipped",
+			body:   "garbage line\nip=198.51.100.1\n",
+			wantIP: "198.51.100.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ip, err := netpkg.ParseCloudflareTrace(strings.NewReader(tt.body))
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantIP, ip)
+		})
+	}
 }
 
-func fakeCFTrace(ip string) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprintf(w, "fl=740f82\nh=bootstrap.getoptimum.io\nip=%s\nts=1772102985.000\ncolo=SIN\n", ip)
-	}))
+func TestParseCloudflareTrace_ReaderError(t *testing.T) {
+	readErr := errors.New("disk I/O failure")
+	r := &failingReader{err: readErr}
+	_, err := netpkg.ParseCloudflareTrace(r)
+	require.Error(t, err)
+	require.ErrorIs(t, err, readErr)
+	require.NotContains(t, err.Error(), "ip field not found")
 }
 
-func TestGetOutboundIP_CFTracePublicIP(t *testing.T) {
-	srv := fakeCFTrace("35.200.1.1")
-	defer srv.Close()
+type failingReader struct{ err error }
 
-	withTraceOverride(srv.URL, func() {
-		ip, err := netpkg.GetOutboundIP()
-		require.NoError(t, err)
-		require.Equal(t, "35.200.1.1", ip)
-	})
-}
+func (r *failingReader) Read([]byte) (int, error) { return 0, r.err }
 
-func TestGetOutboundIP_CFTraceIPv6(t *testing.T) {
-	srv := fakeCFTrace("2600:1f18:abcd::1")
-	defer srv.Close()
+// --- Mock HTTP server tests for DetectIPViaCloudflareTrace ---
 
-	withTraceOverride(srv.URL, func() {
-		ip, err := netpkg.GetOutboundIP()
-		require.NoError(t, err)
-		require.Equal(t, "2600:1f18:abcd::1", ip)
-	})
-}
-
-func TestGetOutboundIP_CFTracePrivateIP_FallsBackToUDP(t *testing.T) {
-	srv := fakeCFTrace("10.0.0.13")
-	defer srv.Close()
-
-	withTraceOverride(srv.URL, func() {
-		ip, err := netpkg.GetOutboundIP()
-		require.NoError(t, err)
-		require.NotEmpty(t, ip)
-		parsed := stdnet.ParseIP(ip)
-		require.NotNil(t, parsed)
-	})
-}
-
-func TestGetOutboundIP_CFTraceDown_FallsBackToUDP(t *testing.T) {
-	withTraceOverride("http://127.0.0.1:1", func() {
-		ip, err := netpkg.GetOutboundIP()
-		require.NoError(t, err)
-		require.NotEmpty(t, ip)
-		parsed := stdnet.ParseIP(ip)
-		require.NotNil(t, parsed)
-	})
-}
-
-func TestGetOutboundIP_CFTraceBadResponse(t *testing.T) {
+func TestCloudflareTrace_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprint(w, "fl=abc\nh=example.com\nip=93.184.216.34\nts=123\n")
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
-	withTraceOverride(srv.URL, func() {
-		ip, err := netpkg.GetOutboundIP()
-		require.NoError(t, err)
-		require.NotEmpty(t, ip)
-	})
+	ip, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.NoError(t, err)
+	require.Equal(t, "93.184.216.34", ip)
+}
+
+func TestCloudflareTrace_Non200Status(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), fmt.Sprintf("%d", http.StatusServiceUnavailable))
+}
+
+func TestCloudflareTrace_MissingIPField(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "fl=abc\nh=example.com\nts=123\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ip field not found")
+}
+
+func TestCloudflareTrace_InvalidIPInResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "ip=not-a-valid-ip\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid IP")
+}
+
+func TestCloudflareTrace_EmptyBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 200 OK but empty body
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ip field not found")
+}
+
+func TestCloudflareTrace_IPv6Response(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "fl=xyz\nip=2001:db8::abcd\nts=999\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	ip, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.NoError(t, err)
+	require.Equal(t, "2001:db8::abcd", ip)
+}
+
+func TestCloudflareTrace_ServerDown(t *testing.T) {
+	// Create and immediately close the server to simulate a down endpoint.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srvURL := srv.URL
+	srv.Close()
+
+	_, err := netpkg.DetectIPViaCloudflareTrace(srvURL, "tcp")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "request failed")
 }
