@@ -144,7 +144,14 @@ func DetectIPViaCloudflareTrace(traceURL, network string) (ip string, err error)
 func DetectIPIfConfigTrace(traceURL, network string) (ip string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	return getIPViaTraceURL(ctx, traceURL, network, parseIfConfigTrace)
+	ip, err = getIPViaTraceURL(ctx, traceURL, network, parseIfConfigTrace)
+	if err != nil {
+		return "", err
+	}
+	if stdnet.ParseIP(strings.TrimSpace(ip)) == nil {
+		return "", fmt.Errorf("ifconfig trace: invalid IP %q", ip)
+	}
+	return ip, nil
 }
 
 func getIPViaTraceURL(ctx context.Context, traceURL, network string, decoder func(io.Reader) (string, error)) (ip string, err error) {
