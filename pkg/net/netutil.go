@@ -11,11 +11,7 @@ import (
 	"time"
 )
 
-var BootstrapURL = "https://bootstrap.getoptimum.io"
-
-type bootstrapRemoteIP struct {
-	IP string `json:"ip"`
-}
+var BootstrapTraceURL = "https://bootstrap.getoptimum.io/cdn-cgi/trace"
 
 // ExternalIP returns the first non-loopback IP address available.
 func ExternalIP() (string, error) {
@@ -74,58 +70,43 @@ func SortAddresses(ipAddrs []stdnet.IP) []stdnet.IP {
 	return ipAddrs
 }
 
-var ExternalIPServices = []string{
-	"https://ifconfig.me/ip",
-	"https://api.ipify.org",
-}
-
 // GetOutboundIP returns the public outbound IP of this machine.
+// It first tries the Cloudflare trace endpoint on bootstrap (which always
+// returns the caller's public IP, even from the same VPC), then falls back
+// to a UDP dial to 8.8.8.8.
 func GetOutboundIP() (string, error) {
-	if ip := ipFromBootstrap(); ip != "" && !IsPrivateOrULA(stdnet.ParseIP(ip)) {
+	if ip := ipFromCFTrace(); ip != "" {
 		return ip, nil
 	}
-
-	if ip := ipFromExternalServices(); ip != "" {
-		return ip, nil
-	}
-
 	return ipFromUDPDial()
 }
 
-func ipFromBootstrap() string {
-	url := fmt.Sprintf("%s/api/v1/ip", BootstrapURL)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+// ipFromCFTrace fetches the public IP from Cloudflare's cdn-cgi/trace endpoint.
+// The response is plain-text key=value pairs; we extract the "ip" line.
+func ipFromCFTrace() string {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	resp, code, _ := GetCurl[bootstrapRemoteIP](ctx, url, nil)
-	if code == stdhttp.StatusOK && resp != nil {
-		return resp.IP
+	req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, BootstrapTraceURL, stdhttp.NoBody)
+	if err != nil {
+		return ""
 	}
-	return ""
-}
+	resp, err := stdhttp.DefaultClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	_ = resp.Body.Close()
+	if err != nil || resp.StatusCode != stdhttp.StatusOK {
+		return ""
+	}
 
-func ipFromExternalServices() string {
-	for _, svc := range ExternalIPServices {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, svc, stdhttp.NoBody)
-		if err != nil {
-			cancel()
-			continue
-		}
-		resp, err := stdhttp.DefaultClient.Do(req)
-		if err != nil {
-			cancel()
-			continue
-		}
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 256))
-		_ = resp.Body.Close()
-		cancel()
-		if err != nil || resp.StatusCode != stdhttp.StatusOK {
-			continue
-		}
-		ip := strings.TrimSpace(string(body))
-		if parsed := stdnet.ParseIP(ip); parsed != nil && !IsPrivateOrULA(parsed) {
-			return ip
+	for _, line := range strings.Split(string(body), "\n") {
+		if strings.HasPrefix(line, "ip=") {
+			ip := strings.TrimSpace(strings.TrimPrefix(line, "ip="))
+			if parsed := stdnet.ParseIP(ip); parsed != nil && !IsPrivateOrULA(parsed) {
+				return ip
+			}
 		}
 	}
 	return ""

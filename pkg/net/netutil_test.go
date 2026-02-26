@@ -329,74 +329,46 @@ func TestGetInterfaceIPs(t *testing.T) {
 	}
 }
 
-func withOverrides(bootstrapURL string, extServices []string, fn func()) {
-	origBootstrap := netpkg.BootstrapURL
-	origServices := netpkg.ExternalIPServices
-	defer func() {
-		netpkg.BootstrapURL = origBootstrap
-		netpkg.ExternalIPServices = origServices
-	}()
-	netpkg.BootstrapURL = bootstrapURL
-	netpkg.ExternalIPServices = extServices
+func withTraceOverride(traceURL string, fn func()) {
+	orig := netpkg.BootstrapTraceURL
+	defer func() { netpkg.BootstrapTraceURL = orig }()
+	netpkg.BootstrapTraceURL = traceURL
 	fn()
 }
 
-func TestGetOutboundIP_BootstrapPublicIP(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprint(w, `{"ip":"35.200.1.1"}`)
+func fakeCFTrace(ip string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, "fl=740f82\nh=bootstrap.getoptimum.io\nip=%s\nts=1772102985.000\ncolo=SIN\n", ip)
 	}))
+}
+
+func TestGetOutboundIP_CFTracePublicIP(t *testing.T) {
+	srv := fakeCFTrace("35.200.1.1")
 	defer srv.Close()
 
-	withOverrides(srv.URL, nil, func() {
+	withTraceOverride(srv.URL, func() {
 		ip, err := netpkg.GetOutboundIP()
 		require.NoError(t, err)
 		require.Equal(t, "35.200.1.1", ip)
 	})
 }
 
-func TestGetOutboundIP_BootstrapPrivateIP_FallsBackToExternal(t *testing.T) {
-	bootstrap := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprint(w, `{"ip":"10.0.0.13"}`)
-	}))
-	defer bootstrap.Close()
+func TestGetOutboundIP_CFTraceIPv6(t *testing.T) {
+	srv := fakeCFTrace("2600:1f18:abcd::1")
+	defer srv.Close()
 
-	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprint(w, "  203.0.113.50\n")
-	}))
-	defer external.Close()
-
-	withOverrides(bootstrap.URL, []string{external.URL}, func() {
+	withTraceOverride(srv.URL, func() {
 		ip, err := netpkg.GetOutboundIP()
 		require.NoError(t, err)
-		require.Equal(t, "203.0.113.50", ip)
+		require.Equal(t, "2600:1f18:abcd::1", ip)
 	})
 }
 
-func TestGetOutboundIP_BootstrapDown_FallsBackToExternal(t *testing.T) {
-	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprint(w, "198.51.100.1")
-	}))
-	defer external.Close()
+func TestGetOutboundIP_CFTracePrivateIP_FallsBackToUDP(t *testing.T) {
+	srv := fakeCFTrace("10.0.0.13")
+	defer srv.Close()
 
-	withOverrides("http://127.0.0.1:1", []string{external.URL}, func() {
-		ip, err := netpkg.GetOutboundIP()
-		require.NoError(t, err)
-		require.Equal(t, "198.51.100.1", ip)
-	})
-}
-
-func TestGetOutboundIP_AllExternalReturnPrivate_FallsBackToUDP(t *testing.T) {
-	bootstrap := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprint(w, `{"ip":"172.16.0.5"}`)
-	}))
-	defer bootstrap.Close()
-
-	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprint(w, "10.0.0.1")
-	}))
-	defer external.Close()
-
-	withOverrides(bootstrap.URL, []string{external.URL}, func() {
+	withTraceOverride(srv.URL, func() {
 		ip, err := netpkg.GetOutboundIP()
 		require.NoError(t, err)
 		require.NotEmpty(t, ip)
@@ -405,20 +377,25 @@ func TestGetOutboundIP_AllExternalReturnPrivate_FallsBackToUDP(t *testing.T) {
 	})
 }
 
-func TestGetOutboundIP_ExternalSkipsBadResponses(t *testing.T) {
-	badSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer badSrv.Close()
-
-	goodSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprint(w, "93.184.216.34")
-	}))
-	defer goodSrv.Close()
-
-	withOverrides("http://127.0.0.1:1", []string{badSrv.URL, goodSrv.URL}, func() {
+func TestGetOutboundIP_CFTraceDown_FallsBackToUDP(t *testing.T) {
+	withTraceOverride("http://127.0.0.1:1", func() {
 		ip, err := netpkg.GetOutboundIP()
 		require.NoError(t, err)
-		require.Equal(t, "93.184.216.34", ip)
+		require.NotEmpty(t, ip)
+		parsed := stdnet.ParseIP(ip)
+		require.NotNil(t, parsed)
+	})
+}
+
+func TestGetOutboundIP_CFTraceBadResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	withTraceOverride(srv.URL, func() {
+		ip, err := netpkg.GetOutboundIP()
+		require.NoError(t, err)
+		require.NotEmpty(t, ip)
 	})
 }
