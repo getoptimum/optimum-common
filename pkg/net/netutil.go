@@ -84,7 +84,7 @@ func SortAddresses(ipAddrs []stdnet.IP) []stdnet.IP {
 
 // GetOutboundIP returns preferred outbound ip of this machine.
 func GetOutboundIP() (string, error) {
-	return DetectIPViaCloudflareTrace(cloudflareTraceURL, "tcp")
+	return DetectIPViaCloudflareTrace(cloudflareTraceURL, "tcp4")
 }
 
 // GetExternalIPs discovers IPv4 and IPv6 public addresses separately by
@@ -95,7 +95,7 @@ func GetExternalIPs() (ipV4, ipV6 string, err error) {
 	errList := make([]error, 0, len(ipTraceEndpoints)*2)
 	for traceURL, detector := range ipTraceEndpoints {
 		if ipV4 == "" {
-			ipV4, err = detector(traceURL, "tcp")
+			ipV4, err = detector(traceURL, "tcp4")
 			if err != nil {
 				errList = append(errList, fmt.Errorf("detect ipv4 via %s: %w", traceURL, err))
 			}
