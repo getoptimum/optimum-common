@@ -10,20 +10,12 @@ import (
 	stdhttp "net/http"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
 const (
-	// optimumBootstrapURL internal service to get public IP
-	optimumBootstrapURL = "https://bootstrap.getoptimum.io"
+	cloudflareTraceURL = "https://cloudflare.com/cdn-cgi/trace"
 )
-
-// ExternalIPs holds separately-discovered IPv4 and IPv6 public addresses.
-type ExternalIPs struct {
-	IPv4 string
-	IPv6 string
-}
 
 // ExternalIP returns the first non-loopback IP address available.
 func ExternalIP() (string, error) {
@@ -84,49 +76,50 @@ func SortAddresses(ipAddrs []stdnet.IP) []stdnet.IP {
 
 // GetOutboundIP returns preferred outbound ip of this machine.
 func GetOutboundIP() (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	return DetectIPViaCloudflareTrace(ctx, cloudflareTraceURL, "tcp")
+	return DetectIPViaCloudflareTrace(cloudflareTraceURL, "tcp4")
 }
 
 // GetExternalIPs discovers IPv4 and IPv6 public addresses separately by
 // forcing the address family at the transport layer. Both fields may be
 // empty if the corresponding address family is unavailable. At least one
 // must succeed or an error is returned.
-func GetExternalIPs(ctx context.Context) (*ExternalIPs, error) {
-	result := &ExternalIPs{}
-	var (
-		mu   sync.Mutex
-		errs []error
-		wg   sync.WaitGroup
-	)
-
-	for _, entry := range []struct {
-		network string
-		target  *string
+func GetExternalIPs() (ipV4, ipV6 string, err error) {
+	ipTraceEndpoints := []struct {
+		traceURL string
+		detector func(traceURL, network string) (ip string, err error)
 	}{
-		{"tcp4", &result.IPv4},
-		{"tcp6", &result.IPv6},
-	} {
-		wg.Add(1)
-		go func(network string, target *string) {
-			defer wg.Done()
-			ip, err := DetectIPViaCloudflareTrace(ctx, cloudflareTraceURL, network)
-			mu.Lock()
-			defer mu.Unlock()
+		{
+			traceURL: cloudflareTraceURL,
+			detector: DetectIPViaCloudflareTrace,
+		},
+		{
+			traceURL: "https://bootstrap.getoptimum.io/cdn-cgi/trace",
+			detector: DetectIPViaCloudflareTrace,
+		},
+		{
+			traceURL: "https://checkip.amazonaws.com/",
+			detector: DetectIPIfConfigTrace,
+		},
+	}
+	errList := make([]error, 0, len(ipTraceEndpoints)*2)
+	for _, cnt := range ipTraceEndpoints {
+		if ipV4 == "" {
+			ipV4, err = cnt.detector(cnt.traceURL, "tcp4")
 			if err != nil {
-				errs = append(errs, fmt.Errorf("%s: %w", network, err))
-				return
+				errList = append(errList, fmt.Errorf("detect ipv4 via %s: %w", cnt.traceURL, err))
 			}
-			*target = ip
-		}(entry.network, entry.target)
+		}
+		if ipV6 == "" {
+			ipV6, err = cnt.detector(cnt.traceURL, "tcp6")
+			if err != nil {
+				errList = append(errList, fmt.Errorf("detect ipv6 via %s: %w", cnt.traceURL, err))
+			}
+		}
 	}
-	wg.Wait()
-
-	if result.IPv4 == "" && result.IPv6 == "" {
-		return nil, fmt.Errorf("no external IPs discovered: %w", errors.Join(errs...))
+	if ipV4 != "" || ipV6 != "" {
+		return ipV4, ipV6, nil
 	}
-	return result, nil
+	return ipV4, ipV6, fmt.Errorf("failed to detect external IPs: %w", errors.Join(errList...))
 }
 
 // newIPTransport creates an http.Transport that forces connections to
@@ -139,57 +132,73 @@ func newIPTransport(network string) *stdhttp.Transport {
 	}
 }
 
-const cloudflareTraceURL = optimumBootstrapURL + "/cdn-cgi/trace"
-
 // DetectIPViaCloudflareTrace fetches the Cloudflare /cdn-cgi/trace endpoint
 // and parses the ip= field. The traceURL parameter specifies the endpoint URL,
 // and the network parameter controls the address family ("tcp", "tcp4", or "tcp6").
-func DetectIPViaCloudflareTrace(ctx context.Context, traceURL, network string) (string, error) {
+func DetectIPViaCloudflareTrace(traceURL, network string) (ip string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	return getIPViaTraceURL(ctx, traceURL, network, ParseCloudflareTrace)
+}
+
+func DetectIPIfConfigTrace(traceURL, network string) (ip string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	ip, err = getIPViaTraceURL(ctx, traceURL, network, parseIfConfigTrace)
+	if err != nil {
+		return "", err
+	}
+	ip = strings.TrimSpace(ip)
+	if stdnet.ParseIP(ip) == nil {
+		return "", fmt.Errorf("ifconfig trace: invalid IP %q", ip)
+	}
+	return ip, nil
+}
+
+func getIPViaTraceURL(ctx context.Context, traceURL, network string, decoder func(io.Reader) (string, error)) (ip string, err error) {
 	client := &stdhttp.Client{
 		Transport: newIPTransport(network),
 		Timeout:   10 * time.Second,
 	}
-
-	req, err := stdhttp.NewRequestWithContext(ctx, stdhttp.MethodGet, traceURL, stdhttp.NoBody)
+	_, code, err := GetCurl[any](ctx, traceURL, nil, WithHTTPClient[any](client), WithDecoder[any](func(res io.Reader) error {
+		ip, err = decoder(res)
+		return err
+	}))
 	if err != nil {
-		return "", fmt.Errorf("cloudflare trace: create request: %w", err)
+		return "", fmt.Errorf("request failed, code: %d, err: %w", code, err)
 	}
+	if code != stdhttp.StatusOK {
+		return "", fmt.Errorf("unexpected status %d", code)
+	}
+	return ip, nil
+}
 
-	resp, err := client.Do(req)
+func parseIfConfigTrace(res io.Reader) (string, error) {
+	data, err := io.ReadAll(res)
 	if err != nil {
-		return "", fmt.Errorf("cloudflare trace: request failed: %w", err)
+		return "", fmt.Errorf("read response: %w", err)
 	}
-	defer resp.Body.Close() //nolint:errcheck
-
-	if resp.StatusCode != stdhttp.StatusOK {
-		return "", fmt.Errorf("cloudflare trace: unexpected status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	if err != nil {
-		return "", fmt.Errorf("cloudflare trace: read body: %w", err)
-	}
-
-	return ParseCloudflareTrace(string(body))
+	return string(data), nil
 }
 
 // ParseCloudflareTrace extracts and validates the ip= field from the
 // Cloudflare trace response body (key=value\n format).
-func ParseCloudflareTrace(body string) (string, error) {
-	scanner := bufio.NewScanner(strings.NewReader(body))
+func ParseCloudflareTrace(res io.Reader) (string, error) {
+	scanner := bufio.NewScanner(res)
 	for scanner.Scan() {
 		line := scanner.Text()
-		key, value, ok := strings.Cut(line, "=")
+		if !strings.HasPrefix(line, "ip=") {
+			continue
+		}
+		_, value, ok := strings.Cut(line, "=")
 		if !ok {
 			continue
 		}
-		if key == "ip" {
-			ip := strings.TrimSpace(value)
-			if stdnet.ParseIP(ip) == nil {
-				return "", fmt.Errorf("cloudflare trace: invalid IP %q", ip)
-			}
-			return ip, nil
+		ip := strings.TrimSpace(value)
+		if stdnet.ParseIP(ip) == nil {
+			return "", fmt.Errorf("cloudflare trace: invalid IP %q", ip)
 		}
+		return ip, nil
 	}
 	return "", fmt.Errorf("cloudflare trace: ip field not found")
 }
