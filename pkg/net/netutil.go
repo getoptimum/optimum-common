@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	ipTraceEndpoints = map[string]func(ctx context.Context, traceURL, network string) (ip string, err error){
+	ipTraceEndpoints = map[string]func(traceURL, network string) (ip string, err error){
 		cloudflareTraceURL: DetectIPViaCloudflareTrace,
 		"https://bootstrap.getoptimum.io/cdn-cgi/trace": DetectIPViaCloudflareTrace,
 		"https://ifconfig.me/ip":                        DetectIPIfConfigTrace,
@@ -84,9 +84,7 @@ func SortAddresses(ipAddrs []stdnet.IP) []stdnet.IP {
 
 // GetOutboundIP returns preferred outbound ip of this machine.
 func GetOutboundIP() (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	return DetectIPViaCloudflareTrace(ctx, cloudflareTraceURL, "tcp")
+	return DetectIPViaCloudflareTrace(cloudflareTraceURL, "tcp")
 }
 
 // GetExternalIPs discovers IPv4 and IPv6 public addresses separately by
@@ -94,19 +92,16 @@ func GetOutboundIP() (string, error) {
 // empty if the corresponding address family is unavailable. At least one
 // must succeed or an error is returned.
 func GetExternalIPs() (ipV4, ipV6 string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-
 	errList := make([]error, 0, len(ipTraceEndpoints)*2)
 	for traceURL, detector := range ipTraceEndpoints {
 		if ipV4 == "" {
-			ipV4, err = detector(ctx, traceURL, "tcp")
+			ipV4, err = detector(traceURL, "tcp")
 			if err != nil {
 				errList = append(errList, fmt.Errorf("detect ipv4 via %s: %w", traceURL, err))
 			}
 		}
 		if ipV6 == "" {
-			ipV6, err = detector(ctx, traceURL, "tcp6")
+			ipV6, err = detector(traceURL, "tcp6")
 			if err != nil {
 				errList = append(errList, fmt.Errorf("detect ipv6 via %s: %w", traceURL, err))
 			}
@@ -132,11 +127,15 @@ func newIPTransport(network string) *stdhttp.Transport {
 // DetectIPViaCloudflareTrace fetches the Cloudflare /cdn-cgi/trace endpoint
 // and parses the ip= field. The traceURL parameter specifies the endpoint URL,
 // and the network parameter controls the address family ("tcp", "tcp4", or "tcp6").
-func DetectIPViaCloudflareTrace(ctx context.Context, traceURL, network string) (ip string, err error) {
+func DetectIPViaCloudflareTrace(traceURL, network string) (ip string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	return getIPViaTraceURL(ctx, traceURL, network, ParseCloudflareTrace)
 }
 
-func DetectIPIfConfigTrace(ctx context.Context, traceURL, network string) (ip string, err error) {
+func DetectIPIfConfigTrace(traceURL, network string) (ip string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	return getIPViaTraceURL(ctx, traceURL, network, parseIfConfigTrace)
 }
 
