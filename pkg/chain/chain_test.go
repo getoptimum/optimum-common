@@ -31,3 +31,24 @@ func TestNormalizeChainID_withCustomMappings(t *testing.T) {
 func TestNormalizeChainID_nilUsesDefaults(t *testing.T) {
 	require.Equal(t, "mainnet", chain.NormalizeChainID("1", nil))
 }
+
+func TestGenesisTime(t *testing.T) {
+	ts, ok := chain.GenesisTime("mainnet")
+	require.True(t, ok)
+	require.Equal(t, uint64(1606824023), ts)
+
+	ts, ok = chain.GenesisTime("hoodi")
+	require.True(t, ok)
+	require.Equal(t, uint64(1742213400), ts)
+
+	ts, ok = chain.GenesisTime("HOODI")
+	require.True(t, ok, "should normalize input")
+	require.Equal(t, uint64(1742213400), ts)
+
+	ts, ok = chain.GenesisTime("560048")
+	require.True(t, ok, "should resolve numeric chain ID")
+	require.Equal(t, uint64(1742213400), ts)
+
+	_, ok = chain.GenesisTime("unknown")
+	require.False(t, ok)
+}
