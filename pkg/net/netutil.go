@@ -98,17 +98,17 @@ func GetExternalIPs() (ipV4, ipV6 string, err error) {
 		},
 	}
 	errList := make([]error, 0, len(ipTraceEndpoints)*2)
-	for _, cnt := range ipTraceEndpoints {
+	for _, ep := range ipTraceEndpoints {
 		if ipV4 == "" {
-			ipV4, err = cnt.detector(cnt.traceURL, "tcp4")
+			ipV4, err = ep.detector(ep.traceURL, "tcp4")
 			if err != nil {
-				errList = append(errList, fmt.Errorf("detect ipv4 via %s: %w", cnt.traceURL, err))
+				errList = append(errList, fmt.Errorf("detect ipv4 via %s: %w", ep.traceURL, err))
 			}
 		}
 		if ipV6 == "" {
-			ipV6, err = cnt.detector(cnt.traceURL, "tcp6")
+			ipV6, err = ep.detector(ep.traceURL, "tcp6")
 			if err != nil {
-				errList = append(errList, fmt.Errorf("detect ipv6 via %s: %w", cnt.traceURL, err))
+				errList = append(errList, fmt.Errorf("detect ipv6 via %s: %w", ep.traceURL, err))
 			}
 		}
 	}
