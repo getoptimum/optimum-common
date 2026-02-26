@@ -111,6 +111,9 @@ func GetExternalIPs() (ipV4, ipV6 string, err error) {
 				errList = append(errList, fmt.Errorf("detect ipv6 via %s: %w", ep.traceURL, err))
 			}
 		}
+		if ipV4 != "" && ipV6 != "" {
+			break
+		}
 	}
 	if ipV4 != "" || ipV6 != "" {
 		return ipV4, ipV6, nil
