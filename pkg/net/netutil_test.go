@@ -1,6 +1,7 @@
 package net_test
 
 import (
+	"errors"
 	"fmt"
 	stdnet "net"
 	"net/http"
@@ -336,6 +337,19 @@ func TestParseCloudflareTrace(t *testing.T) {
 		})
 	}
 }
+
+func TestParseCloudflareTrace_ReaderError(t *testing.T) {
+	readErr := errors.New("disk I/O failure")
+	r := &failingReader{err: readErr}
+	_, err := netpkg.ParseCloudflareTrace(r)
+	require.Error(t, err)
+	require.ErrorIs(t, err, readErr)
+	require.NotContains(t, err.Error(), "ip field not found")
+}
+
+type failingReader struct{ err error }
+
+func (r *failingReader) Read([]byte) (int, error) { return 0, r.err }
 
 // --- Mock HTTP server tests for DetectIPViaCloudflareTrace ---
 

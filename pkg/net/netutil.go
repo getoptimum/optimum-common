@@ -199,6 +199,9 @@ func ParseCloudflareTrace(res io.Reader) (string, error) {
 		}
 		return ip, nil
 	}
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("cloudflare trace: %w", err)
+	}
 	return "", fmt.Errorf("cloudflare trace: ip field not found")
 }
 
