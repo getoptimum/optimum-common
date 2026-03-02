@@ -9,7 +9,12 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-func MustBuildAdvertisedAddresses(log logger.AppLogger, publicIPV4, publicIPV6 string, listenPort int) []multiaddr.Multiaddr {
+func MustBuildAdvertisedAddresses(
+	log logger.AppLogger, //nolint:staticcheck // will drop interface later
+	publicIPV4,
+	publicIPV6 string,
+	listenPort int,
+) []multiaddr.Multiaddr {
 	mas, err := BuildAdvertisedAddresses(log, publicIPV4, publicIPV6, listenPort)
 	if err != nil {
 		log.Fatal("failed to build advertised addresses", err,
@@ -21,7 +26,12 @@ func MustBuildAdvertisedAddresses(log logger.AppLogger, publicIPV4, publicIPV6 s
 	return mas
 }
 
-func BuildAdvertisedAddresses(log logger.AppLogger, publicIPV4, publicIPV6 string, listenPort int) ([]multiaddr.Multiaddr, error) {
+func BuildAdvertisedAddresses(
+	log logger.AppLogger, //nolint:staticcheck // will drop interface later
+	publicIPV4,
+	publicIPV6 string,
+	listenPort int,
+) ([]multiaddr.Multiaddr, error) {
 	if listenPort <= 0 || listenPort > 65535 {
 		return nil, fmt.Errorf("invalid listenPort: %d", listenPort)
 	}
