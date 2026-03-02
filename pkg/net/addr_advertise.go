@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/getoptimum/optimum-common/pkg/logger"
-	commonSlices "github.com/getoptimum/optimum-common/pkg/slices"
+	"github.com/getoptimum/optimum-common/pkg/slices"
 	"github.com/multiformats/go-multiaddr"
 )
 
@@ -60,5 +60,5 @@ func BuildAdvertisedAddresses(log logger.AppLogger, publicIPV4, publicIPV6 strin
 		}
 		result = append(result, ma)
 	}
-	return commonSlices.UniqueSlice(result), nil
+	return slices.UniqueSlice(result), nil
 }
