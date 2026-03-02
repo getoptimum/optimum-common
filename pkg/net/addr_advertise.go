@@ -54,18 +54,11 @@ func BuildAdvertisedAddresses(
 	}
 
 	for _, ipStr := range GetInterfaceIPs() {
-		ip := net.ParseIP(ipStr)
-		if ip == nil {
+		if net.ParseIP(ipStr) == nil { // GetInterfaceIPs returns only ipv4, no need check for ipv6 here
 			continue
 		}
-
-		var ma multiaddr.Multiaddr
-		if ip.To4() != nil {
-			ma, err = multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", ipStr, listenPort))
-		} else {
-			ma, err = multiaddr.NewMultiaddr(fmt.Sprintf("/ip6/%s/tcp/%d", ipStr, listenPort))
-		}
-		if err != nil {
+		ma, errI := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", ipStr, listenPort))
+		if errI != nil {
 			continue
 		}
 		result = append(result, ma)

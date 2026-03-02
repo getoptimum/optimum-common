@@ -27,6 +27,11 @@ func TestBuildAdvertisedAddresses(t *testing.T) {
 		require.Error(t, err)
 		require.Empty(t, res)
 	})
+	t.Run("should work with empty ipv6", func(t *testing.T) {
+		res, err := net.BuildAdvertisedAddresses(l, "1.2.3.4", "", 4001)
+		require.NoError(t, err)
+		require.Contains(t, res, mustMA(t, "/ip4/1.2.3.4/tcp/4001"))
+	})
 	t.Run("should not fail on invalid ipv6 and still return ipv4", func(t *testing.T) {
 		// when
 		res, err := net.BuildAdvertisedAddresses(l, "1.2.3.4", "not-an-ip", 4001)
@@ -44,6 +49,15 @@ func TestBuildAdvertisedAddresses(t *testing.T) {
 		res, err = net.BuildAdvertisedAddresses(l, "1.2.3.4", "2001:db8::1", 70000)
 		require.Error(t, err)
 		require.Empty(t, res)
+	})
+	t.Run("should accept boundary ports", func(t *testing.T) {
+		res, err := net.BuildAdvertisedAddresses(l, "1.2.3.4", "", 1)
+		require.NoError(t, err)
+		require.Contains(t, res, mustMA(t, "/ip4/1.2.3.4/tcp/1"))
+
+		res, err = net.BuildAdvertisedAddresses(l, "1.2.3.4", "", 65535)
+		require.NoError(t, err)
+		require.Contains(t, res, mustMA(t, "/ip4/1.2.3.4/tcp/65535"))
 	})
 }
 
