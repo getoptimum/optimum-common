@@ -1,8 +1,9 @@
-package latency
+package latency_test
 
 import (
 	"testing"
 
+	"github.com/getoptimum/optimum-common/pkg/latency"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +23,7 @@ func TestLatencyMsInRange(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := LatencyMsInRange(tt.latencyMs, tt.maxMs)
+			got, ok := latency.LatencyMsInRange(tt.latencyMs, tt.maxMs)
 			require.Equal(t, tt.latencyMs, got)
 			require.Equal(t, tt.wantOk, ok)
 		})
@@ -49,7 +50,7 @@ func TestRecvTimestampReasonable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := RecvTimestampReasonable(tt.recvAtMs, tt.nowMs, tt.maxFutureMs)
+			got := latency.RecvTimestampReasonable(tt.recvAtMs, tt.nowMs, tt.maxFutureMs)
 			require.Equal(t, tt.wantReasonable, got)
 		})
 	}
