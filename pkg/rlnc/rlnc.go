@@ -59,6 +59,7 @@ func WithPrepareData(prepareData bool) Option {
 type EncodeIntoShards = func(context.Context, []byte, ...Option) ([]*Shard, error)
 type StreamShards = func(context.Context, []byte, ...Option) (chan *Shard, error)
 type NewShardSet = func(numCoefficients, shardLength int) ShardSet
+type IsUncoded = func(*Shard) bool
 
 type ShardSet interface {
 	Add(coefficients, data []byte) error
