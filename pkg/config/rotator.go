@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync/atomic"
 	"time"
 
@@ -28,11 +29,17 @@ func WithRenewInterval(d time.Duration) RotatorOption {
 	return func(r *Rotator) { r.renewInterval = d }
 }
 
+// WithServiceVersion sets the optional service version used when fetching dynamic config.
+func WithServiceVersion(v string) RotatorOption {
+	return func(r *Rotator) { r.serviceVersion = v }
+}
+
 // Rotator holds the default and current configuration and allows atomic updates.
 // need dynamically update config in a thread-safe manner for all p2p nodes in the cluster
 type Rotator struct {
 	log              logger.AppLogger
 	renewInterval    time.Duration
+	serviceVersion   string
 	lastHash         string
 	currentOptConfig atomic.Pointer[entities.OptimumConfig]
 	updater          func(config *entities.DynamicConfig)
@@ -42,14 +49,14 @@ type Rotator struct {
 // dynamic configuration from a remote endpoint.
 // The rotator starts a background goroutine that fetches config at the specified interval.
 // If chainID or clusterID is empty, fetching is disabled.
+// If WithServiceVersion is provided, it is sent as the service_version query parameter.
 // The updater function is called whenever a new config is successfully fetched and applied.
 func NewConfigRotator(
 	ctx context.Context,
 	log logger.AppLogger,
 	baseOptCfg *entities.OptimumConfig,
 	chainID,
-	clusterID,
-	gatewayVersion string,
+	clusterID string,
 	updater func(config *entities.DynamicConfig),
 	opts ...RotatorOption,
 ) *Rotator {
@@ -61,16 +68,16 @@ func NewConfigRotator(
 		o(r)
 	}
 	r.currentOptConfig.Store(baseOptCfg.Clone())
-	go r.bgFetchConfig(ctx, chainID, clusterID, gatewayVersion)
+	go r.bgFetchConfig(ctx, chainID, clusterID)
 	return r
 }
 
-func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID, gatewayVersion string) {
+func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) {
 	if chainID == "" || clusterID == "" {
 		return // do not fetch if chainID or clusterID is empty
 	}
-	url := fmt.Sprintf("%s/api/v1/%s/%s/config?gateway_version=%s", baseURL, chainID, clusterID, gatewayVersion)
-	config, err := fetchRemoteConfig(ctx, url)
+	configURL := buildConfigURL(chainID, clusterID, r.serviceVersion)
+	config, err := fetchRemoteConfig(ctx, configURL)
 	if err == nil { // if init failed, we not panic, use default one, just try later fetch it again
 		r.RenewConfig(config)
 		if r.updater != nil {
@@ -90,7 +97,7 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID, gateway
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			config, err = fetchRemoteConfig(ctx, url)
+			config, err = fetchRemoteConfig(ctx, configURL)
 			if err != nil {
 				continue
 			}
@@ -110,6 +117,16 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID, gateway
 			}
 		}
 	}
+}
+
+func buildConfigURL(chainID, clusterID, serviceVersion string) string {
+	base := fmt.Sprintf("%s/api/v1/%s/%s/config", baseURL, chainID, clusterID)
+	if serviceVersion == "" {
+		return base
+	}
+	query := url.Values{}
+	query.Set("service_version", serviceVersion)
+	return base + "?" + query.Encode()
 }
 
 // RenewConfig atomically updates the current configuration by applying the dynamic config.

@@ -36,8 +36,8 @@ func TestRenewConfig(t *testing.T) {
 		&cfg.OptimumConfig,
 		cfg.ChainID,
 		cfg.ClusterID,
-		"v0.0.1",
 		updater,
+		config.WithServiceVersion("optimum-common-v0.0.1-rc1"),
 		config.WithRenewInterval(2*time.Second),
 	)
 
@@ -66,7 +66,15 @@ func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 	cfg.ClusterID = "optimum_hoodi_v0_2"
 
 	// when
-	cfgRotator := config.NewConfigRotator(ctx, l, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, "v0.0.1", nil)
+	cfgRotator := config.NewConfigRotator(
+		ctx,
+		l,
+		&cfg.OptimumConfig,
+		cfg.ChainID,
+		cfg.ClusterID,
+		nil,
+		config.WithServiceVersion("optimum-common-v0.0.1-rc1"),
+	)
 
 	// then
 	var wg sync.WaitGroup
