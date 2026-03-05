@@ -76,8 +76,8 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 	if chainID == "" || clusterID == "" {
 		return // do not fetch if chainID or clusterID is empty
 	}
-	url := buildConfigURL(chainID, clusterID, r.serviceVersion)
-	config, err := fetchRemoteConfig(ctx, url)
+	configURL := buildConfigURL(chainID, clusterID, r.serviceVersion)
+	config, err := fetchRemoteConfig(ctx, configURL)
 	if err == nil { // if init failed, we not panic, use default one, just try later fetch it again
 		r.RenewConfig(config)
 		if r.updater != nil {
@@ -97,7 +97,7 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			config, err = fetchRemoteConfig(ctx, url)
+			config, err = fetchRemoteConfig(ctx, configURL)
 			if err != nil {
 				continue
 			}
