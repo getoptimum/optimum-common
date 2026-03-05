@@ -21,7 +21,44 @@ type testConfig struct {
 	entities.OptimumConfig
 }
 
+var testConfigEnvKeys = []string{
+	"HOST",
+	"PORT",
+	"DEBUG",
+	"ITEMS",
+	"DEFAULT_PARAM",
+	"CLUSTER_ID",
+	"CHAIN_ID",
+	"OPTIMUM_MAX_MSG_SIZE",
+	"OPTIMUM_RANDOM_MSG_SIZE",
+	"OPTIMUM_SHARD_FACTOR",
+	"OPTIMUM_SHARD_MULT",
+	"OPTIMUM_THRESHOLD",
+	"OPTIMUM_MESH_TARGET",
+	"OPTIMUM_MESH_MIN",
+	"OPTIMUM_MESH_MAX",
+	"BOOTSTRAP_PEERS",
+}
+
+func unsetTestConfigEnv(t *testing.T) {
+	t.Helper()
+	for _, key := range testConfigEnvKeys {
+		if val, ok := os.LookupEnv(key); ok {
+			require.NoError(t, os.Unsetenv(key))
+			t.Cleanup(func() {
+				_ = os.Setenv(key, val)
+			})
+			continue
+		}
+		t.Cleanup(func() {
+			_ = os.Unsetenv(key)
+		})
+	}
+}
+
 func TestLoadPriority(t *testing.T) {
+	unsetTestConfigEnv(t)
+
 	// given
 	dir := t.TempDir()
 	p := filepath.Join(dir, "cfg.yaml")

@@ -19,6 +19,8 @@ var (
 	supportedChains = map[string]struct{}{
 		"eth_mainnet": {},
 		"eth_hoodi":   {},
+		"mainnet":     {},
+		"hoodi":       {},
 
 		"default": {},
 	}
@@ -27,10 +29,12 @@ var (
 // DynamicConfig represents runtime-configurable parameters for P2P network behavior.
 // These settings can be updated without restarting the node.
 type DynamicConfig struct {
-	ChainID         string    `db:"chain_id" yaml:"chain_id" json:"chain_id"`
-	ClusterID       string    `db:"cluster_id" yaml:"cluster_id" json:"cluster_id"`
-	UpdatedAt       time.Time `db:"updated_at" yaml:"-" json:"updated_at"`
-	EnableABTesting bool      `db:"enable_ab_testing" yaml:"enable_ab_testing" json:"enable_ab_testing"`
+	ChainID        string    `db:"chain_id" yaml:"chain_id" json:"chain_id"`
+	ClusterID      string    `db:"cluster_id" yaml:"cluster_id" json:"cluster_id"`
+	GatewayVersion string    `db:"gateway_version" yaml:"gateway_version" json:"gateway_version"`
+	UpdatedAt      time.Time `db:"updated_at" yaml:"-" json:"updated_at"`
+
+	EnableABTesting bool `db:"enable_ab_testing" yaml:"enable_ab_testing" json:"enable_ab_testing"`
 	// ExcludeSelfMessages is a flag that indicates whether messages originating from the node itself should be ignored.
 	// used for tracking eth latency measurements
 	ExcludeSelfMessages bool `db:"exclude_self_messages" yaml:"exclude_self_messages" json:"exclude_self_messages"`
@@ -45,6 +49,13 @@ type DynamicConfig struct {
 	MeshDegreeTarget int64 `db:"mesh_degree_target" yaml:"mesh_degree_target" json:"mesh_degree_target"`
 	MeshDegreeMin    int64 `db:"mesh_degree_min" yaml:"mesh_degree_min" json:"mesh_degree_min"`
 	MeshDegreeMax    int64 `db:"mesh_degree_max" yaml:"mesh_degree_max" json:"mesh_degree_max"`
+}
+
+// Normalize trims and normalizes ID fields in-place.
+func (d *DynamicConfig) Normalize() {
+	d.ChainID = strings.ToLower(strings.TrimSpace(d.ChainID))
+	d.ClusterID = strings.TrimSpace(d.ClusterID)
+	d.GatewayVersion = strings.TrimSpace(d.GatewayVersion)
 }
 
 // FromYAMLFile loads a DynamicConfig from a YAML file at the specified path.
@@ -75,7 +86,9 @@ func (d *DynamicConfig) Validate() error {
 	if _, ok := supportedChains[d.ChainID]; !ok {
 		return fmt.Errorf("unsupported chain_id: %s", d.ChainID)
 	}
-
+	if d.GatewayVersion == "" {
+		return errors.New("gateway_version cannot be empty")
+	}
 	if d.RandomMessageSize <= 0 {
 		return errors.New("random_message_size must be greater than zero")
 	}
@@ -106,6 +119,7 @@ func (d *DynamicConfig) ToMap() map[string]any {
 	return map[string]any{
 		"chain_id":              d.ChainID,
 		"cluster_id":            d.ClusterID,
+		"gateway_version":       d.GatewayVersion,
 		"enable_ab_testing":     d.EnableABTesting,
 		"exclude_self_messages": d.ExcludeSelfMessages,
 		"updated_at":            time.Now(),

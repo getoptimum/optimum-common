@@ -14,6 +14,7 @@ func TestDynamicConfigValidate(t *testing.T) {
 		dc := &entities.DynamicConfig{
 			ChainID:                  "default",
 			ClusterID:                "test_cluster",
+			GatewayVersion:           "v0.0.1",
 			RandomMessageSize:        512,
 			ShardFactor:              4,
 			PublisherShardMultiplier: 3,
@@ -32,6 +33,7 @@ func TestDynamicConfigValidate(t *testing.T) {
 			{
 				ChainID:                  "test",
 				ClusterID:                "test_cluster",
+				GatewayVersion:           "v0.0.1",
 				RandomMessageSize:        512,
 				ShardFactor:              4,
 				PublisherShardMultiplier: 3,
@@ -40,16 +42,17 @@ func TestDynamicConfigValidate(t *testing.T) {
 				MeshDegreeMin:            4,
 				MeshDegreeMax:            12,
 			},
-			{RandomMessageSize: 0, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
-			{RandomMessageSize: 512, ShardFactor: 0, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
-			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 0, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
-			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: -0.1, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
-			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 1.1, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
-			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 0, MeshDegreeMin: 4, MeshDegreeMax: 12},
-			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 0, MeshDegreeMax: 12},
-			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 0},
-			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 3, MeshDegreeMin: 4, MeshDegreeMax: 12},
-			{RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 13, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{ChainID: "default", GatewayVersion: "", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{ChainID: "default", GatewayVersion: "v0.0.1", RandomMessageSize: 0, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{ChainID: "default", GatewayVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 0, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{ChainID: "default", GatewayVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 0, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{ChainID: "default", GatewayVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: -0.1, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{ChainID: "default", GatewayVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 1.1, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{ChainID: "default", GatewayVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 0, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{ChainID: "default", GatewayVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 0, MeshDegreeMax: 12},
+			{ChainID: "default", GatewayVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 0},
+			{ChainID: "default", GatewayVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 3, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{ChainID: "default", GatewayVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 13, MeshDegreeMin: 4, MeshDegreeMax: 12},
 		}
 
 		for _, dc := range invalidConfigs {
@@ -64,6 +67,7 @@ func TestDynamicConfig(t *testing.T) {
 	dc := &entities.DynamicConfig{
 		ChainID:                  "test",
 		ClusterID:                "test_cluster",
+		GatewayVersion:           "v0.0.1",
 		UpdatedAt:                time.Unix(1763640739, 0),
 		EnableABTesting:          true,
 		ExcludeSelfMessages:      true,
@@ -83,6 +87,7 @@ func TestDynamicConfig(t *testing.T) {
 	require.Equal(t, map[string]any{
 		"chain_id":                   "test",
 		"cluster_id":                 "test_cluster",
+		"gateway_version":            "v0.0.1",
 		"enable_ab_testing":          true,
 		"exclude_self_messages":      true,
 		"updated_at":                 res["updated_at"],
