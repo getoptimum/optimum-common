@@ -31,7 +31,7 @@ var (
 type DynamicConfig struct {
 	ChainID        string    `db:"chain_id" yaml:"chain_id" json:"chain_id"`
 	ClusterID      string    `db:"cluster_id" yaml:"cluster_id" json:"cluster_id"`
-	GatewayVersion string    `db:"gateway_version" yaml:"gateway_version" json:"gateway_version"`
+	GatewayVersion string    `db:"service_version" yaml:"service_version" json:"service_version"`
 	UpdatedAt      time.Time `db:"updated_at" yaml:"-" json:"updated_at"`
 
 	EnableABTesting bool `db:"enable_ab_testing" yaml:"enable_ab_testing" json:"enable_ab_testing"`
@@ -87,7 +87,7 @@ func (d *DynamicConfig) Validate() error {
 		return fmt.Errorf("unsupported chain_id: %s", d.ChainID)
 	}
 	if d.GatewayVersion == "" {
-		return errors.New("gateway_version cannot be empty")
+		return errors.New("service_version cannot be empty")
 	}
 	if d.RandomMessageSize <= 0 {
 		return errors.New("random_message_size must be greater than zero")
@@ -119,7 +119,7 @@ func (d *DynamicConfig) ToMap() map[string]any {
 	return map[string]any{
 		"chain_id":              d.ChainID,
 		"cluster_id":            d.ClusterID,
-		"gateway_version":       d.GatewayVersion,
+		"service_version":       d.GatewayVersion,
 		"enable_ab_testing":     d.EnableABTesting,
 		"exclude_self_messages": d.ExcludeSelfMessages,
 		"updated_at":            time.Now(),

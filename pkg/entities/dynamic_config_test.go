@@ -87,7 +87,7 @@ func TestDynamicConfig(t *testing.T) {
 	require.Equal(t, map[string]any{
 		"chain_id":                   "test",
 		"cluster_id":                 "test_cluster",
-		"gateway_version":            "v0.0.1",
+		"service_version":            "v0.0.1",
 		"enable_ab_testing":          true,
 		"exclude_self_messages":      true,
 		"updated_at":                 res["updated_at"],
