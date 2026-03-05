@@ -87,6 +87,10 @@ func (d *DynamicConfig) Validate() error {
 		return fmt.Errorf("unsupported chain_id: %s", d.ChainID)
 	}
 
+	if d.GatewayVersion == "" {
+		return errors.New("gateway_version cannot be empty")
+	}
+
 	if d.RandomMessageSize <= 0 {
 		return errors.New("random_message_size must be greater than zero")
 	}
@@ -117,6 +121,7 @@ func (d *DynamicConfig) ToMap() map[string]any {
 	return map[string]any{
 		"chain_id":              d.ChainID,
 		"cluster_id":            d.ClusterID,
+		"gateway_version":       d.GatewayVersion,
 		"enable_ab_testing":     d.EnableABTesting,
 		"exclude_self_messages": d.ExcludeSelfMessages,
 		"updated_at":            time.Now(),
