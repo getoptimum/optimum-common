@@ -31,5 +31,4 @@ type ShardSet interface {
 	Size() int
 	NumCoefficients() int
 	ShardLength() int
-	IsUncoded() bool
 }
