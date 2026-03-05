@@ -44,15 +44,12 @@ func unsetTestConfigEnv(t *testing.T) {
 	t.Helper()
 	for _, key := range testConfigEnvKeys {
 		if val, ok := os.LookupEnv(key); ok {
-			key := key
-			val := val
 			require.NoError(t, os.Unsetenv(key))
 			t.Cleanup(func() {
 				_ = os.Setenv(key, val)
 			})
 			continue
 		}
-		key := key
 		t.Cleanup(func() {
 			_ = os.Unsetenv(key)
 		})

@@ -229,108 +229,47 @@ func testIPFunction(t *testing.T, fn func(stdnet.IP) bool, testCases []ipTestCas
 	}
 }
 
-var privateOrULATests = []ipTestCase{
-	{
-		name:     "IPv4 private 10.0.0.0/8",
-		ip:       "10.0.0.1",
-		expected: true,
-	},
-	{
-		name:     "IPv4 private 172.16.0.0/12",
-		ip:       "172.16.0.1",
-		expected: true,
-	},
-	{
-		name:     "IPv4 private 172.31.0.1",
-		ip:       "172.31.0.1",
-		expected: true,
-	},
-	{
-		name:     "IPv4 private 192.168.0.0/16",
-		ip:       "192.168.1.1",
-		expected: true,
-	},
-	{
-		name:     "IPv4 public",
-		ip:       "8.8.8.8",
-		expected: false,
-	},
-	{
-		name:     "IPv6 ULA fc00::1",
-		ip:       "fc00::1",
-		expected: true,
-	},
-	{
-		name:     "IPv6 ULA fd00::1",
-		ip:       "fd00::1",
-		expected: true,
-	},
-	{
-		name:     "IPv6 public",
-		ip:       "2001:db8::1",
-		expected: false,
-	},
-	{
-		name:     "loopback",
-		ip:       "127.0.0.1",
-		expected: false,
-	},
-}
-
-var globalUnicastTests = []ipTestCase{
-	{
-		name:     "IPv4 public",
-		ip:       "8.8.8.8",
-		expected: true,
-	},
-	{
-		name:     "IPv4 private",
-		ip:       "192.168.1.1",
-		expected: false,
-	},
-	{
-		name:     "IPv4 loopback",
-		ip:       "127.0.0.1",
-		expected: false,
-	},
-	{
-		name:     "IPv4 link-local",
-		ip:       "169.254.0.1",
-		expected: false,
-	},
-	{
-		name:     "IPv4 multicast",
-		ip:       "224.0.0.1",
-		expected: false,
-	},
-	{
-		name:     "IPv6 public",
-		ip:       "2001:db8::1",
-		expected: true,
-	},
-	{
-		name:     "IPv6 ULA",
-		ip:       "fc00::1",
-		expected: false,
-	},
-	{
-		name:     "IPv6 link-local",
-		ip:       "fe80::1",
-		expected: false,
-	},
-	{
-		name:     "IPv6 multicast",
-		ip:       "ff02::1",
-		expected: false,
-	},
-}
-
-func TestIsPrivateOrULA(t *testing.T) {
-	testIPFunction(t, netpkg.IsPrivateOrULA, privateOrULATests)
-}
-
-func TestIsGlobalUnicast(t *testing.T) {
-	testIPFunction(t, netpkg.IsGlobalUnicast, globalUnicastTests)
+func TestIPClassifiers(t *testing.T) {
+	for _, group := range []struct {
+		name  string
+		fn    func(stdnet.IP) bool
+		cases []ipTestCase
+	}{
+		{
+			name: "IsPrivateOrULA",
+			fn:   netpkg.IsPrivateOrULA,
+			cases: []ipTestCase{
+				{"IPv4 private 10.0.0.0/8", "10.0.0.1", true},
+				{"IPv4 private 172.16.0.0/12", "172.16.0.1", true},
+				{"IPv4 private 172.31.0.1", "172.31.0.1", true},
+				{"IPv4 private 192.168.0.0/16", "192.168.1.1", true},
+				{"IPv4 public", "8.8.8.8", false},
+				{"IPv6 ULA fc00::1", "fc00::1", true},
+				{"IPv6 ULA fd00::1", "fd00::1", true},
+				{"IPv6 public", "2001:db8::1", false},
+				{"loopback", "127.0.0.1", false},
+			},
+		},
+		{
+			name: "IsGlobalUnicast",
+			fn:   netpkg.IsGlobalUnicast,
+			cases: []ipTestCase{
+				{"IPv4 public", "8.8.8.8", true},
+				{"IPv4 private", "192.168.1.1", false},
+				{"IPv4 loopback", "127.0.0.1", false},
+				{"IPv4 link-local", "169.254.0.1", false},
+				{"IPv4 multicast", "224.0.0.1", false},
+				{"IPv6 public", "2001:db8::1", true},
+				{"IPv6 ULA", "fc00::1", false},
+				{"IPv6 link-local", "fe80::1", false},
+				{"IPv6 multicast", "ff02::1", false},
+			},
+		},
+	} {
+		t.Run(group.name, func(t *testing.T) {
+			testIPFunction(t, group.fn, group.cases)
+		})
+	}
 }
 
 func TestGetInterfaceIPs(t *testing.T) {
