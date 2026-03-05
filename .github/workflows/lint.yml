@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  go-version: "1.25.7"
+  go-version: "1.26.0"
   vuln-version: "v1.1.4"
   GOPRIVATE: "github.com/getoptimum"
 
@@ -49,7 +49,7 @@ jobs:
         uses: golangci/golangci-lint-action@9fae48acfc02a90574d7c304a1758ef9895495fa # v7.0.1
         with:
           # match your local CLI
-          version: v2.4.0
+          version: v2.9.0
           args: --timeout 7m
           only-new-issues: true
 

@@ -1,13 +1,34 @@
 package net_test
 
 import (
+	"errors"
+	"fmt"
 	stdnet "net"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	netpkg "github.com/getoptimum/optimum-common/pkg/net"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGetExternalIPs_Integration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode")
+	}
+
+	ipV4, ipV6, err := netpkg.GetExternalIPs()
+	require.NoError(t, err)
+	require.True(t, ipV4 != "" || ipV6 != "", "expected at least one address family")
+
+	if ipV4 != "" {
+		require.NotNil(t, stdnet.ParseIP(ipV4), "IPv4 should be a valid IP")
+	}
+	if ipV6 != "" {
+		require.NotNil(t, stdnet.ParseIP(ipV6), "IPv6 should be a valid IP")
+	}
+}
 
 func TestGetOutboundQUICP2PAddr(t *testing.T) {
 	addr, err := netpkg.GetOutboundQUICP2PAddr(3030)
@@ -322,4 +343,150 @@ func TestGetInterfaceIPs(t *testing.T) {
 		require.NotNil(t, ip.To4(), "should return IPv4 addresses only: %s", ipStr)
 		require.False(t, ip.IsLoopback(), "should not return loopback: %s", ipStr)
 	}
+}
+
+// --- New tests for improved external IP detection ---
+
+func TestParseCloudflareTrace(t *testing.T) {
+	tests := []struct {
+		name    string
+		body    string
+		wantIP  string
+		wantErr bool
+	}{
+		{
+			name:   "valid IPv4",
+			body:   "fl=123abc\nh=bootstrap.getoptimum.io\nip=203.0.113.42\nts=1234567890\nvisit_scheme=https\n",
+			wantIP: "203.0.113.42",
+		},
+		{
+			name:   "valid IPv6",
+			body:   "fl=456def\nh=bootstrap.getoptimum.io\nip=2001:db8::1\nts=1234567890\n",
+			wantIP: "2001:db8::1",
+		},
+		{
+			name:    "missing ip field",
+			body:    "fl=123abc\nh=bootstrap.getoptimum.io\nts=1234567890\n",
+			wantErr: true,
+		},
+		{
+			name:    "empty body",
+			body:    "",
+			wantErr: true,
+		},
+		{
+			name:    "invalid IP value",
+			body:    "ip=not-an-ip\n",
+			wantErr: true,
+		},
+		{
+			name:   "lines without equals sign are skipped",
+			body:   "garbage line\nip=198.51.100.1\n",
+			wantIP: "198.51.100.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ip, err := netpkg.ParseCloudflareTrace(strings.NewReader(tt.body))
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantIP, ip)
+		})
+	}
+}
+
+func TestParseCloudflareTrace_ReaderError(t *testing.T) {
+	readErr := errors.New("disk I/O failure")
+	r := &failingReader{err: readErr}
+	_, err := netpkg.ParseCloudflareTrace(r)
+	require.Error(t, err)
+	require.ErrorIs(t, err, readErr)
+	require.NotContains(t, err.Error(), "ip field not found")
+}
+
+type failingReader struct{ err error }
+
+func (r *failingReader) Read([]byte) (int, error) { return 0, r.err }
+
+// --- Mock HTTP server tests for DetectIPViaCloudflareTrace ---
+
+func TestCloudflareTrace_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "fl=abc\nh=example.com\nip=93.184.216.34\nts=123\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	ip, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.NoError(t, err)
+	require.Equal(t, "93.184.216.34", ip)
+}
+
+func TestCloudflareTrace_Non200Status(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), fmt.Sprintf("%d", http.StatusServiceUnavailable))
+}
+
+func TestCloudflareTrace_MissingIPField(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "fl=abc\nh=example.com\nts=123\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ip field not found")
+}
+
+func TestCloudflareTrace_InvalidIPInResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "ip=not-a-valid-ip\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid IP")
+}
+
+func TestCloudflareTrace_EmptyBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 200 OK but empty body
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ip field not found")
+}
+
+func TestCloudflareTrace_IPv6Response(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "fl=xyz\nip=2001:db8::abcd\nts=999\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	ip, err := netpkg.DetectIPViaCloudflareTrace(srv.URL, "tcp")
+	require.NoError(t, err)
+	require.Equal(t, "2001:db8::abcd", ip)
+}
+
+func TestCloudflareTrace_ServerDown(t *testing.T) {
+	// Create and immediately close the server to simulate a down endpoint.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srvURL := srv.URL
+	srv.Close()
+
+	_, err := netpkg.DetectIPViaCloudflareTrace(srvURL, "tcp")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "request failed")
 }
