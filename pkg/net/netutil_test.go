@@ -191,11 +191,13 @@ func TestSortAddresses(t *testing.T) {
 	}
 }
 
-func testIPFunction(t *testing.T, fn func(stdnet.IP) bool, testCases []struct {
+type ipTestCase struct {
 	name     string
 	ip       string
 	expected bool
-}) {
+}
+
+func testIPFunction(t *testing.T, fn func(stdnet.IP) bool, testCases []ipTestCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ip := stdnet.ParseIP(tc.ip)
@@ -206,112 +208,108 @@ func testIPFunction(t *testing.T, fn func(stdnet.IP) bool, testCases []struct {
 	}
 }
 
+var privateOrULATests = []ipTestCase{
+	{
+		name:     "IPv4 private 10.0.0.0/8",
+		ip:       "10.0.0.1",
+		expected: true,
+	},
+	{
+		name:     "IPv4 private 172.16.0.0/12",
+		ip:       "172.16.0.1",
+		expected: true,
+	},
+	{
+		name:     "IPv4 private 172.31.0.1",
+		ip:       "172.31.0.1",
+		expected: true,
+	},
+	{
+		name:     "IPv4 private 192.168.0.0/16",
+		ip:       "192.168.1.1",
+		expected: true,
+	},
+	{
+		name:     "IPv4 public",
+		ip:       "8.8.8.8",
+		expected: false,
+	},
+	{
+		name:     "IPv6 ULA fc00::1",
+		ip:       "fc00::1",
+		expected: true,
+	},
+	{
+		name:     "IPv6 ULA fd00::1",
+		ip:       "fd00::1",
+		expected: true,
+	},
+	{
+		name:     "IPv6 public",
+		ip:       "2001:db8::1",
+		expected: false,
+	},
+	{
+		name:     "loopback",
+		ip:       "127.0.0.1",
+		expected: false,
+	},
+}
+
+var globalUnicastTests = []ipTestCase{
+	{
+		name:     "IPv4 public",
+		ip:       "8.8.8.8",
+		expected: true,
+	},
+	{
+		name:     "IPv4 private",
+		ip:       "192.168.1.1",
+		expected: false,
+	},
+	{
+		name:     "IPv4 loopback",
+		ip:       "127.0.0.1",
+		expected: false,
+	},
+	{
+		name:     "IPv4 link-local",
+		ip:       "169.254.0.1",
+		expected: false,
+	},
+	{
+		name:     "IPv4 multicast",
+		ip:       "224.0.0.1",
+		expected: false,
+	},
+	{
+		name:     "IPv6 public",
+		ip:       "2001:db8::1",
+		expected: true,
+	},
+	{
+		name:     "IPv6 ULA",
+		ip:       "fc00::1",
+		expected: false,
+	},
+	{
+		name:     "IPv6 link-local",
+		ip:       "fe80::1",
+		expected: false,
+	},
+	{
+		name:     "IPv6 multicast",
+		ip:       "ff02::1",
+		expected: false,
+	},
+}
+
 func TestIsPrivateOrULA(t *testing.T) {
-	testIPFunction(t, netpkg.IsPrivateOrULA, []struct {
-		name     string
-		ip       string
-		expected bool
-	}{
-		{
-			name:     "IPv4 private 10.0.0.0/8",
-			ip:       "10.0.0.1",
-			expected: true,
-		},
-		{
-			name:     "IPv4 private 172.16.0.0/12",
-			ip:       "172.16.0.1",
-			expected: true,
-		},
-		{
-			name:     "IPv4 private 172.31.0.1",
-			ip:       "172.31.0.1",
-			expected: true,
-		},
-		{
-			name:     "IPv4 private 192.168.0.0/16",
-			ip:       "192.168.1.1",
-			expected: true,
-		},
-		{
-			name:     "IPv4 public",
-			ip:       "8.8.8.8",
-			expected: false,
-		},
-		{
-			name:     "IPv6 ULA fc00::1",
-			ip:       "fc00::1",
-			expected: true,
-		},
-		{
-			name:     "IPv6 ULA fd00::1",
-			ip:       "fd00::1",
-			expected: true,
-		},
-		{
-			name:     "IPv6 public",
-			ip:       "2001:db8::1",
-			expected: false,
-		},
-		{
-			name:     "loopback",
-			ip:       "127.0.0.1",
-			expected: false,
-		},
-	})
+	testIPFunction(t, netpkg.IsPrivateOrULA, privateOrULATests)
 }
 
 func TestIsGlobalUnicast(t *testing.T) {
-	testIPFunction(t, netpkg.IsGlobalUnicast, []struct {
-		name     string
-		ip       string
-		expected bool
-	}{
-		{
-			name:     "IPv4 public",
-			ip:       "8.8.8.8",
-			expected: true,
-		},
-		{
-			name:     "IPv4 private",
-			ip:       "192.168.1.1",
-			expected: false,
-		},
-		{
-			name:     "IPv4 loopback",
-			ip:       "127.0.0.1",
-			expected: false,
-		},
-		{
-			name:     "IPv4 link-local",
-			ip:       "169.254.0.1",
-			expected: false,
-		},
-		{
-			name:     "IPv4 multicast",
-			ip:       "224.0.0.1",
-			expected: false,
-		},
-		{
-			name:     "IPv6 public",
-			ip:       "2001:db8::1",
-			expected: true,
-		},
-		{
-			name:     "IPv6 ULA",
-			ip:       "fc00::1",
-			expected: false,
-		},
-		{
-			name:     "IPv6 link-local",
-			ip:       "fe80::1",
-			expected: false,
-		},
-		{
-			name:     "IPv6 multicast",
-			ip:       "ff02::1",
-			expected: false,
-		},
-	})
+	testIPFunction(t, netpkg.IsGlobalUnicast, globalUnicastTests)
 }
 
 func TestGetInterfaceIPs(t *testing.T) {

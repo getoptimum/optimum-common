@@ -14,6 +14,7 @@ func TestDynamicConfigValidate(t *testing.T) {
 		dc := &entities.DynamicConfig{
 			ChainID:                  "default",
 			ClusterID:                "test_cluster",
+			GatewayVersion:           "v0.0.1",
 			RandomMessageSize:        512,
 			ShardFactor:              4,
 			PublisherShardMultiplier: 3,
@@ -64,6 +65,7 @@ func TestDynamicConfig(t *testing.T) {
 	dc := &entities.DynamicConfig{
 		ChainID:                  "test",
 		ClusterID:                "test_cluster",
+		GatewayVersion:           "v0.0.1",
 		UpdatedAt:                time.Unix(1763640739, 0),
 		EnableABTesting:          true,
 		ExcludeSelfMessages:      true,

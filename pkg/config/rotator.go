@@ -48,7 +48,8 @@ func NewConfigRotator(
 	log logger.AppLogger,
 	baseOptCfg *entities.OptimumConfig,
 	chainID,
-	clusterID string,
+	clusterID,
+	gatewayVersion string,
 	updater func(config *entities.DynamicConfig),
 	opts ...RotatorOption,
 ) *Rotator {
@@ -60,15 +61,15 @@ func NewConfigRotator(
 		o(r)
 	}
 	r.currentOptConfig.Store(baseOptCfg.Clone())
-	go r.bgFetchConfig(ctx, chainID, clusterID)
+	go r.bgFetchConfig(ctx, chainID, clusterID, gatewayVersion)
 	return r
 }
 
-func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) {
+func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID, gatewayVersion string) {
 	if chainID == "" || clusterID == "" {
 		return // do not fetch if chainID or clusterID is empty
 	}
-	url := fmt.Sprintf("%s/api/v1/%s/%s/config", baseURL, chainID, clusterID)
+	url := fmt.Sprintf("%s/api/v1/%s/%s/config?gateway_version=%s", baseURL, chainID, clusterID, gatewayVersion)
 	config, err := fetchRemoteConfig(ctx, url)
 	if err == nil { // if init failed, we not panic, use default one, just try later fetch it again
 		r.RenewConfig(config)

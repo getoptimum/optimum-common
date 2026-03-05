@@ -30,7 +30,16 @@ func TestRenewConfig(t *testing.T) {
 	}
 
 	// when (short interval for test)
-	cfgRotator := config.NewConfigRotator(ctx, l, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, updater, config.WithRenewInterval(2*time.Second))
+	cfgRotator := config.NewConfigRotator(
+		ctx,
+		l,
+		&cfg.OptimumConfig,
+		cfg.ChainID,
+		cfg.ClusterID,
+		"v0.0.1",
+		updater,
+		config.WithRenewInterval(2*time.Second),
+	)
 
 	// then
 	var cfgReceived *entities.DynamicConfig
@@ -57,7 +66,7 @@ func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 	cfg.ClusterID = "optimum_hoodi_v0_2"
 
 	// when
-	cfgRotator := config.NewConfigRotator(ctx, l, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, nil)
+	cfgRotator := config.NewConfigRotator(ctx, l, &cfg.OptimumConfig, cfg.ChainID, cfg.ClusterID, "v0.0.1", nil)
 
 	// then
 	var wg sync.WaitGroup
