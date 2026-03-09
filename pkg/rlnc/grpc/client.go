@@ -56,9 +56,13 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) EncodeIntoShards(ctx context.Context, inputData []byte, opts ...common.Option) ([]*common.Shard, error) {
+	options, err := encoderOptionsToProto(opts...)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.rlnc.EncodeIntoShards(ctx, &proto.EncodeIntoShardsRequest{
 		InputData: inputData,
-		Options:   encoderOptionsToProto(opts...),
+		Options:   options,
 	})
 	if err != nil {
 		return nil, err
@@ -72,9 +76,13 @@ func (c *Client) EncodeIntoShards(ctx context.Context, inputData []byte, opts ..
 }
 
 func (c *Client) StreamShards(ctx context.Context, inputData []byte, opts ...common.Option) (<-chan StreamResult, error) {
+	options, err := encoderOptionsToProto(opts...)
+	if err != nil {
+		return nil, err
+	}
 	stream, err := c.rlnc.StreamShards(ctx, &proto.StreamShardsRequest{
 		InputData: inputData,
-		Options:   encoderOptionsToProto(opts...),
+		Options:   options,
 	})
 	if err != nil {
 		return nil, err
@@ -122,9 +130,13 @@ func (c *Client) GetEncoderConfig(ctx context.Context, dataLen int, opts ...comm
 		return common.EncoderConfig{}, fmt.Errorf("dataLen too large: %d", dataLen)
 	}
 
+	options, err := encoderOptionsToProto(opts...)
+	if err != nil {
+		return common.EncoderConfig{}, err
+	}
 	resp, err := c.rlnc.GetEncoderConfig(ctx, &proto.GetEncoderConfigRequest{
 		DataLen: int32(dataLen), // #nosec G115 safe after bounds check.
-		Options: encoderOptionsToProto(opts...),
+		Options: options,
 	})
 	if err != nil {
 		return common.EncoderConfig{}, err
@@ -146,8 +158,12 @@ func (c *Client) GetEncoderConfig(ctx context.Context, dataLen int, opts ...comm
 }
 
 func (c *Client) NewShardSet(ctx context.Context, numCoefficients, shardLength int) (*RemoteShardSet, error) {
-	if numCoefficients > math.MaxInt32 || shardLength > math.MaxInt32 {
-		return nil, fmt.Errorf("dataLen too large: %d", numCoefficients)
+	if numCoefficients > math.MaxInt32 {
+		return nil, fmt.Errorf("numCoefficients too large: %d", numCoefficients)
+	}
+
+	if shardLength > math.MaxInt32 {
+		return nil, fmt.Errorf("shardLength too large: %d", shardLength)
 	}
 
 	resp, err := c.shardSets.NewShardSet(ctx, &proto.NewShardSetRequest{
