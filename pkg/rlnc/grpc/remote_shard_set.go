@@ -27,14 +27,16 @@ func (r *RemoteShardSet) Add(ctx context.Context, coefficients, data []byte) err
 	return err
 }
 
-func (r *RemoteShardSet) TryDecode(ctx context.Context) ([]byte, bool, error) {
+func (r *RemoteShardSet) TryDecode(ctx context.Context) (data []byte, ok bool, err error) {
 	resp, err := r.client.TryDecode(ctx, &proto.TryDecodeRequest{
 		ShardSetId: r.id,
 	})
 	if err != nil {
 		return nil, false, err
 	}
-	return append([]byte(nil), resp.DecodedData...), resp.Ok, nil
+	data = append([]byte(nil), resp.DecodedData...)
+	ok = resp.Ok
+	return
 }
 
 func (r *RemoteShardSet) Recode(ctx context.Context) (*common.Shard, error) {

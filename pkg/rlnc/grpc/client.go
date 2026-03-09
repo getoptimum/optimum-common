@@ -2,9 +2,11 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	proto "github.com/getoptimum/optimum-common/pkg/rlnc/grpc/proto/v1"
 	"io"
+	"math"
 	"net"
 
 	common "github.com/getoptimum/optimum-common/pkg/rlnc"
@@ -24,16 +26,17 @@ type StreamResult struct {
 }
 
 func Dial(ctx context.Context, socketPath string, opts ...grpc.DialOption) (*Client, error) {
-	baseOpts := []grpc.DialOption{
+	baseOpts := make([]grpc.DialOption, 0, 2+len(opts))
+	baseOpts = append(baseOpts,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 			var d net.Dialer
 			return d.DialContext(ctx, "unix", socketPath)
 		}),
-	}
+	)
 	baseOpts = append(baseOpts, opts...)
 
-	conn, err := grpc.DialContext(ctx, "unix://"+socketPath, baseOpts...)
+	conn, err := grpc.NewClient("unix://"+socketPath, baseOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("dial grpc unix socket %q: %w", socketPath, err)
 	}
@@ -84,7 +87,7 @@ func (c *Client) StreamShards(ctx context.Context, inputData []byte, opts ...com
 
 		for {
 			msg, err := stream.Recv()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return
 			}
 			if err != nil {
@@ -115,8 +118,12 @@ func (c *Client) IsUncoded(ctx context.Context, shard *common.Shard) (bool, erro
 }
 
 func (c *Client) GetEncoderConfig(ctx context.Context, dataLen int, opts ...common.Option) (common.EncoderConfig, error) {
+	if dataLen > math.MaxInt32 {
+		return common.EncoderConfig{}, fmt.Errorf("dataLen too large: %d", dataLen)
+	}
+
 	resp, err := c.rlnc.GetEncoderConfig(ctx, &proto.GetEncoderConfigRequest{
-		DataLen: int32(dataLen),
+		DataLen: int32(dataLen), // #nosec G115 safe after bounds check.
 		Options: encoderOptionsToProto(opts...),
 	})
 	if err != nil {
@@ -139,9 +146,13 @@ func (c *Client) GetEncoderConfig(ctx context.Context, dataLen int, opts ...comm
 }
 
 func (c *Client) NewShardSet(ctx context.Context, numCoefficients, shardLength int) (*RemoteShardSet, error) {
+	if numCoefficients > math.MaxInt32 || shardLength > math.MaxInt32 {
+		return nil, fmt.Errorf("dataLen too large: %d", numCoefficients)
+	}
+
 	resp, err := c.shardSets.NewShardSet(ctx, &proto.NewShardSetRequest{
-		NumCoefficients: int32(numCoefficients),
-		ShardLength:     int32(shardLength),
+		NumCoefficients: int32(numCoefficients), // #nosec G115 safe after bounds check
+		ShardLength:     int32(shardLength),     // #nosec G115 safe after bounds check
 	})
 	if err != nil {
 		return nil, err
