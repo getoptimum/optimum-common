@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package rlnc.proto;
+
+option go_package = "github.com/getoptimum/optimum-common/pkg/rlnc/grpc/proto/v1";
+
+message Shard {
+  bytes coefficients = 1;
+  bytes data = 2;
+}
+
+message EncoderOptions {
+  optional int32 shred_factor = 1;
+  optional int32 num_shards = 2;
+  optional int32 num_threads = 3;
+  optional bool systematic = 4;
+  optional int32 shred_max_size = 5;
+  optional bool prepare_data = 6;
+}
+
+message EncoderConfig {
+  int32 shred_factor = 1;
+  int32 num_shards = 2;
+  int32 num_threads = 3;
+  bool systematic = 4;
+  int32 shred_max_size = 5;
+  bool prepare_data = 6;
+}
+
+message EncodeIntoShardsRequest {
+  bytes input_data = 1;
+  EncoderOptions options = 2;
+}
+
+message EncodeIntoShardsResponse {
+  repeated Shard shards = 1;
+}
+
+message StreamShardsRequest {
+  bytes input_data = 1;
+  EncoderOptions options = 2;
+}
+
+message IsUncodedRequest {
+  Shard shard = 1;
+}
+
+message IsUncodedResponse {
+  bool is_uncoded = 1;
+}
+
+message GetEncoderConfigRequest {
+  int32 data_len = 1;
+  EncoderOptions options = 2;
+}
+
+message GetEncoderConfigResponse {
+  EncoderConfig config = 1;
+}
+
+message NewShardSetRequest {
+  int32 num_coefficients = 1;
+  int32 shard_length = 2;
+}
+
+message NewShardSetResponse {
+  string shard_set_id = 1;
+}
+
+message AddShardRequest {
+  string shard_set_id = 1;
+  bytes coefficients = 2;
+  bytes data = 3;
+}
+
+message AddShardResponse {}
+
+message TryDecodeRequest {
+  string shard_set_id = 1;
+}
+
+message TryDecodeResponse {
+  bytes decoded_data = 1;
+  bool ok = 2;
+}
+
+message RecodeRequest {
+  string shard_set_id = 1;
+}
+
+message RecodeResponse {
+  Shard shard = 1;
+}
+
+message IsEmptyRequest {
+  string shard_set_id = 1;
+}
+
+message IsEmptyResponse {
+  bool is_empty = 1;
+}
+
+message SizeRequest {
+  string shard_set_id = 1;
+}
+
+message SizeResponse {
+  int32 size = 1;
+}
+
+message NumCoefficientsRequest {
+  string shard_set_id = 1;
+}
+
+message NumCoefficientsResponse {
+  int32 num_coefficients = 1;
+}
+
+message ShardLengthRequest {
+  string shard_set_id = 1;
+}
+
+message ShardLengthResponse {
+  int32 shard_length = 1;
+}
+
+message CloseShardSetRequest {
+  string shard_set_id = 1;
+}
+
+message CloseShardSetResponse {}
+
+service RlncService {
+  rpc EncodeIntoShards(EncodeIntoShardsRequest) returns (EncodeIntoShardsResponse);
+  rpc StreamShards(StreamShardsRequest) returns (stream Shard);
+  rpc IsUncoded(IsUncodedRequest) returns (IsUncodedResponse);
+  rpc GetEncoderConfig(GetEncoderConfigRequest) returns (GetEncoderConfigResponse);
+}
+
+service ShardSetService {
+  rpc NewShardSet(NewShardSetRequest) returns (NewShardSetResponse);
+  rpc Add(AddShardRequest) returns (AddShardResponse);
+  rpc TryDecode(TryDecodeRequest) returns (TryDecodeResponse);
+  rpc Recode(RecodeRequest) returns (RecodeResponse);
+  rpc IsEmpty(IsEmptyRequest) returns (IsEmptyResponse);
+  rpc Size(SizeRequest) returns (SizeResponse);
+  rpc NumCoefficients(NumCoefficientsRequest) returns (NumCoefficientsResponse);
+  rpc ShardLength(ShardLengthRequest) returns (ShardLengthResponse);
+  rpc CloseShardSet(CloseShardSetRequest) returns (CloseShardSetResponse);
+}

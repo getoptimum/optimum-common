@@ -25,7 +25,7 @@ vet: ## go vet
 test: ## Run all tests with race detector and coverage
 	@echo "Running tests..."
 	@go test ./... -race -covermode=atomic -coverprofile=$(COVERPROFILE) -count=1
-	@grep -v 'test_utils/' $(COVERPROFILE) > $(COVERPROFILE).tmp && mv $(COVERPROFILE).tmp $(COVERPROFILE)
+	@grep -Ev 'test_utils/|pkg/rlnc/' $(COVERPROFILE) > $(COVERPROFILE).tmp && mv $(COVERPROFILE).tmp $(COVERPROFILE)
 
 bench: ## Run benchmarks w/o tests
 	@echo "Running benchmarks..."
