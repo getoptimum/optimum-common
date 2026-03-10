@@ -114,3 +114,19 @@ accepted_risks:
     review_date: "2026-03-10"
     next_review: "2026-03-31"
     status: temporary-toolchain
+
+  - id: GO-2026-4603
+    cve: N/A
+    package: html/template
+    title: URLs in meta content attribute actions are not escaped in html/template
+    severity: Moderate
+    fixed_in: go1.26.1
+    reason: |
+      This is a Go standard library vulnerability, not a module dependency issue.
+      govulncheck reports it at the package level, but the scan output says the
+      code does not appear to call the vulnerable behavior. The proper fix is to
+      upgrade the Go toolchain. This is being temporarily accepted until the CI
+      Go version is updated.
+    review_date: "2026-03-10"
+    next_review: "2026-03-31"
+    status: temporary-toolchain
