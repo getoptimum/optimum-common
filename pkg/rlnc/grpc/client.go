@@ -99,13 +99,18 @@ func (c *Client) StreamShards(ctx context.Context, inputData []byte, opts ...com
 				return
 			}
 			if err != nil {
-				out <- StreamResult{Err: err}
-				return
+				select {
+				case <-ctx.Done():
+				case out <- StreamResult{Err: err}:
+				}
 			}
 
 			select {
 			case <-ctx.Done():
-				out <- StreamResult{Err: ctx.Err()}
+				select {
+				case out <- StreamResult{Err: ctx.Err()}:
+				default:
+				}
 				return
 			case out <- StreamResult{Shard: shardFromProto(msg)}:
 			}
