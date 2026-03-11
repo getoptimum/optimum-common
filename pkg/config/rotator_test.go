@@ -20,7 +20,7 @@ func TestRenewConfig(t *testing.T) {
 	l := logger.NewAppSLogger(logger.Debug)
 	var cfg testConfig
 	require.NoError(t, config.Load(&cfg))
-	cfg.ClusterID = "optimum_hoodi_v0_2"
+	cfg.ClusterID = "optimum_hoodi_v0_3"
 	cfg.MeshDegreeMin = 1
 	cfg.MeshDegreeMax = 1
 
@@ -46,12 +46,12 @@ func TestRenewConfig(t *testing.T) {
 	select {
 	case cfgReceived = <-received:
 		require.Equal(t, "default", cfgReceived.ChainID)
-		require.Equal(t, "optimum_hoodi_v0_2", cfgReceived.ClusterID)
+		require.Equal(t, "optimum_hoodi_v0_3", cfgReceived.ClusterID)
 	case <-time.After(12 * time.Second):
 		require.Failf(t, "timeout waiting for config update", "boot node unavailable or config missing for cluster: %s", cfg.ClusterID)
 	}
 	require.Equal(t, "default", cfgRotator.Get().ChainID)
-	require.Equal(t, "optimum_hoodi_v0_2", cfgRotator.Get().ClusterID)
+	require.Equal(t, "optimum_hoodi_v0_3", cfgRotator.Get().ClusterID)
 	require.Equal(t, int64(4), cfgRotator.Get().MeshDegreeMin)
 	require.Equal(t, int64(12), cfgRotator.Get().MeshDegreeMax)
 }
@@ -63,7 +63,7 @@ func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 	l := logger.NewAppSLogger(logger.Debug)
 	var cfg testConfig
 	require.NoError(t, config.Load(&cfg))
-	cfg.ClusterID = "optimum_hoodi_v0_2"
+	cfg.ClusterID = "optimum_hoodi_v0_3"
 
 	// when
 	cfgRotator := config.NewConfigRotator(
