@@ -627,7 +627,7 @@ func (x *NewShardSetRequest) GetShardLength() int32 {
 
 type NewShardSetResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardSetId    string                 `protobuf:"bytes,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
+	ShardSetId    uint64                 `protobuf:"varint,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -662,16 +662,16 @@ func (*NewShardSetResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_rlnc_grpc_proto_v1_rlnc_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *NewShardSetResponse) GetShardSetId() string {
+func (x *NewShardSetResponse) GetShardSetId() uint64 {
 	if x != nil {
 		return x.ShardSetId
 	}
-	return ""
+	return 0
 }
 
 type AddShardRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardSetId    string                 `protobuf:"bytes,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
+	ShardSetId    uint64                 `protobuf:"varint,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
 	Coefficients  []byte                 `protobuf:"bytes,2,opt,name=coefficients,proto3" json:"coefficients,omitempty"`
 	Data          []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -708,11 +708,11 @@ func (*AddShardRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_rlnc_grpc_proto_v1_rlnc_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *AddShardRequest) GetShardSetId() string {
+func (x *AddShardRequest) GetShardSetId() uint64 {
 	if x != nil {
 		return x.ShardSetId
 	}
-	return ""
+	return 0
 }
 
 func (x *AddShardRequest) GetCoefficients() []byte {
@@ -767,7 +767,7 @@ func (*AddShardResponse) Descriptor() ([]byte, []int) {
 
 type TryDecodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardSetId    string                 `protobuf:"bytes,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
+	ShardSetId    uint64                 `protobuf:"varint,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -802,11 +802,11 @@ func (*TryDecodeRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_rlnc_grpc_proto_v1_rlnc_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *TryDecodeRequest) GetShardSetId() string {
+func (x *TryDecodeRequest) GetShardSetId() uint64 {
 	if x != nil {
 		return x.ShardSetId
 	}
-	return ""
+	return 0
 }
 
 type TryDecodeResponse struct {
@@ -863,7 +863,7 @@ func (x *TryDecodeResponse) GetOk() bool {
 
 type RecodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardSetId    string                 `protobuf:"bytes,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
+	ShardSetId    uint64                 `protobuf:"varint,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -898,11 +898,11 @@ func (*RecodeRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_rlnc_grpc_proto_v1_rlnc_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *RecodeRequest) GetShardSetId() string {
+func (x *RecodeRequest) GetShardSetId() uint64 {
 	if x != nil {
 		return x.ShardSetId
 	}
-	return ""
+	return 0
 }
 
 type RecodeResponse struct {
@@ -951,7 +951,7 @@ func (x *RecodeResponse) GetShard() *Shard {
 
 type IsEmptyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardSetId    string                 `protobuf:"bytes,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
+	ShardSetId    uint64                 `protobuf:"varint,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -986,11 +986,11 @@ func (*IsEmptyRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_rlnc_grpc_proto_v1_rlnc_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *IsEmptyRequest) GetShardSetId() string {
+func (x *IsEmptyRequest) GetShardSetId() uint64 {
 	if x != nil {
 		return x.ShardSetId
 	}
-	return ""
+	return 0
 }
 
 type IsEmptyResponse struct {
@@ -1039,7 +1039,7 @@ func (x *IsEmptyResponse) GetIsEmpty() bool {
 
 type SizeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardSetId    string                 `protobuf:"bytes,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
+	ShardSetId    uint64                 `protobuf:"varint,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1074,11 +1074,11 @@ func (*SizeRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_rlnc_grpc_proto_v1_rlnc_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *SizeRequest) GetShardSetId() string {
+func (x *SizeRequest) GetShardSetId() uint64 {
 	if x != nil {
 		return x.ShardSetId
 	}
-	return ""
+	return 0
 }
 
 type SizeResponse struct {
@@ -1127,7 +1127,7 @@ func (x *SizeResponse) GetSize() int32 {
 
 type NumCoefficientsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardSetId    string                 `protobuf:"bytes,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
+	ShardSetId    uint64                 `protobuf:"varint,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1162,11 +1162,11 @@ func (*NumCoefficientsRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_rlnc_grpc_proto_v1_rlnc_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *NumCoefficientsRequest) GetShardSetId() string {
+func (x *NumCoefficientsRequest) GetShardSetId() uint64 {
 	if x != nil {
 		return x.ShardSetId
 	}
-	return ""
+	return 0
 }
 
 type NumCoefficientsResponse struct {
@@ -1215,7 +1215,7 @@ func (x *NumCoefficientsResponse) GetNumCoefficients() int32 {
 
 type ShardLengthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardSetId    string                 `protobuf:"bytes,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
+	ShardSetId    uint64                 `protobuf:"varint,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1250,11 +1250,11 @@ func (*ShardLengthRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_rlnc_grpc_proto_v1_rlnc_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *ShardLengthRequest) GetShardSetId() string {
+func (x *ShardLengthRequest) GetShardSetId() uint64 {
 	if x != nil {
 		return x.ShardSetId
 	}
-	return ""
+	return 0
 }
 
 type ShardLengthResponse struct {
@@ -1303,7 +1303,7 @@ func (x *ShardLengthResponse) GetShardLength() int32 {
 
 type CloseShardSetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardSetId    string                 `protobuf:"bytes,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
+	ShardSetId    uint64                 `protobuf:"varint,1,opt,name=shard_set_id,json=shardSetId,proto3" json:"shard_set_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1338,11 +1338,11 @@ func (*CloseShardSetRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_rlnc_grpc_proto_v1_rlnc_proto_rawDescGZIP(), []int{26}
 }
 
-func (x *CloseShardSetRequest) GetShardSetId() string {
+func (x *CloseShardSetRequest) GetShardSetId() uint64 {
 	if x != nil {
 		return x.ShardSetId
 	}
-	return ""
+	return 0
 }
 
 type CloseShardSetResponse struct {
@@ -1442,47 +1442,47 @@ const file_pkg_rlnc_grpc_proto_v1_rlnc_proto_rawDesc = "" +
 	"\x10num_coefficients\x18\x01 \x01(\x05R\x0fnumCoefficients\x12!\n" +
 	"\fshard_length\x18\x02 \x01(\x05R\vshardLength\"7\n" +
 	"\x13NewShardSetResponse\x12 \n" +
-	"\fshard_set_id\x18\x01 \x01(\tR\n" +
+	"\fshard_set_id\x18\x01 \x01(\x04R\n" +
 	"shardSetId\"k\n" +
 	"\x0fAddShardRequest\x12 \n" +
-	"\fshard_set_id\x18\x01 \x01(\tR\n" +
+	"\fshard_set_id\x18\x01 \x01(\x04R\n" +
 	"shardSetId\x12\"\n" +
 	"\fcoefficients\x18\x02 \x01(\fR\fcoefficients\x12\x12\n" +
 	"\x04data\x18\x03 \x01(\fR\x04data\"\x12\n" +
 	"\x10AddShardResponse\"4\n" +
 	"\x10TryDecodeRequest\x12 \n" +
-	"\fshard_set_id\x18\x01 \x01(\tR\n" +
+	"\fshard_set_id\x18\x01 \x01(\x04R\n" +
 	"shardSetId\"F\n" +
 	"\x11TryDecodeResponse\x12!\n" +
 	"\fdecoded_data\x18\x01 \x01(\fR\vdecodedData\x12\x0e\n" +
 	"\x02ok\x18\x02 \x01(\bR\x02ok\"1\n" +
 	"\rRecodeRequest\x12 \n" +
-	"\fshard_set_id\x18\x01 \x01(\tR\n" +
+	"\fshard_set_id\x18\x01 \x01(\x04R\n" +
 	"shardSetId\"9\n" +
 	"\x0eRecodeResponse\x12'\n" +
 	"\x05shard\x18\x01 \x01(\v2\x11.rlnc.proto.ShardR\x05shard\"2\n" +
 	"\x0eIsEmptyRequest\x12 \n" +
-	"\fshard_set_id\x18\x01 \x01(\tR\n" +
+	"\fshard_set_id\x18\x01 \x01(\x04R\n" +
 	"shardSetId\",\n" +
 	"\x0fIsEmptyResponse\x12\x19\n" +
 	"\bis_empty\x18\x01 \x01(\bR\aisEmpty\"/\n" +
 	"\vSizeRequest\x12 \n" +
-	"\fshard_set_id\x18\x01 \x01(\tR\n" +
+	"\fshard_set_id\x18\x01 \x01(\x04R\n" +
 	"shardSetId\"\"\n" +
 	"\fSizeResponse\x12\x12\n" +
 	"\x04size\x18\x01 \x01(\x05R\x04size\":\n" +
 	"\x16NumCoefficientsRequest\x12 \n" +
-	"\fshard_set_id\x18\x01 \x01(\tR\n" +
+	"\fshard_set_id\x18\x01 \x01(\x04R\n" +
 	"shardSetId\"D\n" +
 	"\x17NumCoefficientsResponse\x12)\n" +
 	"\x10num_coefficients\x18\x01 \x01(\x05R\x0fnumCoefficients\"6\n" +
 	"\x12ShardLengthRequest\x12 \n" +
-	"\fshard_set_id\x18\x01 \x01(\tR\n" +
+	"\fshard_set_id\x18\x01 \x01(\x04R\n" +
 	"shardSetId\"8\n" +
 	"\x13ShardLengthResponse\x12!\n" +
 	"\fshard_length\x18\x01 \x01(\x05R\vshardLength\"8\n" +
 	"\x14CloseShardSetRequest\x12 \n" +
-	"\fshard_set_id\x18\x01 \x01(\tR\n" +
+	"\fshard_set_id\x18\x01 \x01(\x04R\n" +
 	"shardSetId\"\x17\n" +
 	"\x15CloseShardSetResponse2\xdb\x02\n" +
 	"\vRlncService\x12]\n" +

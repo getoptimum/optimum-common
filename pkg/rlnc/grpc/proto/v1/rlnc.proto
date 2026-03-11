@@ -64,11 +64,11 @@ message NewShardSetRequest {
 }
 
 message NewShardSetResponse {
-  string shard_set_id = 1;
+  uint64 shard_set_id = 1;
 }
 
 message AddShardRequest {
-  string shard_set_id = 1;
+  uint64 shard_set_id = 1;
   bytes coefficients = 2;
   bytes data = 3;
 }
@@ -76,7 +76,7 @@ message AddShardRequest {
 message AddShardResponse {}
 
 message TryDecodeRequest {
-  string shard_set_id = 1;
+  uint64 shard_set_id = 1;
 }
 
 message TryDecodeResponse {
@@ -85,7 +85,7 @@ message TryDecodeResponse {
 }
 
 message RecodeRequest {
-  string shard_set_id = 1;
+  uint64 shard_set_id = 1;
 }
 
 message RecodeResponse {
@@ -93,7 +93,7 @@ message RecodeResponse {
 }
 
 message IsEmptyRequest {
-  string shard_set_id = 1;
+  uint64 shard_set_id = 1;
 }
 
 message IsEmptyResponse {
@@ -101,7 +101,7 @@ message IsEmptyResponse {
 }
 
 message SizeRequest {
-  string shard_set_id = 1;
+  uint64 shard_set_id = 1;
 }
 
 message SizeResponse {
@@ -109,7 +109,7 @@ message SizeResponse {
 }
 
 message NumCoefficientsRequest {
-  string shard_set_id = 1;
+  uint64 shard_set_id = 1;
 }
 
 message NumCoefficientsResponse {
@@ -117,7 +117,7 @@ message NumCoefficientsResponse {
 }
 
 message ShardLengthRequest {
-  string shard_set_id = 1;
+  uint64 shard_set_id = 1;
 }
 
 message ShardLengthResponse {
@@ -125,7 +125,7 @@ message ShardLengthResponse {
 }
 
 message CloseShardSetRequest {
-  string shard_set_id = 1;
+  uint64 shard_set_id = 1;
 }
 
 message CloseShardSetResponse {}

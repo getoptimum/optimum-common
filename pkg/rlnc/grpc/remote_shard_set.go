@@ -4,16 +4,18 @@ import (
 	"context"
 	common "github.com/getoptimum/optimum-common/pkg/rlnc"
 	proto "github.com/getoptimum/optimum-common/pkg/rlnc/grpc/proto/v1"
+	"log"
 )
 
 type RemoteShardSet struct {
-	id     string
+	id     uint64
 	client proto.ShardSetServiceClient
 }
 
-func (r *RemoteShardSet) ID() string {
+func (r *RemoteShardSet) ID() uint64 {
 	if r == nil {
-		return ""
+		log.Println("remote shard set is nil: returning ID 0")
+		return 0
 	}
 	return r.id
 }
