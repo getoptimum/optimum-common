@@ -31,7 +31,7 @@ var (
 type DynamicConfig struct {
 	ChainID        string    `db:"chain_id" yaml:"chain_id" json:"chain_id"`
 	ClusterID      string    `db:"cluster_id" yaml:"cluster_id" json:"cluster_id"`
-	GatewayVersion string    `db:"service_version" yaml:"service_version" json:"service_version"`
+	ServiceVersion string    `db:"service_version" yaml:"service_version" json:"service_version"`
 	UpdatedAt      time.Time `db:"updated_at" yaml:"-" json:"updated_at"`
 
 	EnableABTesting bool `db:"enable_ab_testing" yaml:"enable_ab_testing" json:"enable_ab_testing"`
@@ -55,7 +55,7 @@ type DynamicConfig struct {
 func (d *DynamicConfig) Normalize() {
 	d.ChainID = strings.ToLower(strings.TrimSpace(d.ChainID))
 	d.ClusterID = strings.TrimSpace(d.ClusterID)
-	d.GatewayVersion = strings.TrimSpace(d.GatewayVersion)
+	d.ServiceVersion = strings.TrimSpace(d.ServiceVersion)
 }
 
 // FromYAMLFile loads a DynamicConfig from a YAML file at the specified path.
@@ -86,7 +86,7 @@ func (d *DynamicConfig) Validate() error {
 	if _, ok := supportedChains[d.ChainID]; !ok {
 		return fmt.Errorf("unsupported chain_id: %s", d.ChainID)
 	}
-	if d.GatewayVersion == "" {
+	if d.ServiceVersion == "" {
 		return errors.New("service_version cannot be empty")
 	}
 	if d.RandomMessageSize <= 0 {
@@ -119,7 +119,7 @@ func (d *DynamicConfig) ToMap() map[string]any {
 	return map[string]any{
 		"chain_id":              d.ChainID,
 		"cluster_id":            d.ClusterID,
-		"service_version":       d.GatewayVersion,
+		"service_version":       d.ServiceVersion,
 		"enable_ab_testing":     d.EnableABTesting,
 		"exclude_self_messages": d.ExcludeSelfMessages,
 		"updated_at":            time.Now(),
