@@ -4,16 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	proto "github.com/getoptimum/optimum-common/pkg/rlnc/grpc/proto/v1"
 	"io"
 	"math"
 	"net"
+	"os"
+
+	proto "github.com/getoptimum/optimum-common/pkg/rlnc/grpc/proto/v1"
 
 	common "github.com/getoptimum/optimum-common/pkg/rlnc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const (
+	rlncSocketPath = "/tmp/go-rlnc.sock"
+	EnvRLNCSocket  = "RLNC_IPC_SOCKET"
+)
+
+// Client defines a gRPC client for interacting with the RLNC service via IPC.
 type Client struct {
 	conn      *grpc.ClientConn
 	rlnc      proto.RlncServiceClient
@@ -25,6 +33,62 @@ type StreamResult struct {
 	Err   error
 }
 
+func socketPath() string {
+	if p := os.Getenv(EnvRLNCSocket); p != "" {
+		return p
+	}
+
+	return rlncSocketPath
+}
+
+func New(ctx context.Context) (*Client, error) {
+	return NewWithSocketPath(ctx, socketPath())
+}
+
+func NewWithSocketPath(ctx context.Context, socketPath string) (*Client, error) {
+	if err := checkRLNCSocketReady(ctx, socketPath); err != nil {
+		return nil, err
+	}
+
+	client, err := Dial(ctx, socketPath)
+	if err != nil {
+		return nil, fmt.Errorf("dial RLNC gRPC: %w", err)
+	}
+
+	return client, nil
+}
+
+// checkRLNCSocketReady checks if the RLNC IPC socket exists, is a Unix socket,
+// and is accepting connections. This is useful in cases where the RLNC socket
+// may not exist, which may cause unexpected runtime failures in upstream
+// applications.
+func checkRLNCSocketReady(ctx context.Context, path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("RLNC IPC socket does not exist at %q", path)
+		}
+
+		return fmt.Errorf("stat RLNC IPC socket %q: %w", path, err)
+	}
+
+	if info.Mode()&os.ModeSocket == 0 {
+		return fmt.Errorf("RLNC IPC path %q is not a Unix socket", path)
+	}
+
+	var d net.Dialer
+
+	conn, err := d.DialContext(ctx, "unix", path)
+	if err != nil {
+		return fmt.Errorf("RLNC IPC socket %q is not accepting connections: %w", path, err)
+	}
+
+	return conn.Close()
+}
+
+// Dial establishes a gRPC connection to the RLNC service at the specified Unix
+// socket path. In most cases, callers should use `New` or `NewWithSocketPath`
+// instead of Dial directly.
 func Dial(ctx context.Context, socketPath string, opts ...grpc.DialOption) (*Client, error) {
 	baseOpts := make([]grpc.DialOption, 0, 2+len(opts))
 	baseOpts = append(baseOpts,
