@@ -46,6 +46,36 @@ func getNumber(m map[string]any, key string) float64 {
 	return 0
 }
 
+type writer struct {
+}
+
+func (w writer) Write(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
+func BenchmarkLogger(b *testing.B) {
+	l0 := logger.InitLogger([]io.Writer{writer{}}, logger.Debug)
+	l0 = l0.With(logger.WithService("service1"))
+	for i := 0; i < b.N; i++ {
+		l0.Info("hello world")
+	}
+}
+
+func TestLoggerConcurrent(t *testing.T) {
+	l0 := logger.InitLogger([]io.Writer{writer{}}, logger.Debug)
+	var wg sync.WaitGroup
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				l0.With(logger.WithService(uuid.NewString())).Info("hello world")
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 func TestInitLogger_JSONShapeAndMappings(t *testing.T) {
 	var buf bytes.Buffer
 
@@ -131,6 +161,12 @@ func Test_SLogger_purelog_with_stdout(t *testing.T) {
 	})
 	appLog.Info("test")
 	appLog.Error("source log", fmt.Errorf("123"))
+
+	appLog = appLog.With(logger.WithService("service1"))
+	appLog.Info("hello world")
+
+	l1 := appLog.With(logger.WithService("service2"))
+	l1.Info("hello world")
 
 	// when, then
 	concurrentlyLogIt(
