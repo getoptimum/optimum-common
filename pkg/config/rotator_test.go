@@ -52,8 +52,14 @@ func TestRenewConfig(t *testing.T) {
 	}
 	require.Equal(t, "default", cfgRotator.Get().ChainID)
 	require.Equal(t, "optimum_hoodi_v0_2", cfgRotator.Get().ClusterID)
-	require.Equal(t, int64(4), cfgRotator.Get().MeshDegreeMin)
-	require.Equal(t, int64(12), cfgRotator.Get().MeshDegreeMax)
+	require.Equal(t, cfgReceived.MeshDegreeMin, cfgRotator.Get().MeshDegreeMin)
+	require.Equal(t, cfgReceived.MeshDegreeMax, cfgRotator.Get().MeshDegreeMax)
+	staticAgg := cfg.AggregationIntervalMs
+	if cfgReceived.AggregationIntervalMs != 0 {
+		require.Equal(t, cfgReceived.AggregationIntervalMs, cfgRotator.Get().AggregationIntervalMs)
+	} else {
+		require.Equal(t, staticAgg, cfgRotator.Get().AggregationIntervalMs)
+	}
 }
 
 func TestConfigRotatorConcurrentlyTest(t *testing.T) {
