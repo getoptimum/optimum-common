@@ -49,6 +49,8 @@ type DynamicConfig struct {
 	MeshDegreeTarget int64 `db:"mesh_degree_target" yaml:"mesh_degree_target" json:"mesh_degree_target"`
 	MeshDegreeMin    int64 `db:"mesh_degree_min" yaml:"mesh_degree_min" json:"mesh_degree_min"`
 	MeshDegreeMax    int64 `db:"mesh_degree_max" yaml:"mesh_degree_max" json:"mesh_degree_max"`
+
+	AggregationIntervalMs int64 `db:"aggregation_interval_ms" yaml:"aggregation_interval_ms" json:"aggregation_interval_ms"`
 }
 
 // Normalize trims and normalizes ID fields in-place.
@@ -110,6 +112,9 @@ func (d *DynamicConfig) Validate() error {
 	if d.MeshDegreeTarget < d.MeshDegreeMin || d.MeshDegreeTarget > d.MeshDegreeMax {
 		return errors.New("mesh_degree_target must be between mesh_degree_min and mesh_degree_max")
 	}
+	if d.AggregationIntervalMs != 0 && (d.AggregationIntervalMs < 1 || d.AggregationIntervalMs > 60000) {
+		return errors.New("aggregation_interval_ms must be 0 or between 1 and 60000")
+	}
 	return nil
 }
 
@@ -132,12 +137,12 @@ func (d *DynamicConfig) ToMap() map[string]any {
 		"mesh_degree_target": d.MeshDegreeTarget,
 		"mesh_degree_min":    d.MeshDegreeMin,
 		"mesh_degree_max":    d.MeshDegreeMax,
+
+		"aggregation_interval_ms": d.AggregationIntervalMs,
 	}
 }
 
 // HashRemoteConfig computes a SHA-256 hash of the configurable fields in DynamicConfig.
-// Used to detect when remote configuration has changed.
-// The hash includes: EnableABTesting, ExcludeSelfMessages, and all RLNC/mesh parameters.
 func HashRemoteConfig(cfg *DynamicConfig) string {
 	h := sha256.New()
 	hash.WriteBool(h, cfg.EnableABTesting)
@@ -149,5 +154,6 @@ func HashRemoteConfig(cfg *DynamicConfig) string {
 	hash.WriteInt64(h, cfg.MeshDegreeMin)
 	hash.WriteInt64(h, cfg.MeshDegreeMax)
 	hash.WriteBool(h, cfg.ExcludeSelfMessages)
+	hash.WriteInt64(h, cfg.AggregationIntervalMs)
 	return hex.EncodeToString(h.Sum(nil))
 }
