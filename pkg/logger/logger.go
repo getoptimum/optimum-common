@@ -69,7 +69,7 @@ func NewAppSLoggerFromSLog(logger *slog.Logger) AppLogger {
 func InitLogger(writers []io.Writer, mode LogMode, fields ...Field) AppLogger {
 	handlers := make([]slog.Handler, len(writers))
 	for i, w := range writers {
-		handlers[i] = slog.NewJSONHandler(w, &slog.HandlerOptions{
+		handlers[i] = newDedupHandler(slog.NewJSONHandler(w, &slog.HandlerOptions{
 			Level: logLevelFromMode(mode),
 			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 				switch a.Key {
@@ -82,7 +82,7 @@ func InitLogger(writers []io.Writer, mode LogMode, fields ...Field) AppLogger {
 
 				return a
 			},
-		})
+		}))
 	}
 
 	attrs := make([]any, 0, len(fields)+2)

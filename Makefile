@@ -1,5 +1,4 @@
 COVERAGE_THRESHOLD := 60
-COVERPROFILE := coverage.out
 FUZZ_TIME ?= 30s
 SHELL := /bin/bash
 
@@ -24,8 +23,19 @@ vet: ## go vet
 
 test: ## Run all tests with race detector and coverage
 	@echo "Running tests..."
-	@go test ./... -race -covermode=atomic -coverprofile=$(COVERPROFILE) -count=1
-	@grep -Ev 'test_utils/|pkg/rlnc/' $(COVERPROFILE) > $(COVERPROFILE).tmp && mv $(COVERPROFILE).tmp $(COVERPROFILE)
+	go test -timeout 10m -v ./... -count=1 -race -covermode=atomic -cover -coverprofile=cover.out
+	@echo "Remove not critical packages for coverage threshold..."
+	sed -i '/test_utils\//d' cover.out
+	sed -i '/rlnc\//d' cover.out
+	@echo "Calculating total coverage..."
+	@COVERAGE_TOTAL=$$(go tool cover -func=cover.out | awk '/^total:/ {gsub("%", "", $$3); print $$3}'); \
+	rm cover.out; \
+	echo "Threshold:                $(COVERAGE_THRESHOLD)%"; \
+	echo "Current test coverage is: $${COVERAGE_TOTAL}%"; \
+	awk 'BEGIN {exit !('"$${COVERAGE_TOTAL}"' >= '$(COVERAGE_THRESHOLD)')}' || { \
+		echo "Test coverage is lower than threshold"; \
+		exit 1; \
+	}
 
 bench: ## Run benchmarks w/o tests
 	@echo "Running benchmarks..."
@@ -48,19 +58,6 @@ fuzz: ## Run fuzz tests (default 30s per test, override with FUZZ_TIME=10s)
 	@echo "Fuzzing FuzzConfigLoad..."
 	@go test -run='^$$' -fuzz=FuzzConfigLoad -fuzztime=$(FUZZ_TIME) ./pkg/config/
 	@echo "Fuzz tests completed."
-
-coverage: $(COVERPROFILE) ## Show summary and enforce threshold
-	@echo "Coverage summary"
-	@go tool cover -func=$(COVERPROFILE) | tail -1
-	@total=$$(go tool cover -func=$(COVERPROFILE) | tail -1 | awk '{print $$3}' | tr -d '%'); \
-	 echo "Threshold:            $(COVERAGE_THRESHOLD)%"; \
-	 echo "Current test coverage: $$total%"; \
-	 awk 'BEGIN{exit !('"$${total:-0}"' >= '$(COVERAGE_THRESHOLD)')}'; \
-	 if [ $$? -ne 0 ]; then echo "ERROR: Test coverage is lower than threshold"; exit 1; fi
-
-coverhtml: $(COVERPROFILE) ## Generate HTML coverage report
-	@go tool cover -html=$(COVERPROFILE) -o coverage.html
-	@echo "Open coverage.html to view the report"
 
 lint: ## Run golangci-lint
 	@echo "Running linter..."
@@ -106,9 +103,6 @@ vulcheck: ## Run govulncheck for vulnerabilities
 	   exit 1; \
 	 fi
 
-clean: ## Remove generated artifacts
-	@rm -f $(COVERPROFILE) coverage.html
-
 help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -134,9 +128,5 @@ release: ## Create a release with GoReleaser (requires tag)
 	@echo "Running goreleaser..."
 	@go tool goreleaser release --clean
 
-# guard target
-$(COVERPROFILE):
-	@echo "No $(COVERPROFILE) found; run 'make test' first." >&2; exit 1
-
-.PHONY: coverage coverhtml lint vulcheck check ci all help tidy fmt vet clean tag-rc release bench test fuzz docs docs-check
+.PHONY: coverage coverhtml lint vulcheck check ci all help tidy fmt vet tag-rc release bench test fuzz docs docs-check
 .DEFAULT_GOAL := help

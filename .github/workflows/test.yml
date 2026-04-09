@@ -45,11 +45,8 @@ jobs:
       - name: Configure git for private modules
         run: git config --global url."https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
 
-      - name: Run tests
+      - name: Run tests and measure coverage
         run:  make test
-
-      - name: Measure and enforce test coverage
-        run: make coverage
 
   fuzz-tests:
     name: fuzz tests
