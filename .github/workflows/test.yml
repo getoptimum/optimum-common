@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  go-version: "1.26.1"
+  go-version: "1.26.2"
   GOPRIVATE: "github.com/getoptimum"
 
 jobs:
