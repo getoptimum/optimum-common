@@ -27,6 +27,45 @@ func TestDynamicConfigValidate(t *testing.T) {
 		// when, then
 		require.NoError(t, dc.Validate())
 	})
+	t.Run("valid aggregation intervals", func(t *testing.T) {
+		validMs := []int64{
+			1,
+			300000, // 5 minutes (mid-range)
+			entities.MaxAggregationIntervalMs,
+		}
+		for _, ms := range validMs {
+			dc := &entities.DynamicConfig{
+				ChainID:                  "default",
+				ClusterID:                "test_cluster",
+				ServiceVersion:           "v0.0.1",
+				RandomMessageSize:        512,
+				ShardFactor:              4,
+				PublisherShardMultiplier: 3,
+				ForwardShardThreshold:    0.75,
+				MeshDegreeTarget:         6,
+				MeshDegreeMin:            4,
+				MeshDegreeMax:            12,
+				AggregationIntervalMs:    ms,
+			}
+			require.NoError(t, dc.Validate(), "ms=%d", ms)
+		}
+	})
+	t.Run("invalid aggregation interval above max", func(t *testing.T) {
+		dc := &entities.DynamicConfig{
+			ChainID:                  "default",
+			ClusterID:                "test_cluster",
+			ServiceVersion:           "v0.0.1",
+			RandomMessageSize:        512,
+			ShardFactor:              4,
+			PublisherShardMultiplier: 3,
+			ForwardShardThreshold:    0.75,
+			MeshDegreeTarget:         6,
+			MeshDegreeMin:            4,
+			MeshDegreeMax:            12,
+			AggregationIntervalMs:    entities.MaxAggregationIntervalMs + 1,
+		}
+		require.Error(t, dc.Validate())
+	})
 	t.Run("invalid config", func(t *testing.T) {
 		// given
 		invalidConfigs := []*entities.DynamicConfig{
@@ -53,7 +92,6 @@ func TestDynamicConfigValidate(t *testing.T) {
 			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 0},
 			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 3, MeshDegreeMin: 4, MeshDegreeMax: 12},
 			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 13, MeshDegreeMin: 4, MeshDegreeMax: 12},
-			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12, AggregationIntervalMs: 60001},
 			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12, AggregationIntervalMs: -1},
 		}
 

@@ -27,6 +27,33 @@ func TestOptimumConfig(t *testing.T) {
 		require.Equal(t, int64(4), cfg.MeshDegreeMin)
 		require.Equal(t, int64(12), cfg.MeshDegreeMax)
 	})
+	t.Run("aggregation_interval_ms boundaries on OptimumConfig.Validate", func(t *testing.T) {
+		base := entities.OptimumConfig{
+			ClusterID:         "test-cluster",
+			MaxMessageSize:    1048576,
+			RandomMessageSize: 512,
+		}
+		t.Run("zero uses default and is valid", func(t *testing.T) {
+			c := base
+			c.AggregationIntervalMs = 0
+			require.NoError(t, c.Validate())
+		})
+		t.Run("max interval is valid", func(t *testing.T) {
+			c := base
+			c.AggregationIntervalMs = entities.MaxAggregationIntervalMs
+			require.NoError(t, c.Validate())
+		})
+		t.Run("above max is invalid", func(t *testing.T) {
+			c := base
+			c.AggregationIntervalMs = entities.MaxAggregationIntervalMs + 1
+			require.Error(t, c.Validate())
+		})
+		t.Run("negative is invalid", func(t *testing.T) {
+			c := base
+			c.AggregationIntervalMs = -1
+			require.Error(t, c.Validate())
+		})
+	})
 	t.Run("should apply dynamic config", func(t *testing.T) {
 		dc := &entities.DynamicConfig{
 			ChainID:                  "default",

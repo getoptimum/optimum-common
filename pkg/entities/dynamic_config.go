@@ -26,6 +26,17 @@ var (
 	}
 )
 
+// MaxAggregationIntervalMs is the upper bound for aggregation_interval_ms (10 minutes).
+const MaxAggregationIntervalMs = 600000 // 10 * 60 * 1000
+
+// ValidateAggregationInterval returns nil if ms is 0 (use default) or in [1, MaxAggregationIntervalMs].
+func ValidateAggregationInterval(ms int64) error {
+	if ms != 0 && (ms < 1 || ms > MaxAggregationIntervalMs) {
+		return fmt.Errorf("aggregation_interval_ms must be 0 or between 1 and %d", MaxAggregationIntervalMs)
+	}
+	return nil
+}
+
 // DynamicConfig represents runtime-configurable parameters for P2P network behavior.
 // These settings can be updated without restarting the node.
 type DynamicConfig struct {
@@ -112,10 +123,7 @@ func (d *DynamicConfig) Validate() error {
 	if d.MeshDegreeTarget < d.MeshDegreeMin || d.MeshDegreeTarget > d.MeshDegreeMax {
 		return errors.New("mesh_degree_target must be between mesh_degree_min and mesh_degree_max")
 	}
-	if d.AggregationIntervalMs != 0 && (d.AggregationIntervalMs < 1 || d.AggregationIntervalMs > 60000) {
-		return errors.New("aggregation_interval_ms must be 0 or between 1 and 60000")
-	}
-	return nil
+	return ValidateAggregationInterval(d.AggregationIntervalMs)
 }
 
 // ToMap converts the DynamicConfig to a map representation suitable for storage or serialization.
