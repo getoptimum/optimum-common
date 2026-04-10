@@ -42,8 +42,8 @@ func (cfg *OptimumConfig) Validate() error {
 	if cfg.RandomMessageSize <= 0 {
 		return errors.New("random_message_size_bytes must be > 0")
 	}
-	if cfg.AggregationIntervalMs != 0 && (cfg.AggregationIntervalMs < 1 || cfg.AggregationIntervalMs > 60000) {
-		return errors.New("aggregation_interval_ms must be 0 or between 1 and 60000")
+	if cfg.AggregationIntervalMs != 0 && (cfg.AggregationIntervalMs < 1 || cfg.AggregationIntervalMs > MaxAggregationIntervalMs) {
+		return fmt.Errorf("aggregation_interval_ms must be 0 or between 1 and %d", MaxAggregationIntervalMs)
 	}
 	return nil
 }
