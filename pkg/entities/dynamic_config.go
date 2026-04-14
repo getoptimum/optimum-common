@@ -26,17 +26,6 @@ var (
 	}
 )
 
-// MaxAggregationIntervalMs is the upper bound for aggregation_interval_ms (10 minutes).
-const MaxAggregationIntervalMs = 600000 // 10 * 60 * 1000
-
-// ValidateAggregationInterval returns nil if ms is 0 (use default) or in [1, MaxAggregationIntervalMs].
-func ValidateAggregationInterval(ms int64) error {
-	if ms != 0 && (ms < 1 || ms > MaxAggregationIntervalMs) {
-		return fmt.Errorf("aggregation_interval_ms must be 0 or between 1 and %d", MaxAggregationIntervalMs)
-	}
-	return nil
-}
-
 // DynamicConfig represents runtime-configurable parameters for P2P network behavior.
 // These settings can be updated without restarting the node.
 type DynamicConfig struct {
@@ -60,8 +49,6 @@ type DynamicConfig struct {
 	MeshDegreeTarget int64 `db:"mesh_degree_target" yaml:"mesh_degree_target" json:"mesh_degree_target"`
 	MeshDegreeMin    int64 `db:"mesh_degree_min" yaml:"mesh_degree_min" json:"mesh_degree_min"`
 	MeshDegreeMax    int64 `db:"mesh_degree_max" yaml:"mesh_degree_max" json:"mesh_degree_max"`
-
-	AggregationIntervalMs int64 `db:"aggregation_interval_ms" yaml:"aggregation_interval_ms" json:"aggregation_interval_ms"`
 }
 
 // Normalize trims and normalizes ID fields in-place.
@@ -123,7 +110,7 @@ func (d *DynamicConfig) Validate() error {
 	if d.MeshDegreeTarget < d.MeshDegreeMin || d.MeshDegreeTarget > d.MeshDegreeMax {
 		return errors.New("mesh_degree_target must be between mesh_degree_min and mesh_degree_max")
 	}
-	return ValidateAggregationInterval(d.AggregationIntervalMs)
+	return nil
 }
 
 // ToMap converts the DynamicConfig to a map representation suitable for storage or serialization.
@@ -145,8 +132,6 @@ func (d *DynamicConfig) ToMap() map[string]any {
 		"mesh_degree_target": d.MeshDegreeTarget,
 		"mesh_degree_min":    d.MeshDegreeMin,
 		"mesh_degree_max":    d.MeshDegreeMax,
-
-		"aggregation_interval_ms": d.AggregationIntervalMs,
 	}
 }
 
@@ -162,6 +147,5 @@ func HashRemoteConfig(cfg *DynamicConfig) string {
 	hash.WriteInt64(h, cfg.MeshDegreeMin)
 	hash.WriteInt64(h, cfg.MeshDegreeMax)
 	hash.WriteBool(h, cfg.ExcludeSelfMessages)
-	hash.WriteInt64(h, cfg.AggregationIntervalMs)
 	return hex.EncodeToString(h.Sum(nil))
 }
