@@ -25,8 +25,6 @@ type OptimumConfig struct {
 	MeshDegreeMin    int64 `yaml:"mesh_degree_min" env:"OPTIMUM_MESH_MIN" flag:"mesh_degree_min" default:"4"`
 	MeshDegreeMax    int64 `yaml:"mesh_degree_max" env:"OPTIMUM_MESH_MAX" flag:"mesh_degree_max" default:"12"`
 
-	AggregationIntervalMs int64 `yaml:"aggregation_interval_ms" env:"OPT_AGGREGATION_INTERVAL_MS" flag:"aggregation_interval_ms" default:"0"`
-
 	BootstrapPeers []string `yaml:"bootstrap_peers" env:"BOOTSTRAP_PEERS" flag:"bootstrap_peers"`
 }
 
@@ -42,7 +40,7 @@ func (cfg *OptimumConfig) Validate() error {
 	if cfg.RandomMessageSize <= 0 {
 		return errors.New("random_message_size_bytes must be > 0")
 	}
-	return ValidateAggregationInterval(cfg.AggregationIntervalMs)
+	return nil
 }
 
 // ApplyDynamicConfig creates a new OptimumConfig by applying dynamic configuration
@@ -56,9 +54,6 @@ func (cfg *OptimumConfig) ApplyDynamicConfig(dcCfg *DynamicConfig) *OptimumConfi
 	newCfg.MeshDegreeTarget = dcCfg.MeshDegreeTarget
 	newCfg.MeshDegreeMin = dcCfg.MeshDegreeMin
 	newCfg.MeshDegreeMax = dcCfg.MeshDegreeMax
-	if dcCfg.AggregationIntervalMs != 0 {
-		newCfg.AggregationIntervalMs = dcCfg.AggregationIntervalMs
-	}
 	return newCfg
 }
 
