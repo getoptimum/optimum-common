@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	baseURL = "https://bootstrap.getoptimum.io"
+	defaultBaseURL = "https://bootstrap.getoptimum.io"
 )
 
 var (
@@ -34,12 +34,24 @@ func WithServiceVersion(v string) RotatorOption {
 	return func(r *Rotator) { r.serviceVersion = v }
 }
 
+// WithBaseURL overrides the bootstrap base URL. Intended for testing with a local httptest.Server.
+func WithBaseURL(u string) RotatorOption {
+	return func(r *Rotator) { r.baseURL = u }
+}
+
+// WithHTTPClient sets a custom HTTP client for config fetch requests.
+func WithHTTPClient(client *http.Client) RotatorOption {
+	return func(r *Rotator) { r.httpClient = client }
+}
+
 // Rotator holds the default and current configuration and allows atomic updates.
 // need dynamically update config in a thread-safe manner for all p2p nodes in the cluster
 type Rotator struct {
 	log              logger.AppLogger
 	renewInterval    time.Duration
 	serviceVersion   string
+	baseURL          string
+	httpClient       *http.Client
 	lastHash         string
 	currentOptConfig atomic.Pointer[entities.OptimumConfig]
 	updater          func(config *entities.DynamicConfig)
@@ -63,6 +75,7 @@ func NewConfigRotator(
 	r := &Rotator{
 		log:     log.With(logger.WithService("config_rotator")),
 		updater: updater,
+		baseURL: defaultBaseURL,
 	}
 	for _, o := range opts {
 		o(r)
@@ -76,8 +89,8 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 	if chainID == "" || clusterID == "" {
 		return // do not fetch if chainID or clusterID is empty
 	}
-	configURL := buildConfigURL(chainID, clusterID, r.serviceVersion)
-	config, err := fetchRemoteConfig(ctx, configURL)
+	configURL := buildConfigURL(r.baseURL, chainID, clusterID, r.serviceVersion)
+	config, err := fetchRemoteConfig(ctx, configURL, r.httpClient)
 	if err == nil { // if init failed, we not panic, use default one, just try later fetch it again
 		r.RenewConfig(config)
 		if r.updater != nil {
@@ -97,7 +110,7 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			config, err = fetchRemoteConfig(ctx, configURL)
+			config, err = fetchRemoteConfig(ctx, configURL, r.httpClient)
 			if err != nil {
 				continue
 			}
@@ -119,7 +132,7 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 	}
 }
 
-func buildConfigURL(chainID, clusterID, serviceVersion string) string {
+func buildConfigURL(baseURL, chainID, clusterID, serviceVersion string) string {
 	base := fmt.Sprintf("%s/api/v1/%s/%s/config", baseURL, chainID, clusterID)
 	if serviceVersion == "" {
 		return base
@@ -142,8 +155,12 @@ func (r *Rotator) Get() *entities.OptimumConfig {
 	return r.currentOptConfig.Load()
 }
 
-func fetchRemoteConfig(ctx context.Context, url string) (*entities.DynamicConfig, error) {
-	res, code, err := netpkg.GetCurl[entities.DynamicConfig](ctx, url, nil)
+func fetchRemoteConfig(ctx context.Context, url string, client *http.Client) (*entities.DynamicConfig, error) {
+	var opts []netpkg.CurlOpts[entities.DynamicConfig]
+	if client != nil {
+		opts = append(opts, netpkg.WithHTTPClient[entities.DynamicConfig](client))
+	}
+	res, code, err := netpkg.GetCurl[entities.DynamicConfig](ctx, url, nil, opts...)
 	if code == http.StatusOK && res != nil {
 		return res, nil
 	}
