@@ -19,7 +19,9 @@ func newFakeBootstrap(t *testing.T, response *entities.DynamicConfig) *httptest.
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		require.NoError(t, json.NewEncoder(w).Encode(response))
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
 	}))
 	t.Cleanup(srv.Close)
 	return srv

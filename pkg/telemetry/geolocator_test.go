@@ -15,8 +15,9 @@ import (
 func TestGetCoordinates_RealService_CachesAndRegistersMetric(t *testing.T) {
 	svc := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, err := w.Write([]byte(`{"country":"United States","countryCode":"US","lat":37.7749,"lon":-122.4194}`))
-		require.NoError(t, err)
+		if _, err := w.Write([]byte(`{"country":"United States","countryCode":"US","lat":37.7749,"lon":-122.4194}`)); err != nil {
+			t.Errorf("write response: %v", err)
+		}
 	}))
 	defer svc.Close()
 	t.Setenv("OPTIMUM_GEOLOCATION_SERVICE_URL", svc.URL)

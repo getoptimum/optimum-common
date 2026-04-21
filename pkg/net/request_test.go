@@ -41,11 +41,16 @@ func TestGetCurl(t *testing.T) {
 		"Custom": header,
 	}
 	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, http.MethodGet, r.Method)
-		require.Equal(t, header, r.Header.Get("Custom"))
-
+		if r.Method != http.MethodGet {
+			t.Errorf("expected method %s, got %s", http.MethodGet, r.Method)
+		}
+		if got := r.Header.Get("Custom"); got != header {
+			t.Errorf("expected Custom header %q, got %q", header, got)
+		}
 		w.Header().Set("Content-Type", "application/json")
-		require.NoError(t, json.NewEncoder(w).Encode(sampleResult))
+		if err := json.NewEncoder(w).Encode(sampleResult); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
 	})
 
 	t.Run("should serve error in case of non existing address", func(t *testing.T) {
@@ -102,16 +107,26 @@ func testPatchPostCurl(t *testing.T, method string) {
 		"Custom": header,
 	}
 	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, method, r.Method)
-		require.Equal(t, header, r.Header.Get("Custom"))
-		require.Equal(t, "application/json", r.Header.Get("Content-Type"))
-
+		if r.Method != method {
+			t.Errorf("expected method %s, got %s", method, r.Method)
+		}
+		if got := r.Header.Get("Custom"); got != header {
+			t.Errorf("expected Custom header %q, got %q", header, got)
+		}
+		if got := r.Header.Get("Content-Type"); got != "application/json" {
+			t.Errorf("expected Content-Type application/json, got %q", got)
+		}
 		var req TestRequest
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-		require.Equal(t, sampleRequest, req)
-
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Errorf("decode request body: %v", err)
+		}
+		if req != sampleRequest {
+			t.Errorf("expected request %v, got %v", sampleRequest, req)
+		}
 		w.Header().Set("Content-Type", "application/json")
-		require.NoError(t, json.NewEncoder(w).Encode(sampleResult))
+		if err := json.NewEncoder(w).Encode(sampleResult); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
 	})
 	t.Run("should serve error in case of non existing address", func(t *testing.T) {
 		// when
@@ -167,7 +182,9 @@ func TestWithHTTPClient(t *testing.T) {
 		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(200 * time.Millisecond) // Delay longer than client timeout
 			w.Header().Set("Content-Type", "application/json")
-			require.NoError(t, json.NewEncoder(w).Encode(sampleResult))
+			if err := json.NewEncoder(w).Encode(sampleResult); err != nil {
+				t.Errorf("encode response: %v", err)
+			}
 		})
 
 		// Create custom client with very short timeout
@@ -195,10 +212,16 @@ func TestWithHTTPClient(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodGet, r.Method)
-			require.Equal(t, header, r.Header.Get("Custom"))
+			if r.Method != http.MethodGet {
+				t.Errorf("expected method %s, got %s", http.MethodGet, r.Method)
+			}
+			if got := r.Header.Get("Custom"); got != header {
+				t.Errorf("expected Custom header %q, got %q", header, got)
+			}
 			w.Header().Set("Content-Type", "application/json")
-			require.NoError(t, json.NewEncoder(w).Encode(sampleResult))
+			if err := json.NewEncoder(w).Encode(sampleResult); err != nil {
+				t.Errorf("encode response: %v", err)
+			}
 		})
 
 		// Create custom client with sufficient timeout
@@ -227,7 +250,9 @@ func TestWithHTTPClient(t *testing.T) {
 		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(200 * time.Millisecond) // Delay longer than client timeout
 			w.Header().Set("Content-Type", "application/json")
-			require.NoError(t, json.NewEncoder(w).Encode(sampleResult))
+			if err := json.NewEncoder(w).Encode(sampleResult); err != nil {
+				t.Errorf("encode response: %v", err)
+			}
 		})
 
 		// Create custom client with very short timeout
@@ -260,16 +285,26 @@ func TestWithHTTPClient(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodPost, r.Method)
-			require.Equal(t, header, r.Header.Get("Custom"))
-			require.Equal(t, "application/json", r.Header.Get("Content-Type"))
-
+			if r.Method != http.MethodPost {
+				t.Errorf("expected method %s, got %s", http.MethodPost, r.Method)
+			}
+			if got := r.Header.Get("Custom"); got != header {
+				t.Errorf("expected Custom header %q, got %q", header, got)
+			}
+			if got := r.Header.Get("Content-Type"); got != "application/json" {
+				t.Errorf("expected Content-Type application/json, got %q", got)
+			}
 			var req TestRequest
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-			require.Equal(t, sampleRequest, req)
-
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Errorf("decode request body: %v", err)
+			}
+			if req != sampleRequest {
+				t.Errorf("expected request %v, got %v", sampleRequest, req)
+			}
 			w.Header().Set("Content-Type", "application/json")
-			require.NoError(t, json.NewEncoder(w).Encode(sampleResult))
+			if err := json.NewEncoder(w).Encode(sampleResult); err != nil {
+				t.Errorf("encode response: %v", err)
+			}
 		})
 
 		// Create custom client with sufficient timeout
@@ -301,10 +336,16 @@ func TestWithHTTPClient(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodGet, r.Method)
-			require.Equal(t, header, r.Header.Get("Custom"))
+			if r.Method != http.MethodGet {
+				t.Errorf("expected method %s, got %s", http.MethodGet, r.Method)
+			}
+			if got := r.Header.Get("Custom"); got != header {
+				t.Errorf("expected Custom header %q, got %q", header, got)
+			}
 			w.Header().Set("Content-Type", "application/json")
-			require.NoError(t, json.NewEncoder(w).Encode(sampleResult))
+			if err := json.NewEncoder(w).Encode(sampleResult); err != nil {
+				t.Errorf("encode response: %v", err)
+			}
 		})
 
 		// when - no custom client provided
