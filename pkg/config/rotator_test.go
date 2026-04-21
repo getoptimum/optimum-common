@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newFakeBootstrap(t *testing.T, response entities.DynamicConfig) *httptest.Server {
+func newFakeBootstrap(t *testing.T, response *entities.DynamicConfig) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -38,7 +38,7 @@ func TestRenewConfig(t *testing.T) {
 		MeshDegreeMin: 2,
 		MeshDegreeMax: 8,
 	}
-	srv := newFakeBootstrap(t, fakeCfg)
+	srv := newFakeBootstrap(t, &fakeCfg)
 
 	var cfg testConfig
 	require.NoError(t, config.Load(&cfg))
@@ -84,7 +84,7 @@ func TestRenewConfig(t *testing.T) {
 
 func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 	// given — empty chain/cluster disables the background fetch; this test only
-	// exercises concurrent RenewConfig / Get safety, not network behaviour.
+	// exercises concurrent RenewConfig / Get safety, not network behavior.
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	l := logger.NewAppSLogger(logger.Debug)

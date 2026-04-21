@@ -155,12 +155,12 @@ func (r *Rotator) Get() *entities.OptimumConfig {
 	return r.currentOptConfig.Load()
 }
 
-func fetchRemoteConfig(ctx context.Context, url string, client *http.Client) (*entities.DynamicConfig, error) {
+func fetchRemoteConfig(ctx context.Context, configURL string, client *http.Client) (*entities.DynamicConfig, error) {
 	var opts []netpkg.CurlOpts[entities.DynamicConfig]
 	if client != nil {
 		opts = append(opts, netpkg.WithHTTPClient[entities.DynamicConfig](client))
 	}
-	res, code, err := netpkg.GetCurl[entities.DynamicConfig](ctx, url, nil, opts...)
+	res, code, err := netpkg.GetCurl[entities.DynamicConfig](ctx, configURL, nil, opts...)
 	if code == http.StatusOK && res != nil {
 		return res, nil
 	}
