@@ -84,6 +84,58 @@ func TestRenewConfig(t *testing.T) {
 	require.Equal(t, cfgReceived.MeshDegreeMax, cfgRotator.Get().MeshDegreeMax)
 }
 
+func TestWithHTTPClient(t *testing.T) {
+	// given — a RoundTripper that records whether it was invoked
+	called := make(chan struct{}, 1)
+	fakeCfg := entities.DynamicConfig{
+		ChainID:   "test-chain",
+		ClusterID: "test-cluster",
+	}
+	srv := newFakeBootstrap(t, &fakeCfg)
+
+	rt := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		called <- struct{}{}
+		return http.DefaultTransport.RoundTrip(req)
+	})
+	customClient := &http.Client{Transport: rt}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	l := logger.NewAppSLogger(logger.Debug)
+	var cfg testConfig
+	require.NoError(t, config.Load(&cfg))
+
+	received := make(chan *entities.DynamicConfig, 1)
+	config.NewConfigRotator(
+		ctx,
+		l,
+		&cfg.OptimumConfig,
+		"test-chain",
+		"test-cluster",
+		func(dc *entities.DynamicConfig) { received <- dc },
+		config.WithBaseURL(srv.URL),
+		config.WithHTTPClient(customClient),
+		config.WithRenewInterval(100*time.Millisecond),
+	)
+
+	// then — the injected client must be used for the fetch
+	select {
+	case <-called:
+	case <-time.After(2 * time.Second):
+		t.Fatal("custom HTTP client was not called within timeout")
+	}
+	select {
+	case <-received:
+	case <-time.After(2 * time.Second):
+		t.Fatal("no config received via custom HTTP client within timeout")
+	}
+}
+
+// roundTripperFunc allows using a plain function as an http.RoundTripper.
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
 func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 	// given — empty chain/cluster disables the background fetch; this test only
 	// exercises concurrent RenewConfig / Get safety, not network behavior.
