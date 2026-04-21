@@ -21,6 +21,7 @@ func TestRenewConfig(t *testing.T) {
 	var cfg testConfig
 	require.NoError(t, config.Load(&cfg))
 	cfg.ClusterID = "optimum_hoodi_v0_2"
+	cfg.ChainID = "hoodi"
 	cfg.MeshDegreeMin = 1
 	cfg.MeshDegreeMax = 1
 
@@ -45,12 +46,14 @@ func TestRenewConfig(t *testing.T) {
 	var cfgReceived *entities.DynamicConfig
 	select {
 	case cfgReceived = <-received:
-		require.Equal(t, "default", cfgReceived.ChainID)
+		require.Equal(t, "hoodi", cfgReceived.ChainID)
 		require.Equal(t, "optimum_hoodi_v0_2", cfgReceived.ClusterID)
 	case <-time.After(12 * time.Second):
-		require.Failf(t, "timeout waiting for config update", "boot node unavailable or config missing for cluster: %s", cfg.ClusterID)
+		require.Failf(t, "timeout waiting for config update",
+			"no config received within timeout — check that the bootstrap server is reachable and that chain %q / cluster %q exists at %s",
+			cfg.ChainID, cfg.ClusterID, "https://bootstrap.getoptimum.io")
 	}
-	require.Equal(t, "default", cfgRotator.Get().ChainID)
+	require.Equal(t, "hoodi", cfgRotator.Get().ChainID)
 	require.Equal(t, "optimum_hoodi_v0_2", cfgRotator.Get().ClusterID)
 	require.Equal(t, cfgReceived.MeshDegreeMin, cfgRotator.Get().MeshDegreeMin)
 	require.Equal(t, cfgReceived.MeshDegreeMax, cfgRotator.Get().MeshDegreeMax)
@@ -64,6 +67,7 @@ func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 	var cfg testConfig
 	require.NoError(t, config.Load(&cfg))
 	cfg.ClusterID = "optimum_hoodi_v0_2"
+	cfg.ChainID = "hoodi"
 
 	// when
 	cfgRotator := config.NewConfigRotator(
