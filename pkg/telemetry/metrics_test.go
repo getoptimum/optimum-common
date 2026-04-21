@@ -361,6 +361,36 @@ func TestNewGauge_WithConstLabelsRegistersAndCollects(t *testing.T) {
 	require.Equal(t, 1.0, metric.GetGauge().GetValue())
 }
 
+func TestNewGauge_WithDifferentConstLabelValuesRegistersMultipleSeries(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	telemetry.SetLabeledRegistry(reg, "constns")
+
+	telemetry.NewGauge(
+		"node_up_info",
+		"core",
+		"node up",
+		telemetry.WithConstLabels(prometheus.Labels{"node_id": "node-a"}),
+	).Set(1)
+	telemetry.NewGauge(
+		"node_up_info",
+		"core",
+		"node up",
+		telemetry.WithConstLabels(prometheus.Labels{"node_id": "node-b"}),
+	).Set(1)
+
+	mf := getMF(t, reg, fq("constns", "core", "node_up_info"))
+	require.Equal(t, ioprometheusclient.MetricType_GAUGE, mf.GetType())
+	require.Len(t, mf.Metric, 2)
+
+	nodes := map[string]bool{}
+	for _, metric := range mf.Metric {
+		nodes[metricLabels(metric)["node_id"]] = true
+		require.Equal(t, 1.0, metric.GetGauge().GetValue())
+	}
+	require.True(t, nodes["node-a"])
+	require.True(t, nodes["node-b"])
+}
+
 func TestNewHistogram_WithConstLabelsRegistersAndCollects(t *testing.T) {
 	reg := prometheus.NewRegistry()
 	telemetry.SetLabeledRegistry(reg, "constns")

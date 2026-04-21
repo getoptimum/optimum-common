@@ -35,6 +35,43 @@ func newMetricOptions(opts ...MetricOption) metricOptions {
 	return out
 }
 
+func baseOpts(name, subsystem, help string, opts ...MetricOption) prometheus.Opts {
+	metricOpts := newMetricOptions(opts...)
+
+	return prometheus.Opts{
+		Namespace:   namespace,
+		Subsystem:   subsystem,
+		Name:        name,
+		Help:        help,
+		ConstLabels: metricOpts.constLabels,
+	}
+}
+
+func counterOpts(name, subsystem, help string, opts ...MetricOption) prometheus.CounterOpts {
+	return prometheus.CounterOpts(baseOpts(name, subsystem, help, opts...))
+}
+
+func gaugeOpts(name, subsystem, help string, opts ...MetricOption) prometheus.GaugeOpts {
+	return prometheus.GaugeOpts(baseOpts(name, subsystem, help, opts...))
+}
+
+func histogramOpts(
+	name, subsystem, help string,
+	buckets []float64,
+	opts ...MetricOption,
+) prometheus.HistogramOpts {
+	base := baseOpts(name, subsystem, help, opts...)
+
+	return prometheus.HistogramOpts{
+		Namespace:   base.Namespace,
+		Subsystem:   base.Subsystem,
+		Name:        base.Name,
+		Help:        base.Help,
+		ConstLabels: base.ConstLabels,
+		Buckets:     buckets,
+	}
+}
+
 func SetLabeledRegistry(lr prometheus.Registerer, ns string) {
 	labeledRegistry = lr
 	namespace = ns
@@ -42,16 +79,8 @@ func SetLabeledRegistry(lr prometheus.Registerer, ns string) {
 
 // NewHistogram creates and registers a new Prometheus histogram metric with the given parameters.
 func NewHistogram(name, subsystem, help string, labels []string, opts ...MetricOption) *prometheus.HistogramVec {
-	metricOpts := newMetricOptions(opts...)
-
 	return promauto.With(labeledRegistry).NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: metricOpts.constLabels,
-		},
+		histogramOpts(name, subsystem, help, nil, opts...),
 		labels,
 	)
 }
@@ -63,95 +92,45 @@ func NewHistogramWithBuckets(
 	buckets []float64,
 	opts ...MetricOption,
 ) *prometheus.HistogramVec {
-	metricOpts := newMetricOptions(opts...)
-
 	return promauto.With(labeledRegistry).NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: metricOpts.constLabels,
-			Buckets:     buckets,
-		},
+		histogramOpts(name, subsystem, help, buckets, opts...),
 		labels,
 	)
 }
 
 // NewCounterVec creates a CounterVec metrics under the global namespace returns nop if metrics are disabled.
 func NewCounterVec(name, subsystem, help string, labels []string, opts ...MetricOption) *prometheus.CounterVec {
-	metricOpts := newMetricOptions(opts...)
-
 	return promauto.With(labeledRegistry).NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: metricOpts.constLabels,
-		},
+		counterOpts(name, subsystem, help, opts...),
 		labels,
 	)
 }
 
 // NewCounter creates a Counter metrics under the global namespace returns nop if metrics are disabled.
 func NewCounter(name, subsystem, help string, opts ...MetricOption) prometheus.Counter {
-	metricOpts := newMetricOptions(opts...)
-
 	return promauto.With(labeledRegistry).NewCounter(
-		prometheus.CounterOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: metricOpts.constLabels,
-		},
+		counterOpts(name, subsystem, help, opts...),
 	)
 }
 
 // NewGaugeVec creates a Gauge metrics under the global namespace returns nop if metrics are disabled.
 func NewGaugeVec(name, subsystem, help string, labels []string, opts ...MetricOption) *prometheus.GaugeVec {
-	metricOpts := newMetricOptions(opts...)
-
 	return promauto.With(labeledRegistry).NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: metricOpts.constLabels,
-		},
+		gaugeOpts(name, subsystem, help, opts...),
 		labels,
 	)
 }
 
 // NewGauge creates a Gauge metrics under the global namespace returns nop if metrics are disabled.
 func NewGauge(name, subsystem, help string, opts ...MetricOption) prometheus.Gauge {
-	metricOpts := newMetricOptions(opts...)
-
 	return promauto.With(labeledRegistry).NewGauge(
-		prometheus.GaugeOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: metricOpts.constLabels,
-		},
+		gaugeOpts(name, subsystem, help, opts...),
 	)
 }
 
 // NewSimpleHistogram returns a histogram without labels.
 func NewSimpleHistogram(name, subsystem, help string, buckets []float64, opts ...MetricOption) prometheus.Histogram {
-	metricOpts := newMetricOptions(opts...)
-
 	return promauto.With(labeledRegistry).NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: metricOpts.constLabels,
-			Buckets:     buckets,
-		},
+		histogramOpts(name, subsystem, help, buckets, opts...),
 	)
 }
