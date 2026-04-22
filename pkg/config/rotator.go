@@ -4,17 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"sync/atomic"
 	"time"
 
+	"github.com/getoptimum/optimum-common/internal/endpoints"
 	"github.com/getoptimum/optimum-common/pkg/entities"
 	"github.com/getoptimum/optimum-common/pkg/logger"
 	netpkg "github.com/getoptimum/optimum-common/pkg/net"
-)
-
-const (
-	baseURL = "https://dev-bootstrap.getoptimum.io"
 )
 
 var (
@@ -34,10 +30,16 @@ func WithServiceVersion(v string) RotatorOption {
 	return func(r *Rotator) { r.serviceVersion = v }
 }
 
+// WithBootstrapBaseURL overrides the default production bootstrap endpoint.
+func WithBootstrapBaseURL(baseURL string) RotatorOption {
+	return func(r *Rotator) { r.bootstrapBaseURL = endpoints.BootstrapBaseURLOrDefault(baseURL) }
+}
+
 // Rotator holds the default and current configuration and allows atomic updates.
 // need dynamically update config in a thread-safe manner for all p2p nodes in the cluster
 type Rotator struct {
 	log              logger.AppLogger
+	bootstrapBaseURL string
 	renewInterval    time.Duration
 	serviceVersion   string
 	lastHash         string
@@ -61,8 +63,9 @@ func NewConfigRotator(
 	opts ...RotatorOption,
 ) *Rotator {
 	r := &Rotator{
-		log:     log.With(logger.WithService("config_rotator")),
-		updater: updater,
+		log:              log.With(logger.WithService("config_rotator")),
+		bootstrapBaseURL: endpoints.BootstrapBaseURL,
+		updater:          updater,
 	}
 	for _, o := range opts {
 		o(r)
@@ -76,7 +79,7 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 	if chainID == "" || clusterID == "" {
 		return // do not fetch if chainID or clusterID is empty
 	}
-	configURL := buildConfigURL(chainID, clusterID, r.serviceVersion)
+	configURL := endpoints.BootstrapConfigURL(r.bootstrapBaseURL, chainID, clusterID, r.serviceVersion)
 	config, err := fetchRemoteConfig(ctx, configURL)
 	if err == nil { // if init failed, we not panic, use default one, just try later fetch it again
 		r.RenewConfig(config)
@@ -117,16 +120,6 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 			}
 		}
 	}
-}
-
-func buildConfigURL(chainID, clusterID, serviceVersion string) string {
-	base := fmt.Sprintf("%s/api/v1/%s/%s/config", baseURL, chainID, clusterID)
-	if serviceVersion == "" {
-		return base
-	}
-	query := url.Values{}
-	query.Set("service_version", serviceVersion)
-	return base + "?" + query.Encode()
 }
 
 // RenewConfig atomically updates the current configuration by applying the dynamic config.

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/getoptimum/optimum-common/internal/endpoints"
 	"github.com/getoptimum/optimum-common/pkg/config"
 	"github.com/getoptimum/optimum-common/pkg/entities"
 	"github.com/getoptimum/optimum-common/pkg/logger"
@@ -38,6 +39,7 @@ func TestRenewConfig(t *testing.T) {
 		cfg.ChainID,
 		cfg.ClusterID,
 		updater,
+		config.WithBootstrapBaseURL(endpoints.DevBootstrapBaseURL),
 		config.WithRenewInterval(2*time.Second),
 	)
 

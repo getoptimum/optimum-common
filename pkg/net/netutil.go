@@ -11,10 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
-)
 
-const (
-	cloudflareTraceURL = "https://cloudflare.com/cdn-cgi/trace"
+	"github.com/getoptimum/optimum-common/internal/endpoints"
 )
 
 // ExternalIP returns the first non-loopback IP address available.
@@ -72,7 +70,7 @@ func SortAddresses(ipAddrs []stdnet.IP) []stdnet.IP {
 
 // GetOutboundIP returns preferred outbound ip of this machine.
 func GetOutboundIP() (string, error) {
-	return DetectIPViaCloudflareTrace(cloudflareTraceURL, "tcp4")
+	return DetectIPViaCloudflareTrace(endpoints.CloudflareTraceURL, "tcp4")
 }
 
 // GetExternalIPs discovers IPv4 and IPv6 public addresses separately by
@@ -85,15 +83,15 @@ func GetExternalIPs() (ipV4, ipV6 string, err error) {
 		detector func(traceURL, network string) (ip string, err error)
 	}{
 		{
-			traceURL: cloudflareTraceURL,
+			traceURL: endpoints.CloudflareTraceURL,
 			detector: DetectIPViaCloudflareTrace,
 		},
 		{
-			traceURL: "https://bootstrap.getoptimum.io/cdn-cgi/trace",
+			traceURL: endpoints.BootstrapTraceURL(endpoints.BootstrapBaseURL),
 			detector: DetectIPViaCloudflareTrace,
 		},
 		{
-			traceURL: "https://checkip.amazonaws.com/",
+			traceURL: endpoints.CheckIPURL,
 			detector: DetectIPIfConfigTrace,
 		},
 	}
