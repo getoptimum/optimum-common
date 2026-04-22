@@ -20,6 +20,7 @@ func TestRenewConfig(t *testing.T) {
 	l := logger.NewAppSLogger(logger.Debug)
 	var cfg testConfig
 	require.NoError(t, config.Load(&cfg))
+	cfg.ChainID = "hoodi"
 	cfg.ClusterID = "optimum_hoodi_v0_2"
 	cfg.MeshDegreeMin = 1
 	cfg.MeshDegreeMax = 1
@@ -37,7 +38,6 @@ func TestRenewConfig(t *testing.T) {
 		cfg.ChainID,
 		cfg.ClusterID,
 		updater,
-		config.WithServiceVersion("optimum-common-v0.0.1-rc1"),
 		config.WithRenewInterval(2*time.Second),
 	)
 
@@ -45,12 +45,12 @@ func TestRenewConfig(t *testing.T) {
 	var cfgReceived *entities.DynamicConfig
 	select {
 	case cfgReceived = <-received:
-		require.Equal(t, "default", cfgReceived.ChainID)
+		require.Equal(t, "hoodi", cfgReceived.ChainID)
 		require.Equal(t, "optimum_hoodi_v0_2", cfgReceived.ClusterID)
 	case <-time.After(12 * time.Second):
 		require.Failf(t, "timeout waiting for config update", "boot node unavailable or config missing for cluster: %s", cfg.ClusterID)
 	}
-	require.Equal(t, "default", cfgRotator.Get().ChainID)
+	require.Equal(t, "hoodi", cfgRotator.Get().ChainID)
 	require.Equal(t, "optimum_hoodi_v0_2", cfgRotator.Get().ClusterID)
 	require.Equal(t, cfgReceived.MeshDegreeMin, cfgRotator.Get().MeshDegreeMin)
 	require.Equal(t, cfgReceived.MeshDegreeMax, cfgRotator.Get().MeshDegreeMax)

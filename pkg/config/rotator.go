@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	baseURL = "https://bootstrap.getoptimum.io"
+	baseURL = "https://dev-bootstrap.getoptimum.io"
 )
 
 var (
