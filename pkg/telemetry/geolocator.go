@@ -10,14 +10,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/getoptimum/optimum-common/internal/endpoints"
 	netpkg "github.com/getoptimum/optimum-common/pkg/net"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
-	// defaultGeolocationServiceURL is the default URL for geolocation service
-	defaultGeolocationServiceURL = "https://bootstrap.getoptimum.io/api/v1/ip/location"
-
 	// geolocationServiceURLEnv defines the environment variable for geolocation
 	// service URL. This can be used to override the default URL or to use a
 	// different geolocation service for testing purposes.
@@ -59,7 +57,7 @@ func getGeolocationServiceURL() string {
 	if serviceURL := strings.TrimSpace(os.Getenv(geolocationServiceURLEnv)); serviceURL != "" {
 		return serviceURL
 	}
-	return defaultGeolocationServiceURL
+	return endpoints.BootstrapGeolocationURL(endpoints.BootstrapBaseURL)
 }
 
 func fetchCoordinatesWithURL(serviceURL string) {

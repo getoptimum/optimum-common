@@ -37,6 +37,42 @@ func getMF(t *testing.T, reg *prometheus.Registry, name string) *ioprometheuscli
 	return nil
 }
 
+func singleMetric(t *testing.T, mf *ioprometheusclient.MetricFamily) *ioprometheusclient.Metric {
+	t.Helper()
+	require.Len(t, mf.Metric, 1)
+
+	return mf.Metric[0]
+}
+
+func metricLabels(metric *ioprometheusclient.Metric) map[string]string {
+	labels := map[string]string{}
+	for _, label := range metric.GetLabel() {
+		labels[label.GetName()] = label.GetValue()
+	}
+
+	return labels
+}
+
+func assertSingleMetricFamily(
+	t *testing.T,
+	reg *prometheus.Registry,
+	subsystem, name string,
+	metricType ioprometheusclient.MetricType,
+	expectedLabels map[string]string,
+) *ioprometheusclient.Metric {
+	t.Helper()
+
+	mf := getMF(t, reg, fq("constns", subsystem, name))
+	require.Equal(t, metricType, mf.GetType())
+	metric := singleMetric(t, mf)
+	labels := metricLabels(metric)
+	for key, value := range expectedLabels {
+		require.Equal(t, value, labels[key])
+	}
+
+	return metric
+}
+
 func TestNewCounter_RegistersAndCollects(t *testing.T) {
 	// given
 	reg := prometheus.NewRegistry()
@@ -233,4 +269,173 @@ func TestSetLabeledRegistry_OverridesNamespace(t *testing.T) {
 	// then
 	mf := getMF(t, reg, fq("overridden", "sub", "foo_total"))
 	require.Equal(t, ioprometheusclient.MetricType_COUNTER, mf.GetType())
+}
+
+func TestNewCounterVec_WithConstLabelsRegistersAndCollects(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	telemetry.SetLabeledRegistry(reg, "constns")
+
+	cv := telemetry.NewCounterVec(
+		"events_total",
+		"core",
+		"events",
+		[]string{"topic"},
+		telemetry.WithConstLabels(prometheus.Labels{"node_id": "node-a", "cluster_id": "cluster-a"}),
+	)
+	cv.WithLabelValues("/demo").Add(2)
+
+	mf := getMF(t, reg, fq("constns", "core", "events_total"))
+	require.Equal(t, ioprometheusclient.MetricType_COUNTER, mf.GetType())
+	metric := singleMetric(t, mf)
+	labels := metricLabels(metric)
+	require.Equal(t, "node-a", labels["node_id"])
+	require.Equal(t, "cluster-a", labels["cluster_id"])
+	require.Equal(t, "/demo", labels["topic"])
+	require.Equal(t, 2.0, metric.GetCounter().GetValue())
+}
+
+func TestNewCounter_WithConstLabelsRegistersAndCollects(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	telemetry.SetLabeledRegistry(reg, "constns")
+
+	c := telemetry.NewCounter(
+		"processed_total",
+		"worker",
+		"processed",
+		telemetry.WithConstLabels(prometheus.Labels{"node_id": "node-a"}),
+	)
+	c.Add(3)
+
+	mf := getMF(t, reg, fq("constns", "worker", "processed_total"))
+	require.Equal(t, ioprometheusclient.MetricType_COUNTER, mf.GetType())
+	metric := singleMetric(t, mf)
+	labels := metricLabels(metric)
+	require.Equal(t, "node-a", labels["node_id"])
+	require.Equal(t, 3.0, metric.GetCounter().GetValue())
+}
+
+func TestNewGaugeVec_WithConstLabelsRegistersAndCollects(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	telemetry.SetLabeledRegistry(reg, "constns")
+
+	gv := telemetry.NewGaugeVec(
+		"depth",
+		"queue",
+		"depth",
+		[]string{"topic"},
+		telemetry.WithConstLabels(prometheus.Labels{"node_id": "node-a"}),
+	)
+	gv.WithLabelValues("/demo").Set(7)
+
+	metric := assertSingleMetricFamily(
+		t,
+		reg,
+		"queue",
+		"depth",
+		ioprometheusclient.MetricType_GAUGE,
+		map[string]string{"node_id": "node-a", "topic": "/demo"},
+	)
+	require.Equal(t, 7.0, metric.GetGauge().GetValue())
+}
+
+func TestNewGauge_WithConstLabelsRegistersAndCollects(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	telemetry.SetLabeledRegistry(reg, "constns")
+
+	g := telemetry.NewGauge(
+		"node_up_info",
+		"core",
+		"node up",
+		telemetry.WithConstLabels(prometheus.Labels{"node_id": "node-a", "protocol_version": "v2"}),
+	)
+	g.Set(1)
+
+	metric := assertSingleMetricFamily(
+		t,
+		reg,
+		"core",
+		"node_up_info",
+		ioprometheusclient.MetricType_GAUGE,
+		map[string]string{"node_id": "node-a", "protocol_version": "v2"},
+	)
+	require.Equal(t, 1.0, metric.GetGauge().GetValue())
+}
+
+func TestNewGauge_WithDifferentConstLabelValuesRegistersMultipleSeries(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	telemetry.SetLabeledRegistry(reg, "constns")
+
+	telemetry.NewGauge(
+		"node_up_info",
+		"core",
+		"node up",
+		telemetry.WithConstLabels(prometheus.Labels{"node_id": "node-a"}),
+	).Set(1)
+	telemetry.NewGauge(
+		"node_up_info",
+		"core",
+		"node up",
+		telemetry.WithConstLabels(prometheus.Labels{"node_id": "node-b"}),
+	).Set(1)
+
+	mf := getMF(t, reg, fq("constns", "core", "node_up_info"))
+	require.Equal(t, ioprometheusclient.MetricType_GAUGE, mf.GetType())
+	require.Len(t, mf.Metric, 2)
+
+	nodes := map[string]bool{}
+	for _, metric := range mf.Metric {
+		nodes[metricLabels(metric)["node_id"]] = true
+		require.Equal(t, 1.0, metric.GetGauge().GetValue())
+	}
+	require.True(t, nodes["node-a"])
+	require.True(t, nodes["node-b"])
+}
+
+func TestNewHistogram_WithConstLabelsRegistersAndCollects(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	telemetry.SetLabeledRegistry(reg, "constns")
+
+	hv := telemetry.NewHistogram(
+		"latency_seconds",
+		"gateway",
+		"latency",
+		[]string{"topic"},
+		telemetry.WithConstLabels(prometheus.Labels{"node_id": "node-a"}),
+	)
+	hv.WithLabelValues("/demo").Observe(0.05)
+
+	metric := assertSingleMetricFamily(
+		t,
+		reg,
+		"gateway",
+		"latency_seconds",
+		ioprometheusclient.MetricType_HISTOGRAM,
+		map[string]string{"node_id": "node-a", "topic": "/demo"},
+	)
+	require.EqualValues(t, 1, metric.GetHistogram().GetSampleCount())
+}
+
+func TestNewHistogramWithBuckets_WithConstLabelsRegistersAndCollects(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	telemetry.SetLabeledRegistry(reg, "constns")
+
+	hv := telemetry.NewHistogramWithBuckets(
+		"shards_per_message",
+		"gateway",
+		"shards per message",
+		[]string{"topic"},
+		[]float64{1, 2, 4},
+		telemetry.WithConstLabels(prometheus.Labels{"node_id": "node-a"}),
+	)
+	hv.WithLabelValues("/demo").Observe(3)
+
+	metric := assertSingleMetricFamily(
+		t,
+		reg,
+		"gateway",
+		"shards_per_message",
+		ioprometheusclient.MetricType_HISTOGRAM,
+		map[string]string{"node_id": "node-a", "topic": "/demo"},
+	)
+	require.EqualValues(t, 1, metric.GetHistogram().GetSampleCount())
 }
