@@ -40,6 +40,7 @@ func TestRenewConfig(t *testing.T) {
 		cfg.ClusterID,
 		updater,
 		config.WithBootstrapBaseURL(endpoints.DevBootstrapBaseURL),
+		config.WithServiceVersion("v0.0.1-rc11"),
 		config.WithRenewInterval(2*time.Second),
 	)
 
