@@ -63,3 +63,44 @@ func ChunkSlice[T any](slice []T, chunkSize int) [][]T {
 	}
 	return chunks
 }
+
+// AppendBounded appends v while capping at limit elements, shifting out the oldest when full.
+// If limit <= 0, s is unchanged.
+func AppendBounded[T any](s []T, v T, limit int) []T {
+	if limit <= 0 {
+		return s
+	}
+	if len(s) < limit {
+		return append(s, v)
+	}
+	copy(s, s[1:])
+	s[len(s)-1] = v
+	return s
+}
+
+// KeepLast returns a new slice with the last up to limit elements, or nil if limit <= 0.
+func KeepLast[T any](s []T, limit int) []T {
+	if limit <= 0 {
+		return nil
+	}
+	if len(s) <= limit {
+		return append([]T(nil), s...)
+	}
+	return append([]T(nil), s[len(s)-limit:]...)
+}
+
+// ConcatKeepLast flattens chunks, then KeepLast(flat, limit).
+func ConcatKeepLast[T any](chunks [][]T, limit int) []T {
+	if limit <= 0 {
+		return nil
+	}
+	var n int
+	for _, c := range chunks {
+		n += len(c)
+	}
+	flat := make([]T, 0, n)
+	for _, c := range chunks {
+		flat = append(flat, c...)
+	}
+	return KeepLast(flat, limit)
+}

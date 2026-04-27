@@ -171,3 +171,40 @@ func TestChunkSlice(t *testing.T) {
 		})
 	}
 }
+
+func TestAppendBounded(t *testing.T) {
+	t.Parallel()
+	s := []int{1, 2, 3}
+	s = slices.AppendBounded(s, 4, 5)
+	require.Equal(t, []int{1, 2, 3, 4}, s)
+
+	s = []int{1, 2, 3}
+	s = slices.AppendBounded(s, 4, 3)
+	require.Equal(t, []int{2, 3, 4}, s)
+
+	s = nil
+	s = slices.AppendBounded(s, 1, 2)
+	s = slices.AppendBounded(s, 2, 2)
+	require.Equal(t, []int{1, 2}, s)
+	s = slices.AppendBounded(s, 3, 2)
+	require.Equal(t, []int{2, 3}, s)
+
+	s = []int{1}
+	s = slices.AppendBounded(s, 2, 0)
+	require.Equal(t, []int{1}, s)
+}
+
+func TestKeepLast(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, slices.KeepLast([]int{1, 2, 3}, 0))
+	require.Equal(t, []int{1, 2, 3}, slices.KeepLast([]int{1, 2, 3}, 10))
+	require.Equal(t, []int{2, 3}, slices.KeepLast([]int{1, 2, 3}, 2))
+}
+
+func TestConcatKeepLast(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, slices.ConcatKeepLast([][]int{{1, 2}, {3, 4}}, 0))
+	require.Equal(t, []int{3, 4}, slices.ConcatKeepLast([][]int{{1, 2}, {3, 4}}, 2))
+	require.Equal(t, []int{1, 2, 3, 4}, slices.ConcatKeepLast([][]int{{1, 2}, {3, 4}}, 8))
+	require.Equal(t, []int{2, 3, 4, 5, 6}, slices.ConcatKeepLast([][]int{{1}, {2, 3}, {4, 5, 6}}, 5))
+}
