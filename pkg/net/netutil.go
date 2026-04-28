@@ -116,6 +116,13 @@ func GetExternalIPs() (ipV4, ipV6 string, err error) {
 	if ipV4 != "" || ipV6 != "" {
 		return ipV4, ipV6, nil
 	}
+	// Fallback: interface inspection. Required for hermetic environments
+	// without outbound internet (network simulators like Shadow, air-gapped
+	// hosts, test rigs). Only fires when ALL external HTTP probes failed —
+	// production callers with internet keep their existing behavior.
+	if fallback, fbErr := ExternalIP(); fbErr == nil && fallback != "127.0.0.1" {
+		return fallback, "", nil
+	}
 	return ipV4, ipV6, fmt.Errorf("failed to detect external IPs: %w", errors.Join(errList...))
 }
 
