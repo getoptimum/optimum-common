@@ -24,7 +24,7 @@ env:
 
 jobs:
   golangci:
-    uses: getoptimum/.github/.github/workflows/go-lint.yml@ee5ca27258167b6fdbce50e16504072b786c4589 # main
+    uses: getoptimum/.github/.github/workflows/go-lint.yml@de9534b228959edbca36f90c3a9d0373bc1bdaea # main
     with:
       go-version: "1.26.2"
     secrets:
