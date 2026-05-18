@@ -1,19 +1,3 @@
-// Package jwks owns the cached signing-key set used by services (gateway,
-// bootstrap, …) to verify JWTs minted by the shared auth service.
-//
-// Behavior summary:
-//
-//   - Initial load at construction: fetch JWKS over HTTPS once. On wire
-//     failure, fall back to a local disk copy so the service can still
-//     boot if the auth provider is briefly unreachable.
-//   - Background refresh: long-interval ticker re-fetches and persists the
-//     JWKS. A failed refresh leaves the previously-loaded keyfunc in place.
-//   - Atomic swap: the active keyfunc is held in an atomic.Pointer so
-//     readers never block writers and the swap is observed instantly.
-//
-// Each consumer wraps this with its own claim-validation pipeline (issuer
-// pinning, alg enforcement, custom claim checks). This package only owns
-// "what's the current signing key set?"; it does not parse JWTs itself.
 package jwks
 
 import (
