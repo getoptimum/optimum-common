@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
-	commonIO "github.com/getoptimum/optimum-common/pkg/io"
+	"github.com/getoptimum/optimum-common/pkg/io"
 	"github.com/getoptimum/optimum-common/pkg/logger"
-	commonNet "github.com/getoptimum/optimum-common/pkg/net"
+	"github.com/getoptimum/optimum-common/pkg/net"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -82,7 +82,7 @@ func (c *Cache) Keyfunc(tok *jwt.Token) (any, error) {
 // auth-provider outage.
 func (c *Cache) load(ctx context.Context) error {
 	if raw, err := c.fetch(ctx); err == nil {
-		if writeErr := commonIO.AtomicallySaveToFile(c.path, raw); writeErr != nil {
+		if writeErr := io.AtomicallySaveToFile(c.path, raw); writeErr != nil {
 			// disk write failure is non-fatal — we still have the live JWKS in memory.
 			c.log.Error("failed to persist JWKS to disk cache", writeErr, logger.WithString("path", c.path))
 		}
@@ -95,7 +95,7 @@ func (c *Cache) load(ctx context.Context) error {
 		)
 	}
 
-	raw, err := commonIO.LoadFromFile(c.path)
+	raw, err := io.LoadFromFile(c.path)
 	if err != nil {
 		return fmt.Errorf("jwks: wire fetch failed AND disk cache unavailable at %s: %w", c.path, err)
 	}
@@ -116,7 +116,7 @@ func (c *Cache) refreshLoop(ctx context.Context) {
 				c.log.Error("JWKS refresh failed; keeping current keyfunc", err, logger.WithString("url", c.url))
 				continue
 			}
-			if writeErr := commonIO.AtomicallySaveToFile(c.path, raw); writeErr != nil {
+			if writeErr := io.AtomicallySaveToFile(c.path, raw); writeErr != nil {
 				c.log.Error("failed to persist refreshed JWKS to disk cache", writeErr, logger.WithString("path", c.path))
 			}
 			if err := c.swap(raw, "wire-refresh"); err != nil {
@@ -128,7 +128,7 @@ func (c *Cache) refreshLoop(ctx context.Context) {
 
 // fetch is one HTTP GET against the JWKS endpoint.
 func (c *Cache) fetch(ctx context.Context) ([]byte, error) {
-	res, code, err := commonNet.GetCurl[json.RawMessage](ctx, c.url, nil)
+	res, code, err := net.GetCurl[json.RawMessage](ctx, c.url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("jwks fetch: code %d: %w", code, err)
 	}
