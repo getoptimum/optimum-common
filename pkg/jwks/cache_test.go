@@ -154,14 +154,3 @@ func TestNew_FailsWhenWireDown_AndNoDisk(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "disk cache unavailable")
 }
-
-func TestJWKSURLFromIssuer(t *testing.T) {
-	cases := map[string]string{
-		"https://issuer.test":  "https://issuer.test" + jwks.IssuerJWKSPath,
-		"https://issuer.test/": "https://issuer.test" + jwks.IssuerJWKSPath,
-		"":                     jwks.IssuerJWKSPath,
-	}
-	for in, want := range cases {
-		require.Equal(t, want, jwks.JWKSURLFromIssuer(in), "issuer=%q", in)
-	}
-}

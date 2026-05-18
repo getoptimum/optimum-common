@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -16,18 +15,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const IssuerJWKSPath = "/auth/v1/.well-known/jwks.json"
-
 // Config holds Cache construction params.
 type Config struct {
 	JWKSURL  string        //  URL of the JWKS endpoint (e.g. https://auth.optimum.com/auth/v1/.well-known/jwks.json)
 	DiskPath string        // local filesystem path for the disk cache (e.g. /var/cache/jwks.json)
 	Refresh  time.Duration // interval for background refreshes (e.g. 15m)
-}
-
-// JWKSURLFromIssuer returns the canonical JWKS URL for an issuer base URL.
-func JWKSURLFromIssuer(issuer string) string {
-	return strings.TrimRight(issuer, "/") + IssuerJWKSPath
 }
 
 // Cache owns the live keyfunc and atomically swaps it on each successful refresh.
