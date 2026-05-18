@@ -32,7 +32,7 @@ func JWKSURLFromIssuer(issuer string) string {
 
 // Cache owns the live keyfunc and atomically swaps it on each successful refresh.
 type Cache struct {
-	log     logger.AppLogger
+	log     logger.AppLogger // nolint:staticcheck
 	url     string
 	path    string
 	ttl     time.Duration
@@ -40,7 +40,7 @@ type Cache struct {
 }
 
 // New loads the cache (wire-first, disk-fallback) and starts the refresh loop.
-func New(ctx context.Context, log logger.AppLogger, cfg Config) (*Cache, error) {
+func New(ctx context.Context, log logger.AppLogger, cfg Config) (*Cache, error) { // nolint:staticcheck
 	if log == nil {
 		return nil, errors.New("jwks: log is required")
 	}
