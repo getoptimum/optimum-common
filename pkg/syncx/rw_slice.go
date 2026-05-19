@@ -64,3 +64,12 @@ func (rw *RWSlice[V]) Erase() {
 	rw.internal = rw.internal[:0]
 	rw.mu.Unlock()
 }
+
+// Replace atomically swaps the held slice for the provided one.
+func (rw *RWSlice[V]) Replace(values []V) {
+	clone := make([]V, len(values))
+	copy(clone, values)
+	rw.mu.Lock()
+	rw.internal = clone
+	rw.mu.Unlock()
+}
