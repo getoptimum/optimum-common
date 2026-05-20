@@ -42,10 +42,9 @@ func TestGenerateUpsert_NoConflictSuffix(t *testing.T) {
 func TestGenerateBulkInsertSQL(t *testing.T) {
 	t.Parallel()
 	type row struct{ ID int }
-	q, params, err := sql.GenerateBulkInsertSQL("items", sql.PQParamPlaceholder, []row{{1}, {2}}, func(r row) map[string]any {
+	q, params := sql.GenerateBulkInsertSQL("items", sql.PQParamPlaceholder, []row{{1}, {2}}, func(r row) map[string]any {
 		return map[string]any{"id": r.ID}
 	})
-	require.NoError(t, err)
 	require.Contains(t, q, "INSERT INTO items")
 	require.Len(t, params, 2)
 }
@@ -53,10 +52,9 @@ func TestGenerateBulkInsertSQL(t *testing.T) {
 func TestGenerateBulkInsertSQL_Empty(t *testing.T) {
 	t.Parallel()
 	type row struct{ ID int }
-	q, params, err := sql.GenerateBulkInsertSQL("items", sql.PQParamPlaceholder, []row(nil), func(r row) map[string]any {
+	q, params := sql.GenerateBulkInsertSQL("items", sql.PQParamPlaceholder, []row(nil), func(r row) map[string]any {
 		return map[string]any{"id": r.ID}
 	})
-	require.NoError(t, err)
 	require.Empty(t, q)
 	require.Nil(t, params)
 }
