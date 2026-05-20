@@ -60,34 +60,23 @@ func GenerateBulkInsertSQL[T any](
 		return "", nil
 	}
 	columns := columnsFromMap(entityProcessor(entityList[0]))
-	placeholders, rowParams := buildBulkInsertRows(paramPlaceholder, columns, len(entityList), func(i int) []any {
-		m := entityProcessor(entityList[i])
-		row := make([]any, len(columns))
-		for j, col := range columns {
-			row[j] = m[col]
-		}
-		return row
-	})
-	sql = fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", tableName, strings.Join(columns, ","), strings.Join(placeholders, ","))
-	return sql, rowParams
-}
-
-func buildBulkInsertRows(paramPlaceholder string, columns []string, rowCount int, rowValues func(i int) []any) (placeholders []string, params []any) {
 	colCount := len(columns)
-	placeholders = make([]string, 0, rowCount)
+	rowCount := len(entityList)
+	placeholders := make([]string, 0, rowCount)
 	params = make([]any, 0, rowCount*colCount)
 	counter := 1
 	for i := 0; i < rowCount; i++ {
-		row := rowValues(i)
+		m := entityProcessor(entityList[i])
 		ph := make([]string, colCount)
-		for j := range columns {
-			params = append(params, row[j])
+		for j, col := range columns {
+			params = append(params, m[col])
 			ph[j] = fmt.Sprintf("%s%d", paramPlaceholder, counter)
 			counter++
 		}
 		placeholders = append(placeholders, "("+strings.Join(ph, ",")+")")
 	}
-	return placeholders, params
+	sql = fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", tableName, strings.Join(columns, ","), strings.Join(placeholders, ","))
+	return sql, params
 }
 
 // GenerateBulkUpsertSQL requires non-empty conflictColumns. Empty updateColumns => DO NOTHING on that conflict.
