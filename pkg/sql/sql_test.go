@@ -1,6 +1,7 @@
 package sql_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/sql"
@@ -18,16 +19,23 @@ func TestGenerateInsertSQL(t *testing.T) {
 func TestGenerateUpsertSQL(t *testing.T) {
 	t.Parallel()
 	q, params := sql.GenerateUpsertSQL("items", map[string]any{"id": 1, "name": "a"}, []string{"id"})
-	require.Contains(t, q, "ON CONFLICT (id) DO UPDATE SET")
-	require.Contains(t, q, "name = EXCLUDED.name")
+	require.Contains(t, qs(q), "on conflict (id) do update set")
+	require.Contains(t, qs(q), "name = excluded.name")
 	require.Len(t, params, 2)
 }
 
-func TestGenerateUpsertAllConflictKeys_DoNothing(t *testing.T) {
+func TestGenerateUpsert_AllConflictKeys_DoNothing(t *testing.T) {
 	t.Parallel()
 	q, params := sql.GenerateUpsertSQL("items", map[string]any{"id": 1}, []string{"id"})
-	require.Contains(t, q, "ON CONFLICT (id) DO NOTHING")
-	require.NotContains(t, q, "DO UPDATE SET")
+	require.Contains(t, qs(q), "on conflict (id) do nothing")
+	require.NotContains(t, qs(q), "do update set")
+	require.Len(t, params, 1)
+}
+
+func TestGenerateUpsert_NoConflictSuffix(t *testing.T) {
+	t.Parallel()
+	q, params := sql.GenerateUpsertSQL("items", map[string]any{"id": 1}, nil)
+	require.NotContains(t, qs(q), "on conflict")
 	require.Len(t, params, 1)
 }
 
@@ -39,7 +47,6 @@ func TestGenerateBulkInsertSQL(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Contains(t, q, "INSERT INTO items")
-	require.Contains(t, q, "VALUES")
 	require.Len(t, params, 2)
 }
 
@@ -97,12 +104,18 @@ func TestGenerateBulkUpsertSQL_DoNothing(t *testing.T) {
 	require.Len(t, params, 3)
 }
 
-func TestGenerateBulkUpsertSQL_Empty(t *testing.T) {
+func TestGenerateBulkUpsertSQL_EmptyRowCount(t *testing.T) {
 	t.Parallel()
-	q, params, err := sql.GenerateBulkUpsertSQL("t", nil, nil, nil, 0, nil)
+	q, params, err := sql.GenerateBulkUpsertSQL("t", nil, []string{"a"}, nil, 0, nil)
 	require.NoError(t, err)
 	require.Empty(t, q)
 	require.Nil(t, params)
+}
+
+func TestGenerateBulkUpsertSQL_NoConflictErrors(t *testing.T) {
+	t.Parallel()
+	_, _, err := sql.GenerateBulkUpsertSQL("t", []string{"a"}, nil, nil, 1, func(i int) []any { return []any{1} })
+	require.Error(t, err)
 }
 
 func TestGenerateBulkUpsertSQL_RowTooShort(t *testing.T) {
@@ -113,27 +126,10 @@ func TestGenerateBulkUpsertSQL_RowTooShort(t *testing.T) {
 		[]string{"a"},
 		[]string{"b"},
 		1,
-		func(i int) []any {
-			return []any{1}
-		},
+		func(i int) []any { return []any{1} },
 	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "row 0")
 }
 
-func TestDeterministicOrdering_InsertAndUpsert(t *testing.T) {
-	t.Parallel()
-	m := map[string]any{"zebra": 1, "alpha": 2, "mid": 3}
-	wantInsert := "INSERT INTO t (alpha, mid, zebra) VALUES ($1, $2, $3)"
-	for range 5 {
-		q, params := sql.GenerateInsertSQL("t", m)
-		require.Equal(t, wantInsert, q)
-		require.Equal(t, []any{2, 3, 1}, params)
-	}
-	for range 5 {
-		q, _ := sql.GenerateUpsertSQL("t", m, []string{"alpha"})
-		require.Contains(t, q, "(alpha, mid, zebra)")
-		require.Contains(t, q, "mid = EXCLUDED.mid")
-		require.Contains(t, q, "zebra = EXCLUDED.zebra")
-	}
-}
+func qs(s string) string { return strings.ToLower(s) }

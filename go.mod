@@ -11,6 +11,7 @@ tool (
 require (
 	github.com/MicahParks/keyfunc/v3 v3.8.0
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/libp2p/go-libp2p/core v0.43.0-rc2
@@ -212,7 +213,6 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
-	github.com/georgysavva/scany/v2 v2.1.4 // indirect
 	github.com/ghostiam/protogetter v0.3.18 // indirect
 	github.com/github/smimesign v0.2.0 // indirect
 	github.com/go-critic/go-critic v0.14.3 // indirect

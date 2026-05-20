@@ -2,20 +2,17 @@ package sql
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 )
 
 const PQParamPlaceholder = "$"
 
 func GenerateInsertSQL(tableName string, fieldsValuesMapping map[string]any) (sql string, params []any) {
-	keys := sortedMapKeys(fieldsValuesMapping)
-	fields := make([]string, 0, len(keys))
-	placeholders := make([]string, 0, len(keys))
-	params = make([]any, 0, len(keys))
+	fields := make([]string, 0, len(fieldsValuesMapping))
+	placeholders := make([]string, 0, len(fieldsValuesMapping))
+	params = make([]any, 0, len(fieldsValuesMapping))
 	counter := 1
-	for _, k := range keys {
-		v := fieldsValuesMapping[k]
+	for k, v := range fieldsValuesMapping {
 		params = append(params, v)
 		fields = append(fields, k)
 		placeholders = append(placeholders, fmt.Sprintf("$%d", counter))
@@ -25,8 +22,12 @@ func GenerateInsertSQL(tableName string, fieldsValuesMapping map[string]any) (sq
 	return sql, params
 }
 
+// GenerateUpsertSQL appends ON CONFLICT only when conflictColumns is non-empty.
 func GenerateUpsertSQL(tableName string, fieldsValuesMapping map[string]any, conflictColumns []string) (sql string, params []any) {
 	sql, params = GenerateInsertSQL(tableName, fieldsValuesMapping)
+	if len(conflictColumns) == 0 {
+		return sql, params
+	}
 
 	conflictSet := make(map[string]struct{}, len(conflictColumns))
 	for _, c := range conflictColumns {
@@ -34,7 +35,7 @@ func GenerateUpsertSQL(tableName string, fieldsValuesMapping map[string]any, con
 	}
 
 	setClauses := make([]string, 0, len(fieldsValuesMapping))
-	for _, k := range sortedMapKeys(fieldsValuesMapping) {
+	for k := range fieldsValuesMapping {
 		if _, isConflict := conflictSet[k]; !isConflict {
 			setClauses = append(setClauses, fmt.Sprintf("%s = EXCLUDED.%s", k, k))
 		}
@@ -46,11 +47,9 @@ func GenerateUpsertSQL(tableName string, fieldsValuesMapping map[string]any, con
 	} else {
 		sql += fmt.Sprintf(" ON CONFLICT (%s) DO UPDATE SET %s", conflict, strings.Join(setClauses, ", "))
 	}
-
 	return sql, params
 }
 
-// GenerateBulkInsertSQL returns ("", nil, nil) when entityList is empty.
 func GenerateBulkInsertSQL[T any](
 	tableName string,
 	paramPlaceholder string,
@@ -60,7 +59,7 @@ func GenerateBulkInsertSQL[T any](
 	if len(entityList) == 0 {
 		return "", nil, nil
 	}
-	columns := columnsFromProcessor(entityList[0], entityProcessor)
+	columns := columnsFromMap(entityProcessor(entityList[0]))
 	placeholders, rowParams, err := buildBulkValues(paramPlaceholder, columns, len(entityList), func(i int) []any {
 		m := entityProcessor(entityList[i])
 		row := make([]any, len(columns))
@@ -76,8 +75,7 @@ func GenerateBulkInsertSQL[T any](
 	return sql, rowParams, nil
 }
 
-// GenerateBulkUpsertSQL with empty updateColumns emits ON CONFLICT … DO NOTHING.
-// Returns an error if any row from rowValues has fewer values than len(columns).
+// GenerateBulkUpsertSQL requires non-empty conflictColumns. Empty updateColumns => DO NOTHING on that conflict.
 func GenerateBulkUpsertSQL(
 	tableName string,
 	columns, conflictColumns, updateColumns []string,
@@ -86,6 +84,9 @@ func GenerateBulkUpsertSQL(
 ) (query string, args []any, err error) {
 	if rowCount == 0 {
 		return "", nil, nil
+	}
+	if len(conflictColumns) == 0 {
+		return "", nil, fmt.Errorf("pkg/sql: conflict columns required")
 	}
 	placeholders, rowParams, err := buildBulkValues(PQParamPlaceholder, columns, rowCount, rowValues)
 	if err != nil {
@@ -116,19 +117,12 @@ func GenerateBulkUpsertSQL(
 	return query, args, nil
 }
 
-func sortedMapKeys(m map[string]any) []string {
-	keys := make([]string, 0, len(m))
+func columnsFromMap(m map[string]any) []string {
+	columns := make([]string, 0, len(m))
 	for k := range m {
-		keys = append(keys, k)
+		columns = append(columns, k)
 	}
-	sort.Strings(keys)
-	return keys
-}
-
-func columnsFromProcessor[T any](sample T, entityProcessor func(entity T) map[string]any) []string {
-	m := entityProcessor(sample)
-	keys := sortedMapKeys(m)
-	return keys
+	return columns
 }
 
 func buildBulkValues(paramPlaceholder string, columns []string, rowCount int, rowValues func(i int) []any) (placeholders []string, params []any, err error) {
@@ -139,7 +133,7 @@ func buildBulkValues(paramPlaceholder string, columns []string, rowCount int, ro
 	for i := 0; i < rowCount; i++ {
 		row := rowValues(i)
 		if len(row) < colCount {
-			return nil, nil, fmt.Errorf("pkg/sql: row %d has %d values, expected %d", i, len(row), colCount)
+			return nil, nil, fmt.Errorf("pkg/sql: row %d: need %d values, got %d", i, colCount, len(row))
 		}
 		ph := make([]string, colCount)
 		for j := range columns {
