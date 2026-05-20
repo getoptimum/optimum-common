@@ -22,6 +22,9 @@ func QueryRowsToStruct[T any](ctx context.Context, conn sqlscan.Querier, query s
 		}
 		res = append(res, &t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return res, nil
 }
 
