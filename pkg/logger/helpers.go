@@ -98,6 +98,11 @@ func WithPeer(info peer.AddrInfo) Field {
 	return WithString("peer", info.ID.String())
 }
 
+// WithPeerID adds the peer ID
+func WithPeerID(info peer.ID) Field {
+	return WithString("peer", info.String())
+}
+
 // WithPeerAddrs adds comma separated multiaddrs of the given peer
 func WithPeerAddrs(info peer.AddrInfo) Field {
 	addrs := make([]string, 0, len(info.Addrs))
