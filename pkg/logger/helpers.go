@@ -116,3 +116,11 @@ func WithTopic(topic string) Field {
 func WithTopicBytes(topic []byte) Field {
 	return WithString("topic", string(topic))
 }
+
+func WithClusterID(clusterID string) Field {
+	return WithString("cluster_id", clusterID)
+}
+
+func WithGatewayID(gatewayID string) Field {
+	return WithString("gateway_id", gatewayID)
+}
