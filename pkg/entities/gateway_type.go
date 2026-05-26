@@ -24,6 +24,10 @@ var (
 	}
 )
 
+func (s GatewayType) String() string {
+	return string(s)
+}
+
 func GatewayTypeFromString(s string) (GatewayType, error) {
 	if val, ok := gatewayTypeMapper[strings.TrimSpace(strings.ToLower(s))]; ok {
 		return val, nil
