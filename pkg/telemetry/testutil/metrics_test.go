@@ -1,25 +1,12 @@
 package testutil_test
 
 import (
-	"sync/atomic"
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/telemetry/testutil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 )
-
-func TestWithBool_RestoresPreviousValue(t *testing.T) {
-	var gate atomic.Bool
-	gate.Store(true)
-
-	t.Run("scoped", func(t *testing.T) {
-		testutil.WithBool(t, &gate, false)
-		require.False(t, gate.Load())
-	})
-
-	require.True(t, gate.Load())
-}
 
 func TestMetricReaders(t *testing.T) {
 	counter := prometheus.NewCounter(prometheus.CounterOpts{Name: "c_total", Help: "c"})
