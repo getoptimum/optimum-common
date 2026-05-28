@@ -88,11 +88,7 @@ func TestDynamicConfig(t *testing.T) {
 		"chain_id":                   "test",
 		"cluster_id":                 "test_cluster",
 		"service_version":            "v0.0.1",
-<<<<<<< HEAD
 		"enable_ab_testing":          true,
-=======
-		"propagation_disabled":       true,
->>>>>>> 73e9e243f13538365f6016eb3e64ad6ba1973524
 		"exclude_self_messages":      true,
 		"updated_at":                 res["updated_at"],
 		"random_message_size_bytes":  int64(1),
