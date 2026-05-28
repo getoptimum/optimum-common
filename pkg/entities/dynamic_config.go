@@ -120,7 +120,7 @@ func (d *DynamicConfig) ToMap() map[string]any {
 		"chain_id":              d.ChainID,
 		"cluster_id":            d.ClusterID,
 		"service_version":       d.ServiceVersion,
-		"propagation_disabled":  d.PropagationDisabled,
+		"enable_ab_testing":     d.PropagationDisabled,
 		"exclude_self_messages": d.ExcludeSelfMessages,
 		"updated_at":            time.Now(),
 
