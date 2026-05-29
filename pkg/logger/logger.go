@@ -12,10 +12,11 @@ import (
 type LogMode string
 
 const (
-	Debug   LogMode = "debug"
-	Info    LogMode = "info"
-	Warning LogMode = "warning"
-	Error   LogMode = "error"
+	Debug      LogMode = "debug"
+	Info       LogMode = "info"
+	Production LogMode = "production"
+	Warning    LogMode = "warning"
+	Error      LogMode = "error"
 )
 
 func validateLogMode(mode LogMode) LogMode {
@@ -146,10 +147,11 @@ func prepareSlogParams(err error, fields []Field) []any {
 
 func logLevelFromMode(mode LogMode) slog.Level {
 	mapper := map[LogMode]slog.Level{
-		Debug:   slog.LevelDebug,
-		Info:    slog.LevelInfo,
-		Warning: slog.LevelWarn,
-		Error:   slog.LevelError,
+		Debug:      slog.LevelDebug,
+		Info:       slog.LevelInfo,
+		Production: slog.LevelInfo,
+		Warning:    slog.LevelWarn,
+		Error:      slog.LevelError,
 	}
 	if m, ok := mapper[mode]; ok {
 		return m
