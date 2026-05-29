@@ -99,13 +99,13 @@ func TestInitLogger_JSONShapeAndMappings(t *testing.T) {
 
 func TestLogLevelFiltering_PerMode(t *testing.T) {
 	var bp bytes.Buffer
-	lp := logger.InitLogger([]io.Writer{&bp}, logger.Production)
+	lp := logger.InitLogger([]io.Writer{&bp}, logger.Warning)
 	lp.Info("info-suppressed")
 	lp.Error("err-shown", errors.New("boom"))
 	require.Equal(t, 1, len(parseJSONLines(t, &bp)))
 
 	var bv bytes.Buffer
-	lv := logger.InitLogger([]io.Writer{&bv}, logger.Verbose)
+	lv := logger.InitLogger([]io.Writer{&bv}, logger.Info)
 	lv.Debug("debug-suppressed")
 	lv.Info("info-shown")
 	require.Equal(t, 1, len(parseJSONLines(t, &bv)))

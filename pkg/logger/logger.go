@@ -12,17 +12,18 @@ import (
 type LogMode string
 
 const (
-	Production LogMode = "production"
-	Debug      LogMode = "debug"
-	Verbose    LogMode = "verbose"
+	Debug   LogMode = "debug"
+	Info    LogMode = "info"
+	Warning LogMode = "warning"
+	Error   LogMode = "error"
 )
 
 func validateLogMode(mode LogMode) LogMode {
 	switch mode {
-	case Production, Debug, Verbose:
+	case Info, Debug, Warning, Error:
 		return mode
 	default:
-		return Production
+		return Info
 	}
 }
 
@@ -144,14 +145,14 @@ func prepareSlogParams(err error, fields []Field) []any {
 }
 
 func logLevelFromMode(mode LogMode) slog.Level {
-	switch mode {
-	case Debug:
-		return slog.LevelDebug
-	case Verbose:
-		return slog.LevelInfo
-	case Production:
-		return slog.LevelWarn
-	default:
-		return slog.LevelInfo
+	mapper := map[LogMode]slog.Level{
+		Debug:   slog.LevelDebug,
+		Info:    slog.LevelInfo,
+		Warning: slog.LevelWarn,
+		Error:   slog.LevelError,
 	}
+	if m, ok := mapper[mode]; ok {
+		return m
+	}
+	return slog.LevelInfo
 }
