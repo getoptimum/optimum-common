@@ -13,21 +13,16 @@ const (
 	ReadReplicaRetryBackoff = 100 * time.Millisecond
 )
 
-// IsRecoveryConflict reports transient Postgres read-replica errors worth retrying.
+// IsRecoveryConflict reports Postgres 40001 hot-standby conflicts worth retrying on read-replica queries.
 func IsRecoveryConflict(err error) bool {
 	var pqErr *pq.Error
 	if !errors.As(err, &pqErr) {
 		return false
 	}
-	switch pqErr.Code {
-	case "40001", "57014":
-		return true
-	default:
-		return false
-	}
+	return pqErr.Code == "40001"
 }
 
-// RetryReadReplica runs fn, retrying on transient read-replica recovery conflicts.
+// RetryReadReplica runs fn, retrying on 40001 read-replica recovery conflicts.
 func RetryReadReplica(ctx context.Context, fn func() error) error {
 	var err error
 	for attempt := range ReadReplicaRetryMax + 1 {

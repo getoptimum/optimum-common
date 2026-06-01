@@ -14,7 +14,7 @@ import (
 func TestIsRecoveryConflict(t *testing.T) {
 	t.Parallel()
 	assert.True(t, sql.IsRecoveryConflict(&pq.Error{Code: "40001"}))
-	assert.True(t, sql.IsRecoveryConflict(&pq.Error{Code: "57014"}))
+	assert.False(t, sql.IsRecoveryConflict(&pq.Error{Code: "57014"}))
 	assert.False(t, sql.IsRecoveryConflict(&pq.Error{Code: "42P01"}))
 	assert.False(t, sql.IsRecoveryConflict(errors.New("connection refused")))
 }
@@ -43,6 +43,16 @@ func TestRetryReadReplica(t *testing.T) {
 			return sentinel
 		})
 		require.ErrorIs(t, err, sentinel)
+		assert.Equal(t, 1, calls)
+	})
+
+	t.Run("query canceled no retry", func(t *testing.T) {
+		calls := 0
+		err := sql.RetryReadReplica(context.Background(), func() error {
+			calls++
+			return &pq.Error{Code: "57014"}
+		})
+		require.Error(t, err)
 		assert.Equal(t, 1, calls)
 	})
 }
