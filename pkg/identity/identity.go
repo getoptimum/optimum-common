@@ -31,7 +31,7 @@ func EnsureIdentity(dir string, opt ...Option) (crypto.PrivKey, error) {
 	if len(opt) > 0 && opt[0] != nil {
 		return ensureIdentity(dir, opt[0])
 	}
-	return ensureIdentity(dir, GenIdentityEd25519)
+	return ensureIdentity(dir, GenerateIdentitySecp256k1)
 }
 
 // GenerateIdentitySecp256k1 creates a new random Secp256k1 private key.
