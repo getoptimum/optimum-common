@@ -27,7 +27,7 @@ func TestPersistedIdentity(t *testing.T) {
 	})
 	t.Run("specified key type", func(t *testing.T) {
 		dir := t.TempDir()
-		_, err := identity.EnsureIdentity(dir, identity.GenerateIdentitySecp256k1)
+		_, err := identity.EnsureIdentity(dir, identity.GenIdentityEd25519)
 		require.NoError(t, err)
 
 		info, err := identity.ExtractIdentityFromDir(dir)
