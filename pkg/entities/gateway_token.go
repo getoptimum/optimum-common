@@ -40,14 +40,21 @@ type GatewayConfirmation struct {
 //     handshake token (aud=p2p). See optimum-bootstrap#262.
 //   - cnf: present on both when a peer_id was supplied at mint.
 //
+// CNF is a pointer because encoding/json's `omitempty` only considers a
+// limited "empty" set (nil pointer, empty slice/map/string, false, 0).
+// A zero-valued struct value would serialize as `"cnf":{"peer_id":""}` and
+// leak an empty-cnf field onto every handshake token — defeating the whole
+// point of the omission. Using `*GatewayConfirmation` makes "no cnf" a nil
+// pointer that omitempty handles correctly.
+//
 // The `aud` value is the embedded RegisteredClaims.Audience; compare it against
 // the TokenAudience constants rather than a bare string literal.
 type GatewayClaims struct {
-	ScopeVersion int64               `json:"scope_version"`
-	Type         GatewayType         `json:"type"`
-	ChainID      string              `json:"chain_id,omitempty"`
-	OperatorID   string              `json:"operator_id,omitempty"`
-	CNF          GatewayConfirmation `json:"cnf,omitempty"`
+	ScopeVersion int64                `json:"scope_version"`
+	Type         GatewayType          `json:"type"`
+	ChainID      string               `json:"chain_id,omitempty"`
+	OperatorID   string               `json:"operator_id,omitempty"`
+	CNF          *GatewayConfirmation `json:"cnf,omitempty"`
 	jwt.RegisteredClaims
 }
 

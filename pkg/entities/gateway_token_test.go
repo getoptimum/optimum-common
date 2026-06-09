@@ -34,15 +34,17 @@ func TestGatewayClaimsJSON(t *testing.T) {
 		Type:         entities.GatewayTypePartner,
 		ChainID:      "hoodi",
 		OperatorID:   "42",
-		CNF:          entities.GatewayConfirmation{PeerID: "12D3KooWpeer"},
+		CNF:          &entities.GatewayConfirmation{PeerID: "12D3KooWpeer"},
 	}
 	raw, err := json.Marshal(services)
 	require.NoError(t, err)
 	require.Contains(t, string(raw), `"operator_id":"42"`)
 	require.Contains(t, string(raw), `"peer_id":"12D3KooWpeer"`)
 
-	// handshake-token shape: operator_id omitted (omitempty) so it never leaks
-	// onto the peer-visible token.
+	// handshake-token shape: operator_id and cnf both omitted so neither
+	// leaks onto the peer-visible token. operator_id is via omitempty on a
+	// string; cnf is via omitempty on a nil pointer (a value-typed struct
+	// would NOT omit — see the type doc).
 	handshake := entities.GatewayClaims{
 		ScopeVersion: 1,
 		Type:         entities.GatewayTypePartner,
@@ -51,4 +53,6 @@ func TestGatewayClaimsJSON(t *testing.T) {
 	raw, err = json.Marshal(handshake)
 	require.NoError(t, err)
 	require.NotContains(t, string(raw), "operator_id")
+	require.NotContains(t, string(raw), "cnf", "cnf must be omitted on the peer-visible handshake token")
+	require.NotContains(t, string(raw), "peer_id", "peer_id must not leak on the handshake token when cnf is unset")
 }
