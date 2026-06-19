@@ -33,8 +33,8 @@ type DynamicConfig struct {
 	ClusterID      string    `db:"cluster_id" yaml:"cluster_id" json:"cluster_id"`
 	ServiceVersion string    `db:"service_version" yaml:"service_version" json:"service_version"`
 	UpdatedAt      time.Time `db:"updated_at" yaml:"-" json:"updated_at"`
-
-	EnableABTesting bool `db:"enable_ab_testing" yaml:"enable_ab_testing" json:"enable_ab_testing"`
+	// Important: db key is "enable_ab_testing" to avoid confusion with "propagation_enabled" used in AB testing context
+	PropagationDisabled bool `db:"enable_ab_testing" json:"propagation_disabled" yaml:"propagation_disabled"`
 	// ExcludeSelfMessages is a flag that indicates whether messages originating from the node itself should be ignored.
 	// used for tracking eth latency measurements
 	ExcludeSelfMessages bool `db:"exclude_self_messages" yaml:"exclude_self_messages" json:"exclude_self_messages"`
@@ -120,7 +120,7 @@ func (d *DynamicConfig) ToMap() map[string]any {
 		"chain_id":              d.ChainID,
 		"cluster_id":            d.ClusterID,
 		"service_version":       d.ServiceVersion,
-		"enable_ab_testing":     d.EnableABTesting,
+		"enable_ab_testing":     d.PropagationDisabled,
 		"exclude_self_messages": d.ExcludeSelfMessages,
 		"updated_at":            time.Now(),
 
@@ -138,7 +138,7 @@ func (d *DynamicConfig) ToMap() map[string]any {
 // HashRemoteConfig computes a SHA-256 hash of the configurable fields in DynamicConfig.
 func HashRemoteConfig(cfg *DynamicConfig) string {
 	h := sha256.New()
-	hash.WriteBool(h, cfg.EnableABTesting)
+	hash.WriteBool(h, cfg.PropagationDisabled)
 	hash.WriteInt64(h, cfg.RandomMessageSize)
 	hash.WriteInt64(h, cfg.ShardFactor)
 	hash.WriteFloat32(h, cfg.PublisherShardMultiplier)
