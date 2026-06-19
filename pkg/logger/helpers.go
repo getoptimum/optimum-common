@@ -98,6 +98,11 @@ func WithPeer(info peer.AddrInfo) Field {
 	return WithString("peer", info.ID.String())
 }
 
+// WithPeerID adds the peer ID
+func WithPeerID(info peer.ID) Field {
+	return WithString("peer", info.String())
+}
+
 // WithPeerAddrs adds comma separated multiaddrs of the given peer
 func WithPeerAddrs(info peer.AddrInfo) Field {
 	addrs := make([]string, 0, len(info.Addrs))
@@ -115,4 +120,12 @@ func WithTopic(topic string) Field {
 // WithTopicBytes adds a topic represented as byte slice
 func WithTopicBytes(topic []byte) Field {
 	return WithString("topic", string(topic))
+}
+
+func WithClusterID(clusterID string) Field {
+	return WithString("cluster_id", clusterID)
+}
+
+func WithGatewayID(gatewayID string) Field {
+	return WithString("gateway_id", gatewayID)
 }

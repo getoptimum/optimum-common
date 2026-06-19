@@ -32,7 +32,7 @@ func TestOptimumConfig(t *testing.T) {
 			ChainID:                  "default",
 			ClusterID:                "dynamic-cluster",
 			UpdatedAt:                time.Now(),
-			EnableABTesting:          true,
+			PropagationDisabled:      true,
 			RandomMessageSize:        1024,
 			ShardFactor:              8,
 			PublisherShardMultiplier: 3,

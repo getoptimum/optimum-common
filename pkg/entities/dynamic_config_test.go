@@ -69,7 +69,7 @@ func TestDynamicConfig(t *testing.T) {
 		ClusterID:                "test_cluster",
 		ServiceVersion:           "v0.0.1",
 		UpdatedAt:                time.Unix(1763640739, 0),
-		EnableABTesting:          true,
+		PropagationDisabled:      true,
 		ExcludeSelfMessages:      true,
 		RandomMessageSize:        1,
 		ShardFactor:              2,

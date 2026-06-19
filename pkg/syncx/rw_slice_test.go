@@ -38,6 +38,30 @@ func TestRWSliceErase(t *testing.T) {
 	require.Empty(t, rwSlice.LoadAll())
 }
 
+func TestRWSliceReplace(t *testing.T) {
+	t.Parallel()
+
+	rwSlice := syncx.NewRWSlice[int]()
+	rwSlice.AddBulk([]int{1, 2, 3})
+	require.Equal(t, []int{1, 2, 3}, rwSlice.LoadAll())
+
+	// Wholesale swap to a different set.
+	rwSlice.Replace([]int{42, 1337})
+	require.Equal(t, []int{42, 1337}, rwSlice.LoadAll())
+	require.Equal(t, 2, rwSlice.Len())
+
+	// Replace with empty is allowed and clears the slice.
+	rwSlice.Replace(nil)
+	require.Zero(t, rwSlice.Len())
+	require.Empty(t, rwSlice.LoadAll())
+
+	// Mutating the input slice after Replace must not affect the stored copy.
+	src := []int{7, 8, 9}
+	rwSlice.Replace(src)
+	src[0] = 99
+	require.Equal(t, []int{7, 8, 9}, rwSlice.LoadAll(), "Replace must clone its input")
+}
+
 func TestRWSliceConcurrentUsage(t *testing.T) {
 	t.Parallel()
 
