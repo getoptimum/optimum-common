@@ -28,7 +28,7 @@ func ExternalIP() (string, error) {
 }
 
 func ipAddresses() ([]stdnet.IP, error) {
-	ifaces, err := stdnet.Interfaces()
+	ifaces, err := GetInterfaces()
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func ipAddresses() ([]stdnet.IP, error) {
 		if iface.Flags&stdnet.FlagLoopback != 0 {
 			continue
 		}
-		addrs, err := iface.Addrs()
+		addrs, err := ListAddrs(iface)
 		if err != nil {
 			return nil, err
 		}
@@ -73,15 +73,12 @@ func GetOutboundIP() (string, error) {
 	return DetectIPViaCloudflareTrace(endpoints.CloudflareTraceURL, "tcp4")
 }
 
-// GetExternalIPs discovers IPv4 and IPv6 public addresses separately by
-// forcing the address family at the transport layer. Both fields may be
-// empty if the corresponding address family is unavailable. At least one
-// must succeed or an error is returned.
-func GetExternalIPs() (ipV4, ipV6 string, err error) {
-	ipTraceEndpoints := []struct {
+func probeExternalIPs() (ipV4, ipV6 string, err error) {
+	type endpoint struct {
 		traceURL string
 		detector func(traceURL, network string) (ip string, err error)
-	}{
+	}
+	eps := []endpoint{
 		{
 			traceURL: endpoints.CloudflareTraceURL,
 			detector: DetectIPViaCloudflareTrace,
@@ -95,8 +92,8 @@ func GetExternalIPs() (ipV4, ipV6 string, err error) {
 			detector: DetectIPIfConfigTrace,
 		},
 	}
-	errList := make([]error, 0, len(ipTraceEndpoints)*2)
-	for _, ep := range ipTraceEndpoints {
+	errList := make([]error, 0, len(eps)*2)
+	for _, ep := range eps {
 		if ipV4 == "" {
 			ipV4, err = ep.detector(ep.traceURL, "tcp4")
 			if err != nil {
@@ -116,7 +113,27 @@ func GetExternalIPs() (ipV4, ipV6 string, err error) {
 	if ipV4 != "" || ipV6 != "" {
 		return ipV4, ipV6, nil
 	}
-	return ipV4, ipV6, fmt.Errorf("failed to detect external IPs: %w", errors.Join(errList...))
+	return "", "", errors.Join(errList...)
+}
+
+// GetExternalIPs returns the external IPv4 and IPv6 addresses of the host machine.
+// It first attempts to probe external IPs via HTTP requests to known endpoints.
+// If that fails, it falls back to inspecting network interfaces for non-loopback addresses.
+func GetExternalIPs() (ipV4, ipV6 string, err error) {
+	ipV4, ipV6, probeErr := probeExternalIPs()
+	if ipV4 != "" || ipV6 != "" {
+		return ipV4, ipV6, nil
+	}
+	// Fallback: interface inspection. Required for hermetic environments
+	// without outbound internet (network simulators like Shadow, air-gapped
+	// hosts, test rigs). Only fires when ALL external HTTP probes failed.
+	if fallback, fbErr := ExternalIP(); fbErr == nil && fallback != "127.0.0.1" {
+		if ip := stdnet.ParseIP(fallback); ip != nil && ip.To4() != nil {
+			return fallback, "", nil
+		}
+		return "", fallback, nil
+	}
+	return "", "", fmt.Errorf("failed to detect external IPs: %w", probeErr)
 }
 
 // newIPTransport creates an http.Transport that forces connections to
