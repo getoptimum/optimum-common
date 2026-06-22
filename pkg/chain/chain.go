@@ -66,7 +66,7 @@ func ChainFromString(chainID string) (Chain, error) {
 	if canon, ok := defaultChainMapping[s]; ok {
 		return canon, nil
 	}
-	return "", errors.New("unknown chain ID: " + chainID)
+	return "", fmt.Errorf("unknown chain ID: %q", chainID)
 }
 
 func ChainFromInt(chainID uint64) (Chain, error) {

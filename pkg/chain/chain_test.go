@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNormalize(t *testing.T) {
+func TestChainFromString(t *testing.T) {
 	table := map[string]chain.Chain{
 		"1":           chain.ChainMainnet,
 		" 1 ":         chain.ChainMainnet,
@@ -20,7 +20,7 @@ func TestNormalize(t *testing.T) {
 	for k, v := range table {
 		canon, err := chain.ChainFromString(k)
 		require.NoError(t, err)
-		require.Equal(t, canon, v)
+		require.Equal(t, v, canon)
 	}
 
 	invalidCases := []string{
@@ -31,25 +31,25 @@ func TestNormalize(t *testing.T) {
 	for _, i := range invalidCases {
 		v, err := chain.ChainFromString(i)
 		require.Error(t, err)
-		require.Equal(t, v.String(), "")
+		require.Equal(t, "", v.String())
 	}
 }
 
 func TestChainFromInt(t *testing.T) {
 	canon, err := chain.ChainFromInt(1)
 	require.NoError(t, err)
-	require.Equal(t, canon, chain.ChainMainnet)
-	require.Equal(t, canon.ID(), uint64(1))
+	require.Equal(t, chain.ChainMainnet, canon)
+	require.Equal(t, uint64(1), canon.ID())
 
 	canon, err = chain.ChainFromInt(560048)
 	require.NoError(t, err)
-	require.Equal(t, canon, chain.ChainHoodi)
-	require.Equal(t, canon.ID(), uint64(560048))
+	require.Equal(t, chain.ChainHoodi, canon)
+	require.Equal(t, uint64(560048), canon.ID())
 
 	canon, err = chain.ChainFromInt(999999)
 	require.Error(t, err)
-	require.Equal(t, canon.String(), "")
-	require.Equal(t, canon.ID(), uint64(0))
+	require.Equal(t, "", canon.String())
+	require.Equal(t, uint64(0), canon.ID())
 }
 
 func TestGenesisTime(t *testing.T) {
