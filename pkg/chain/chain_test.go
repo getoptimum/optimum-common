@@ -7,48 +7,66 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNormalize(t *testing.T) {
-	require.Equal(t, "mainnet", chain.Normalize("1"))
-	require.Equal(t, "mainnet", chain.Normalize("mainnet"))
-	require.Equal(t, "mainnet", chain.Normalize("  MAINNET  "))
-	require.Equal(t, "hoodi", chain.Normalize("hoodi"))
-	require.Equal(t, "hoodi", chain.Normalize("HOODI"))
-	require.Equal(t, "hoodi", chain.Normalize("560048"))
-	require.Equal(t, "custom", chain.Normalize("custom"))
-}
-
-func TestNormalizeChainID_withCustomMappings(t *testing.T) {
-	mappings := map[string]string{
-		"1":       "mainnet",
-		"mainnet": "mainnet",
-		"custom":  "custom_chain",
+func TestChainFromString(t *testing.T) {
+	table := map[string]chain.Chain{
+		"1":           chain.ChainMainnet,
+		" 1 ":         chain.ChainMainnet,
+		"mainnet":     chain.ChainMainnet,
+		"  MAINNET  ": chain.ChainMainnet,
+		"hoodi":       chain.ChainHoodi,
+		"HOODI":       chain.ChainHoodi,
+		"560048":      chain.ChainHoodi,
 	}
-	require.Equal(t, "mainnet", chain.NormalizeChainID("1", mappings))
-	require.Equal(t, "custom_chain", chain.NormalizeChainID("custom", mappings))
-	require.Equal(t, "unknown", chain.NormalizeChainID("unknown", mappings))
+	for k, v := range table {
+		canon, err := chain.ChainFromString(k)
+		require.NoError(t, err)
+		require.Equal(t, v, canon)
+	}
+
+	invalidCases := []string{
+		"custom",
+		"",
+		"unknown",
+	}
+	for _, i := range invalidCases {
+		v, err := chain.ChainFromString(i)
+		require.Error(t, err)
+		require.Equal(t, "", v.String())
+	}
 }
 
-func TestNormalizeChainID_nilUsesDefaults(t *testing.T) {
-	require.Equal(t, "mainnet", chain.NormalizeChainID("1", nil))
+func TestChainFromInt(t *testing.T) {
+	canon, err := chain.ChainFromInt(1)
+	require.NoError(t, err)
+	require.Equal(t, chain.ChainMainnet, canon)
+	require.Equal(t, uint64(1), canon.ID())
+
+	canon, err = chain.ChainFromInt(560048)
+	require.NoError(t, err)
+	require.Equal(t, chain.ChainHoodi, canon)
+	require.Equal(t, uint64(560048), canon.ID())
+
+	canon, err = chain.ChainFromInt(999999)
+	require.Error(t, err)
+	require.Equal(t, "", canon.String())
+	require.Equal(t, uint64(0), canon.ID())
 }
 
 func TestGenesisTime(t *testing.T) {
-	ts, ok := chain.GenesisTime("mainnet")
-	require.True(t, ok)
-	require.Equal(t, uint64(1606824023), ts)
+	table := map[string]uint64{
+		"mainnet":  1606824023,
+		"1":        1606824023,
+		" MAINNET": 1606824023, //nolint:gocritic // it ok
+		"hoodi":    1742213400,
+		"HOODI":    1742213400,
+		"560048":   1742213400,
+	}
+	for k, v := range table {
+		ts, ok := chain.GenesisTime(k)
+		require.True(t, ok)
+		require.Equal(t, v, ts)
+	}
 
-	ts, ok = chain.GenesisTime("hoodi")
-	require.True(t, ok)
-	require.Equal(t, uint64(1742213400), ts)
-
-	ts, ok = chain.GenesisTime("HOODI")
-	require.True(t, ok, "should normalize input")
-	require.Equal(t, uint64(1742213400), ts)
-
-	ts, ok = chain.GenesisTime("560048")
-	require.True(t, ok, "should resolve numeric chain ID")
-	require.Equal(t, uint64(1742213400), ts)
-
-	_, ok = chain.GenesisTime("unknown")
+	_, ok := chain.GenesisTime("unknown")
 	require.False(t, ok)
 }
