@@ -56,7 +56,7 @@ func TestGenesisTime(t *testing.T) {
 	table := map[string]uint64{
 		"mainnet":  1606824023,
 		"1":        1606824023,
-		" MAINNET": 1606824023,
+		" MAINNET": 1606824023, //nolint:gocritic // it ok
 		"hoodi":    1742213400,
 		"HOODI":    1742213400,
 		"560048":   1742213400,
