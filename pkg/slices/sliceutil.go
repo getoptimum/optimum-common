@@ -27,6 +27,20 @@ func UniqueSlice[T fmt.Stringer](slice []T) []T {
 	return result
 }
 
+// UniqueComparable returns a new slice containing only unique elements from the
+// input. Uniqueness is determined by ==. Order is preserved (first occurrence kept).
+func UniqueComparable[T comparable](slice []T) []T {
+	seen := make(map[T]struct{}, len(slice))
+	result := make([]T, 0, len(slice))
+	for _, v := range slice {
+		if _, ok := seen[v]; !ok {
+			seen[v] = struct{}{}
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
 // ContainsInSlice checks if value exists in slice.
 // Returns true if found, false otherwise.
 func ContainsInSlice[T comparable](slice []T, value T) bool {

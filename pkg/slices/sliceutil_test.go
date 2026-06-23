@@ -51,6 +51,19 @@ func TestConvertSlice(t *testing.T) {
 	)
 }
 
+func TestUniqueComparable(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, []string{}, slices.UniqueComparable([]string(nil)))
+	require.Equal(t, []string{}, slices.UniqueComparable([]string{}))
+	require.Equal(t, []string{"a", "b", "c"}, slices.UniqueComparable([]string{"a", "b", "c"}))
+	require.Equal(t, []string{"a", "b", "c"}, slices.UniqueComparable([]string{"a", "b", "a", "c", "b"}))
+	require.Equal(t, []string{"a"}, slices.UniqueComparable([]string{"a", "a", "a"}))
+	require.Equal(t, []string{"", "a", "b"}, slices.UniqueComparable([]string{"", "a", "", "b", "a"}))
+	require.Equal(t, []string{"a", "A"}, slices.UniqueComparable([]string{"a", "A", "a"}))
+	require.Equal(t, []string{"c", "a", "b", "d"}, slices.UniqueComparable([]string{"c", "a", "b", "a", "c", "d"}))
+}
+
 func TestUniqueSlice(t *testing.T) {
 	t.Parallel()
 
