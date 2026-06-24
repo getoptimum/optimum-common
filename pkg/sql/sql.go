@@ -2,6 +2,7 @@ package sql
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -12,8 +13,8 @@ func GenerateInsertSQL(tableName string, fieldsValuesMapping map[string]any) (sq
 	placeholders := make([]string, 0, len(fieldsValuesMapping))
 	params = make([]any, 0, len(fieldsValuesMapping))
 	counter := 1
-	for k, v := range fieldsValuesMapping {
-		params = append(params, v)
+	for _, k := range sortedKeys(fieldsValuesMapping) {
+		params = append(params, fieldsValuesMapping[k])
 		fields = append(fields, k)
 		placeholders = append(placeholders, fmt.Sprintf("$%d", counter))
 		counter++
@@ -35,7 +36,7 @@ func GenerateUpsertSQL(tableName string, fieldsValuesMapping map[string]any, con
 	}
 
 	setClauses := make([]string, 0, len(fieldsValuesMapping))
-	for k := range fieldsValuesMapping {
+	for _, k := range sortedKeys(fieldsValuesMapping) {
 		if _, isConflict := conflictSet[k]; !isConflict {
 			setClauses = append(setClauses, fmt.Sprintf("%s = EXCLUDED.%s", k, k))
 		}
@@ -122,11 +123,17 @@ func GenerateBulkUpsertSQL(
 }
 
 func columnsFromMap(m map[string]any) []string {
-	columns := make([]string, 0, len(m))
+	return sortedKeys(m)
+}
+
+// sortedKeys returns the map keys in a stable, lexicographic order.
+func sortedKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
 	for k := range m {
-		columns = append(columns, k)
+		keys = append(keys, k)
 	}
-	return columns
+	sort.Strings(keys)
+	return keys
 }
 
 func buildBulkValues(paramPlaceholder string, columns []string, rowCount int, rowValues func(i int) []any) (placeholders []string, params []any, err error) {
