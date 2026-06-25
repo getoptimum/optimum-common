@@ -51,7 +51,17 @@ var _ AppLogger = (*SLogger)(nil)
 
 // NewAppSLogger creates a default AppLogger writing to STDERR.
 func NewAppSLogger(mode LogMode, fields ...Field) AppLogger {
-	return InitLogger([]io.Writer{os.Stderr}, mode, fields...)
+	return InitLogger([]io.Writer{os.Stderr}, validateLogMode(mode), fields...)
+}
+
+// NewAppLogger creates a default AppLogger writing to STDERR.
+func NewAppLogger(mode LogMode, fields ...Field) *SLogger {
+	al := InitLogger([]io.Writer{os.Stderr}, validateLogMode(mode), fields...)
+	if sl, ok := al.(*SLogger); ok {
+		return sl
+	}
+	al.Fatal("InitLogger did not return *SLogger", nil)
+	return nil
 }
 
 // InitLogger initializes a multi-output JSON logger with slog. At least one writer must be provided.
