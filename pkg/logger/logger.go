@@ -33,10 +33,10 @@ type Field struct {
 	a slog.Attr
 }
 
-// AppLogger defines the structured logger interface.
-//
-// Deprecated: The AppLogger interface is deprecated and will be removed in a future release.
-// Use SLogger directly instead
+// AppLogger defines the structured logger interface. SLogger is the default
+// implementation; depend on this interface to mock or swap the logger, or hold
+// *SLogger directly when you don't need to. The constructors below return
+// AppLogger, so consumers wire against the interface.
 type AppLogger interface {
 	Info(message string, fields ...Field)
 	Error(message string, err error, fields ...Field)
