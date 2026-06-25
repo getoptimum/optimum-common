@@ -71,16 +71,14 @@ func WithRunID(val string) Field {
 
 // WithModule creates a Field with key "module" and the given value.
 // Returns a pointer to the Field.
-func WithModule(val string) *Field {
-	f := WithString("module", val)
-	return &f
+func WithModule(val string) Field {
+	return WithString("module", val)
 }
 
 // WithError creates a Field with key "err" containing the error message.
 // Returns a pointer to the Field.
-func WithError(err error) *Field {
-	f := WithString("err", err.Error())
-	return &f
+func WithError(err error) Field {
+	return WithString("err", err.Error())
 }
 
 // WithFilePath creates a Field with key "file" and the given file path.

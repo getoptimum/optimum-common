@@ -95,13 +95,13 @@ func TestHelperFields(t *testing.T) {
 		},
 		{
 			name:     "WithModule",
-			field:    *logger.WithModule("module-a"),
+			field:    logger.WithModule("module-a"),
 			key:      "module",
 			expected: "module-a",
 		},
 		{
 			name:     "WithError",
-			field:    *logger.WithError(sampleErr),
+			field:    logger.WithError(sampleErr),
 			key:      "err",
 			expected: sampleErr.Error(),
 		},

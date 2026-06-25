@@ -34,9 +34,6 @@ type Field struct {
 }
 
 // AppLogger defines the structured logger interface.
-//
-// Deprecated: The AppLogger interface is deprecated and will be removed in a future release.
-// Use SLogger directly instead
 type AppLogger interface {
 	Info(message string, fields ...Field)
 	Error(message string, err error, fields ...Field)
@@ -57,17 +54,17 @@ func NewAppSLogger(mode LogMode, fields ...Field) AppLogger {
 	return InitLogger([]io.Writer{os.Stderr}, validateLogMode(mode), fields...)
 }
 
-// NewAppSLoggerFromSLog returns a new AppLogger from an existing slog.Logger.
-func NewAppSLoggerFromSLog(logger *slog.Logger) AppLogger {
-	if logger == nil {
-		panic("logger is nil")
+// NewAppLogger creates a default AppLogger writing to STDERR.
+func NewAppLogger(mode LogMode, fields ...Field) *SLogger {
+	al := InitLogger([]io.Writer{os.Stderr}, validateLogMode(mode), fields...)
+	if sl, ok := al.(*SLogger); ok {
+		return sl
 	}
-
-	return &SLogger{logger: logger}
+	al.Fatal("InitLogger did not return *SLogger", nil)
+	return nil
 }
 
-// InitLogger initializes a multi-output JSON logger with slog. At least one writer
-// must be provided.
+// InitLogger initializes a multi-output JSON logger with slog. At least one writer must be provided.
 func InitLogger(writers []io.Writer, mode LogMode, fields ...Field) AppLogger {
 	handlers := make([]slog.Handler, len(writers))
 	for i, w := range writers {

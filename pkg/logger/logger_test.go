@@ -61,8 +61,23 @@ func BenchmarkLogger(b *testing.B) {
 	}
 }
 
-func TestLoggerConcurrent(t *testing.T) {
-	l0 := logger.InitLogger([]io.Writer{writer{}}, logger.Debug)
+func TestLoggerNewAppLogger(t *testing.T) {
+	l0 := logger.NewAppLogger(logger.Debug)
+	var wg sync.WaitGroup
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				l0.With(logger.WithService(uuid.NewString())).Info("hello world")
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestLoggerNewAppSLogger(t *testing.T) {
+	l0 := logger.NewAppSLogger(logger.Debug)
 	var wg sync.WaitGroup
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
