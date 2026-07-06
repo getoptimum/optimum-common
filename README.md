@@ -3,7 +3,6 @@
 [![Tests](https://github.com/getoptimum/optimum-common/actions/workflows/test.yml/badge.svg)](https://github.com/getoptimum/optimum-common/actions/workflows/test.yml)
 [![Lint](https://github.com/getoptimum/optimum-common/actions/workflows/lint.yml/badge.svg)](https://github.com/getoptimum/optimum-common/actions/workflows/lint.yml)
 [![Security](https://github.com/getoptimum/optimum-common/actions/workflows/security-scan.yml/badge.svg)](https://github.com/getoptimum/optimum-common/actions/workflows/security-scan.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/getoptimum/optimum-common)](https://goreportcard.com/report/github.com/getoptimum/optimum-common)
 [![GoDoc](https://pkg.go.dev/badge/github.com/getoptimum/optimum-common)](https://pkg.go.dev/github.com/getoptimum/optimum-common)
 
 Shared Go SDK for [Optimum](https://getoptimum.io) services. Provides
@@ -20,27 +19,27 @@ Requires **Go 1.26.4** or later.
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| `pkg/chain` | Blockchain chain helpers for generic usage |
-| `pkg/config` | Runtime configuration with env/flag/YAML binding and hot-reload |
-| `pkg/entities` | Shared domain types for P2P and dynamic config |
-| `pkg/hash` | Hashing utilities (SHA-256, xxHash) |
-| `pkg/identity` | Node identity key management |
-| `pkg/io` | I/O utilities including rotating file writer |
-| `pkg/jwks` | JWKS key cache with disk fallback and background refresh |
-| `pkg/logger` | Structured logging interface and helpers |
-| `pkg/maps` | Generic map utilities |
-| `pkg/math` | Safe integer conversions with overflow protection |
-| `pkg/net` | Networking: external IP detection, multiaddr builder, HTTP client |
-| `pkg/pointers` | Generic pointer helpers |
-| `pkg/rand` | Cryptographic random utilities |
-| `pkg/slices` | Generic slice operations (unique, filter, chunk, flatten) |
-| `pkg/sql` | SQL query builders for bulk insert and upsert |
-| `pkg/syncx` | Concurrency: TTL map, read-write map, broadcaster, balancer |
-| `pkg/telemetry` | Geolocation service client |
-| `pkg/test_utils` | Test helpers and fixtures |
-| `pkg/version` | Build version and commit metadata |
+| Package          | Description                                                       |
+| ---------------- | ----------------------------------------------------------------- |
+| `pkg/chain`      | Blockchain chain helpers for generic usage                        |
+| `pkg/config`     | Runtime configuration with env/flag/YAML binding and hot-reload   |
+| `pkg/entities`   | Shared domain types for P2P and dynamic config                    |
+| `pkg/hash`       | Hashing utilities (SHA-256, xxHash)                               |
+| `pkg/identity`   | Node identity key management                                      |
+| `pkg/io`         | I/O utilities including rotating file writer                      |
+| `pkg/jwks`       | JWKS key cache with disk fallback and background refresh          |
+| `pkg/logger`     | Structured logging interface and helpers                          |
+| `pkg/maps`       | Generic map utilities                                             |
+| `pkg/math`       | Safe integer conversions with overflow protection                 |
+| `pkg/net`        | Networking: external IP detection, multiaddr builder, HTTP client |
+| `pkg/pointers`   | Generic pointer helpers                                           |
+| `pkg/rand`       | Cryptographic random utilities                                    |
+| `pkg/slices`     | Generic slice operations (unique, filter, chunk, flatten)         |
+| `pkg/sql`        | SQL query builders for bulk insert and upsert                     |
+| `pkg/syncx`      | Concurrency: TTL map, read-write map, broadcaster, balancer       |
+| `pkg/telemetry`  | Geolocation service client                                        |
+| `pkg/test_utils` | Test helpers and fixtures                                         |
+| `pkg/version`    | Build version and commit metadata                                 |
 
 ## Usage
 
