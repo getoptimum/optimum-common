@@ -26,7 +26,7 @@ func TestToAndFromPointer(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				var ptr *string
 				if !tt.isNil {
-					ptr = pointers.ToPointer(tt.input)
+					ptr = new(tt.input)
 				}
 				result := pointers.FromPointer(ptr)
 				require.Equal(t, tt.expected, result)
@@ -43,7 +43,7 @@ func TestToAndFromPointer(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				var ptr *int
 				if !tt.isNil {
-					ptr = pointers.ToPointer(tt.input)
+					ptr = new(tt.input)
 				}
 				result := pointers.FromPointer(ptr)
 				require.Equal(t, tt.expected, result)
@@ -60,7 +60,7 @@ func TestToAndFromPointer(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				var ptr *float64
 				if !tt.isNil {
-					ptr = pointers.ToPointer(tt.input)
+					ptr = new(tt.input)
 				}
 				result := pointers.FromPointer(ptr)
 				require.Equal(t, tt.expected, result)
@@ -78,7 +78,7 @@ func TestToAndFromPointer(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				var ptr *bool
 				if !tt.isNil {
-					ptr = pointers.ToPointer(tt.input)
+					ptr = new(tt.input)
 				}
 				result := pointers.FromPointer(ptr)
 				require.Equal(t, tt.expected, result)

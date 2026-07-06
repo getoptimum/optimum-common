@@ -68,7 +68,7 @@ func TestRWSliceConcurrentUsage(t *testing.T) {
 	rwSlice := syncx.NewRWSlice[int]()
 	var wg sync.WaitGroup
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -76,12 +76,10 @@ func TestRWSliceConcurrentUsage(t *testing.T) {
 		}(i)
 	}
 
-	for i := 0; i < 50; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 50 {
+		wg.Go(func() {
 			_ = rwSlice.LoadAll()
-		}()
+		})
 	}
 
 	wg.Wait()

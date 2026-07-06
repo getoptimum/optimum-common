@@ -7,14 +7,14 @@ import (
 )
 
 // OptimumConfig holds configuration for P2P network settings including
-// cluster/chain identifiers, message size limits, RLNC sharding parameters,
+// cluster/chain identifiers, message size limits, sharding parameters,
 // mesh topology settings, and bootstrap peer addresses.
 type OptimumConfig struct {
 	ClusterID      string `yaml:"cluster_id" env:"CLUSTER_ID" flag:"cluster_id"`
 	ChainID        string `yaml:"chain_id" env:"CHAIN_ID" flag:"chain_id" default:"default"`
 	MaxMessageSize int64  `yaml:"max_message_size_bytes" env:"OPTIMUM_MAX_MSG_SIZE" flag:"max_message_size_bytes" default:"1048576"`
 
-	// RLNC and message settings
+	// Coding and message settings
 	RandomMessageSize        int64   `yaml:"random_message_size_bytes" env:"OPTIMUM_RANDOM_MSG_SIZE" flag:"random_message_size_bytes" default:"512"`
 	ShardFactor              int64   `yaml:"rlnc_shard_factor" env:"OPTIMUM_SHARD_FACTOR" flag:"rlnc_shard_factor" default:"4"`
 	PublisherShardMultiplier float32 `yaml:"publisher_shard_multiplier" env:"OPTIMUM_SHARD_MULT" flag:"publisher_shard_multiplier" default:"1.5"`

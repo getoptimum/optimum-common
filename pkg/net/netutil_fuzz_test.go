@@ -42,10 +42,10 @@ func FuzzSortAddresses(f *testing.F) {
 		v6 := int(ipv6Count % 20)
 
 		ips := make([]stdnet.IP, 0, v4+v6)
-		for i := 0; i < v4; i++ {
+		for i := range v4 {
 			ips = append(ips, stdnet.IPv4(byte(i), byte(i), byte(i), byte(i)))
 		}
-		for i := 0; i < v6; i++ {
+		for range v6 {
 			ips = append(ips, stdnet.ParseIP("2001:db8::1"))
 		}
 

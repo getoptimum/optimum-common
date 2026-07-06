@@ -1,5 +1,7 @@
 package syncx
 
+import "maps"
+
 import "sync"
 
 // RWMap provides a thread-safe map implementation using read-write locks
@@ -47,9 +49,7 @@ func (rm *RWMap[K, V]) LoadAll() map[K]V {
 	defer rm.mu.RUnlock()
 
 	out := make(map[K]V, len(rm.internal))
-	for k, v := range rm.internal {
-		out[k] = v
-	}
+	maps.Copy(out, rm.internal)
 	return out
 }
 
@@ -59,9 +59,7 @@ func (rm *RWMap[K, V]) LoadAllAndErase() map[K]V {
 	defer rm.mu.Unlock()
 
 	out := make(map[K]V, len(rm.internal))
-	for k, v := range rm.internal {
-		out[k] = v
-	}
+	maps.Copy(out, rm.internal)
 	rm.internal = make(map[K]V)
 	return out
 }

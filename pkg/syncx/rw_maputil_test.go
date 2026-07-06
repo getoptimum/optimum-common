@@ -29,7 +29,7 @@ func TestRWMapBasicOperations(t *testing.T) {
 			var mu sync.Mutex
 			var errs []error
 
-			for i := 0; i < 100; i++ {
+			for i := range 100 {
 				id := uuid.NewString() // generate and capture safely outside goroutine
 				data[i] = id
 				wg.Add(1)
@@ -109,7 +109,7 @@ func TestRWMapConcurrentReplace(t *testing.T) {
 
 	rwMap := syncx.NewRWMap[int, string]()
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -178,7 +178,7 @@ func TestRWMapConcurrent(t *testing.T) {
 		},
 	}
 
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		for _, f := range funcsList {
 			wg.Add(1)
 			go func(i int, f func(i, j int)) {
@@ -199,12 +199,12 @@ func Test_RWMap_DoAndApply_Concurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	start := make(chan struct{})
 
-	for i := 0; i < keys; i++ {
+	for i := range keys {
 		m.Store(fmt.Sprintf("key-%d", i), 0)
 	}
 
 	wg.Add(goroutines)
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(i int) {
 			defer wg.Done()
 			<-start
@@ -218,7 +218,7 @@ func Test_RWMap_DoAndApply_Concurrent(t *testing.T) {
 
 	// Validate results
 	total := 0
-	for i := 0; i < keys; i++ {
+	for i := range keys {
 		val, ok := m.Load(fmt.Sprintf("key-%d", i))
 		require.True(t, ok)
 		total += val
@@ -231,7 +231,7 @@ func Test_RWMap_LoadAll_ConcurrentWithWrites(t *testing.T) {
 	var wg sync.WaitGroup
 	const ops = 100
 
-	for i := 0; i < ops; i++ {
+	for i := range ops {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -239,12 +239,10 @@ func Test_RWMap_LoadAll_ConcurrentWithWrites(t *testing.T) {
 		}(i)
 	}
 
-	for i := 0; i < ops; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range ops {
+		wg.Go(func() {
 			_ = m.LoadAll() // should not panic even while writes happen
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -253,12 +251,12 @@ func Test_RWMap_LoadAll_ConcurrentWithWrites(t *testing.T) {
 
 func Test_RWMap_DeleteAll_ConcurrentSafety(t *testing.T) {
 	m := syncx.NewRWMap[int, string]()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		m.Store(i, uuid.NewString())
 	}
 
 	wg := sync.WaitGroup{}
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()

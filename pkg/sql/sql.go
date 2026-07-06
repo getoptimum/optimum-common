@@ -66,7 +66,7 @@ func GenerateBulkInsertSQL[T any](
 	placeholders := make([]string, 0, rowCount)
 	params = make([]any, 0, rowCount*colCount)
 	counter := 1
-	for i := 0; i < rowCount; i++ {
+	for i := range rowCount {
 		m := entityProcessor(entityList[i])
 		ph := make([]string, colCount)
 		for j, col := range columns {
@@ -141,7 +141,7 @@ func buildBulkValues(paramPlaceholder string, columns []string, rowCount int, ro
 	placeholders = make([]string, 0, rowCount)
 	params = make([]any, 0, rowCount*colCount)
 	counter := 1
-	for i := 0; i < rowCount; i++ {
+	for i := range rowCount {
 		row := rowValues(i)
 		if len(row) < colCount {
 			return nil, nil, fmt.Errorf("pkg/sql: row %d: need %d values, got %d", i, colCount, len(row))

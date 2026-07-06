@@ -20,7 +20,6 @@ permissions:
 
 env:
   go-version: "1.26.4"
-  GOPRIVATE: "github.com/getoptimum"
 
 jobs:
   secrets-scan:
@@ -46,15 +45,6 @@ jobs:
         with:
           go-version: ${{ env.go-version }}
           cache: true
-      - name: Generate token from GitHub App
-        id: generate-token
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
-        with:
-          app-id: ${{ secrets.GH_APP_ID }}
-          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
-          owner: getoptimum
-      - name: Configure git for private modules
-        run: git config --global url."https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
       - name: Download Go dependencies
         run: go mod download
       - name: Install gosec

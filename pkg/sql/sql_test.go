@@ -135,7 +135,7 @@ func TestGenerateInsertSQL_DeterministicColumnOrder(t *testing.T) {
 	m := map[string]any{"zulu": 1, "alpha": 2, "mike": 3}
 	wantSQL := "INSERT INTO items (alpha, mike, zulu) VALUES ($1, $2, $3)"
 	wantParams := []any{2, 3, 1} // values in the same sorted order as the columns
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		q, params := sql.GenerateInsertSQL("items", m)
 		require.Equal(t, wantSQL, q)
 		require.Equal(t, wantParams, params)
@@ -148,7 +148,7 @@ func TestGenerateUpsertSQL_DeterministicSetOrder(t *testing.T) {
 	m := map[string]any{"id": 1, "zulu": "z", "alpha": "a", "mike": "m"}
 	want := "INSERT INTO items (alpha, id, mike, zulu) VALUES ($1, $2, $3, $4) " +
 		"ON CONFLICT (id) DO UPDATE SET alpha = EXCLUDED.alpha, mike = EXCLUDED.mike, zulu = EXCLUDED.zulu"
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		q, _ := sql.GenerateUpsertSQL("items", m, []string{"id"})
 		require.Equal(t, want, q)
 	}

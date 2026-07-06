@@ -35,7 +35,7 @@ func TestNewRotatingFileWriter(t *testing.T) {
 		writer, err := NewRotatingFileWriter(filePath, 0)
 		require.NoError(t, err)
 		require.NotNil(t, writer)
-		defer writer.Close()
+		defer writer.Close() //nolint:errcheck
 
 		require.Equal(t, int64(DefaultMaxFileSize), writer.maxSize)
 	})
@@ -48,7 +48,7 @@ func TestNewRotatingFileWriter(t *testing.T) {
 		writer, err := NewRotatingFileWriter(filePath, -1)
 		require.NoError(t, err)
 		require.NotNil(t, writer)
-		defer writer.Close()
+		defer writer.Close() //nolint:errcheck
 
 		require.Equal(t, int64(DefaultMaxFileSize), writer.maxSize)
 	})
@@ -81,7 +81,7 @@ func TestRotatingFileWriter_Write(t *testing.T) {
 
 		writer, err := NewRotatingFileWriter(filePath, DefaultMaxFileSize)
 		require.NoError(t, err)
-		defer writer.Close()
+		defer writer.Close() //nolint:errcheck
 
 		data := []byte("test message")
 		n, err := writer.Write(data)
@@ -105,7 +105,7 @@ func TestRotatingFileWriter_Write(t *testing.T) {
 
 		writer, err := NewRotatingFileWriter(filePath, DefaultMaxFileSize)
 		require.NoError(t, err)
-		defer writer.Close()
+		defer writer.Close() //nolint:errcheck
 
 		data := []byte("appended")
 		n, err := writer.Write(data)
@@ -127,7 +127,7 @@ func TestRotatingFileWriter_Write(t *testing.T) {
 		maxSize := int64(1024)
 		writer, err := NewRotatingFileWriter(filePath, maxSize)
 		require.NoError(t, err)
-		defer writer.Close()
+		defer writer.Close() //nolint:errcheck
 
 		// Write data that exceeds max size
 		largeData := make([]byte, maxSize+100)
@@ -159,10 +159,10 @@ func TestRotatingFileWriter_Write(t *testing.T) {
 		maxSize := int64(100)
 		writer, err := NewRotatingFileWriter(filePath, maxSize)
 		require.NoError(t, err)
-		defer writer.Close()
+		defer writer.Close() //nolint:errcheck
 
 		// Write multiple times to trigger rotations
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			data := make([]byte, maxSize+10)
 			for j := range data {
 				data[j] = byte('a' + i)

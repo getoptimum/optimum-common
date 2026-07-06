@@ -128,13 +128,13 @@ func collectFields(v reflect.Value, path []string, envPrefix string) []fieldInfo
 		}
 		name := f.Name
 		newPath := append(append([]string(nil), path...), name)
-		if fv.Kind() == reflect.Struct && f.Type != reflect.TypeOf(time.Time{}) {
+		if fv.Kind() == reflect.Struct && f.Type != reflect.TypeFor[time.Time]() {
 			out = append(out, collectFields(fv, newPath, envPrefix)...)
 			continue
 		}
 		envName := f.Tag.Get("env")
 		if envName == "" {
-			var parts []string
+			parts := make([]string, 0, len(newPath))
 			for _, p := range newPath {
 				parts = append(parts, strings.ToUpper(p))
 			}
@@ -145,7 +145,7 @@ func collectFields(v reflect.Value, path []string, envPrefix string) []fieldInfo
 		}
 		flagName := f.Tag.Get("flag")
 		if flagName == "" {
-			var parts []string
+			parts := make([]string, 0, len(newPath))
 			for _, p := range newPath {
 				parts = append(parts, strings.ToLower(p))
 			}
@@ -184,7 +184,7 @@ func setValue(v reflect.Value, s string) error {
 		}
 		v.SetBool(b)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if v.Type() == reflect.TypeOf(time.Duration(0)) {
+		if v.Type() == reflect.TypeFor[time.Duration]() {
 			d, err := time.ParseDuration(s)
 			if err != nil {
 				return err

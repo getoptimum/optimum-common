@@ -14,7 +14,7 @@ func TestRandInt64_UniquenessAndSign(t *testing.T) {
 	const N = 100_000
 
 	seen := make(map[int64]struct{}, N)
-	for i := 0; i < N; i++ {
+	for i := range N {
 		v, err := randutil.RandInt64()
 		require.NoError(t, err)
 
@@ -30,7 +30,7 @@ func TestRandInt64_UniquenessAndSign(t *testing.T) {
 func TestRandInt_NonNegative(t *testing.T) {
 	t.Parallel()
 
-	for i := 0; i < 100_000; i++ {
+	for range 100_000 {
 		v, err := randutil.RandInt()
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, v, 0)
@@ -58,7 +58,7 @@ func TestRandBetween_BoundsAndCoverage(t *testing.T) {
 	)
 	buckets := make([]int, span)
 
-	for i := 0; i < N; i++ {
+	for range N {
 		v, err := randutil.RandBetween(minVal, maxVal)
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, v, minVal)
