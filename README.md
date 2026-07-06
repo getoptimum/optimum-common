@@ -3,6 +3,7 @@
 [![Tests](https://github.com/getoptimum/optimum-common/actions/workflows/test.yml/badge.svg)](https://github.com/getoptimum/optimum-common/actions/workflows/test.yml)
 [![Lint](https://github.com/getoptimum/optimum-common/actions/workflows/lint.yml/badge.svg)](https://github.com/getoptimum/optimum-common/actions/workflows/lint.yml)
 [![Security](https://github.com/getoptimum/optimum-common/actions/workflows/security-scan.yml/badge.svg)](https://github.com/getoptimum/optimum-common/actions/workflows/security-scan.yml)
+[![Coverage](https://img.shields.io/badge/coverage-81%25-brightgreen)](https://github.com/getoptimum/optimum-common)
 [![GoDoc](https://pkg.go.dev/badge/github.com/getoptimum/optimum-common)](https://pkg.go.dev/github.com/getoptimum/optimum-common)
 
 Shared Go SDK for Optimum services. Provides
