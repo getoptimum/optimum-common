@@ -5,7 +5,7 @@
 [![Security](https://github.com/getoptimum/optimum-common/actions/workflows/security-scan.yml/badge.svg)](https://github.com/getoptimum/optimum-common/actions/workflows/security-scan.yml)
 [![GoDoc](https://pkg.go.dev/badge/github.com/getoptimum/optimum-common)](https://pkg.go.dev/github.com/getoptimum/optimum-common)
 
-Shared Go SDK for [Optimum](https://getoptimum.io) services. Provides
+Shared Go SDK for Optimum services. Provides
 configuration, networking, logging, concurrency primitives, and other
 foundational utilities used across the Optimum ecosystem.
 
@@ -47,11 +47,11 @@ Requires **Go 1.26.4** or later.
 import (
     "github.com/getoptimum/optimum-common/pkg/config"
     "github.com/getoptimum/optimum-common/pkg/logger"
-    commonNet "github.com/getoptimum/optimum-common/pkg/net"
+    commonnet "github.com/getoptimum/optimum-common/pkg/net"
 )
 
 // Detect public IP (falls back to interface inspection in hermetic environments)
-ipv4, ipv6, err := commonNet.GetExternalIPs()
+ipv4, ipv6, err := commonnet.GetExternalIPs()
 
 // Safe integer conversion
 import "github.com/getoptimum/optimum-common/pkg/math"
