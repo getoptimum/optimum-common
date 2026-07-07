@@ -5,7 +5,7 @@
 If you discover a security vulnerability in optimum-common, please report it
 responsibly. **Do not open a public GitHub issue.**
 
-Send an email to **<security@getoptimum.io>** with:
+Send an email to **<security@getoptimum.xyz>** with:
 
 - A description of the vulnerability.
 - Steps to reproduce the issue, or a proof-of-concept if possible.
