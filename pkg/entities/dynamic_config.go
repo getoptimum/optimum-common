@@ -39,7 +39,7 @@ type DynamicConfig struct {
 	// used for tracking eth latency measurements
 	ExcludeSelfMessages bool `db:"exclude_self_messages" yaml:"exclude_self_messages" json:"exclude_self_messages"`
 
-	// RLNC and message settings
+	// Coding and message settings
 	RandomMessageSize        int64   `db:"random_message_size_bytes" yaml:"random_message_size" json:"random_message_size_bytes"`
 	ShardFactor              int64   `db:"rlnc_shard_factor" yaml:"shard_factor" json:"rlnc_shard_factor"`
 	PublisherShardMultiplier float32 `db:"publisher_shard_multiplier" yaml:"publisher_shard_multiplier" json:"publisher_shard_multiplier"`

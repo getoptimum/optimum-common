@@ -1,4 +1,4 @@
-COVERAGE_THRESHOLD := 60
+COVERAGE_THRESHOLD := 80
 FUZZ_TIME ?= 30s
 SHELL := /bin/bash
 
@@ -25,8 +25,7 @@ test: ## Run all tests with race detector and coverage
 	@echo "Running tests..."
 	go test -timeout 10m -v ./... -count=1 -race -covermode=atomic -cover -coverprofile=cover.out
 	@echo "Remove not critical packages for coverage threshold..."
-	sed -i '/test_utils\//d' cover.out
-	sed -i '/rlnc\//d' cover.out
+	@grep -v 'test_utils/' cover.out > cover.out.tmp && mv cover.out.tmp cover.out
 	@echo "Calculating total coverage..."
 	@COVERAGE_TOTAL=$$(go tool cover -func=cover.out | awk '/^total:/ {gsub("%", "", $$3); print $$3}'); \
 	rm cover.out; \
