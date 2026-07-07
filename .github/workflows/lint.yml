@@ -23,7 +23,7 @@ env:
 
 jobs:
   golangci:
-    uses: getoptimum/.github/.github/workflows/go-lint.yml@853bcbb3153e9e52547c3c31f3aef6e65cdb67e3 # getoptimum/.github#6
+    uses: getoptimum/.github/.github/workflows/go-lint.yml@398f1436255c41d176b673c771dce8d52e657ca5 # getoptimum/.github#7
     secrets:
       GH_APP_ID: ${{ secrets.GH_APP_ID }}
       GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
