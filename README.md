@@ -64,7 +64,7 @@ val, err := math.SafeIntToUint32(someInt)
 The project uses a Makefile for common tasks:
 
 ```bash
-make test       # Run unit tests with coverage (60% threshold)
+make test       # Run unit tests with coverage (81% threshold)
 make lint       # Run golangci-lint
 make fuzz       # Run fuzz tests
 make vulcheck   # Run govulncheck
