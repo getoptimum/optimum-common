@@ -81,25 +81,21 @@ func TestConfigRotatorConcurrentlyTest(t *testing.T) {
 
 	// then
 	var wg sync.WaitGroup
-	for i := 0; i < 1000; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 10000; j++ {
+	for range 1000 {
+		wg.Go(func() {
+			for j := range 10000 {
 				cfgRotator.RenewConfig(&entities.DynamicConfig{
 					MeshDegreeMin: int64(4 + j%10),
 				})
 			}
-		}()
+		})
 	}
-	for i := 0; i < 1000; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 10000; j++ {
+	for range 1000 {
+		wg.Go(func() {
+			for range 10000 {
 				_ = cfgRotator.Get().MeshDegreeMin
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

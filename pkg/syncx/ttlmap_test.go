@@ -36,7 +36,7 @@ func TestTTLMap(t *testing.T) {
 		m := syncx.NewTTLMap[string, int](maxTTL, cleanup)
 		var wg sync.WaitGroup
 
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
@@ -44,7 +44,7 @@ func TestTTLMap(t *testing.T) {
 			}(i)
 		}
 
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
@@ -177,7 +177,7 @@ func TestBackgroundCleanup_RemovesExpired_WithoutAccess(t *testing.T) {
 	defer m.Close()
 
 	// put multiple keys
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		m.Put("k"+strconv.Itoa(i), i)
 	}
 	require.Equal(t, 10, m.Len())

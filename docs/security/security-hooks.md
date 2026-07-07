@@ -36,6 +36,7 @@ This automatically installs hooks in every repository you clone or initialize.
 ### Repository Configuration
 
 The repository already includes:
+
 - `.pre-commit-config.yaml` - Defines which security checks to run
 - `.gitleaks.toml` - Configures secret detection rules and allowlists
 
@@ -52,7 +53,7 @@ git commit -m "Update configuration"
 
 If secrets are detected, the commit is blocked:
 
-```
+```text
 Detect secrets with Gitleaks.............................................Failed
 Finding:     AWS_SECRET_KEY="AKIAIOSFODNN7EXAMPLE"
 File:        config.go
@@ -68,6 +69,7 @@ git commit --no-verify -m "Emergency commit"
 ```
 
 **Never bypass when:**
+
 - Committing to main/master branch
 - Creating pull requests
 - Working with production code
@@ -135,12 +137,14 @@ pre-commit run gitleaks --all-files
 ## Best Practices
 
 **Do:**
+
 - Always investigate hook failures
 - Update hooks monthly: `pre-commit autoupdate`
 - Add false positives to allowlist rather than bypassing
 - Test hooks work after setup
 
 **Don't:**
+
 - Use `--no-verify` routinely
 - Ignore hook failures
 - Commit secrets even if caught by hooks
@@ -154,9 +158,9 @@ pre-commit run gitleaks --all-files
 
 ## Resources
 
-- Pre-commit: https://pre-commit.com/
-- Gitleaks: https://github.com/gitleaks/gitleaks
-- Git Hooks: https://git-scm.com/docs/githooks
+- Pre-commit: <https://pre-commit.com/>
+- Gitleaks: <https://github.com/gitleaks/gitleaks>
+- Git Hooks: <https://git-scm.com/docs/githooks>
 
 ---
 

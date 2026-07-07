@@ -65,10 +65,10 @@ func TestLoggerNewAppLogger(t *testing.T) {
 	l0 := logger.NewAppLogger(logger.Debug)
 	var wg sync.WaitGroup
 	wg.Add(100)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		go func() {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				l0.With(logger.WithService(uuid.NewString())).Info("hello world")
 			}
 		}()
@@ -80,10 +80,10 @@ func TestLoggerNewAppSLogger(t *testing.T) {
 	l0 := logger.NewAppSLogger(logger.Debug)
 	var wg sync.WaitGroup
 	wg.Add(100)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		go func() {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				l0.With(logger.WithService(uuid.NewString())).Info("hello world")
 			}
 		}()
@@ -214,7 +214,7 @@ func Test_DefaultLogger(t *testing.T) {
 
 	// when, then
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
@@ -259,26 +259,22 @@ func Test_SLogger_multiply_writers(t *testing.T) {
 
 func concurrentlyLogIt(appLog logger.AppLogger) {
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 10; j++ {
+	for range 10 {
+		wg.Go(func() {
+			for range 10 {
 				appLog.Info("message")
 				appLog.Error("message", fmt.Errorf("error"))
 				appLog.Error("message", fmt.Errorf("error"), logger.WithString("key", uuid.NewString()))
 			}
-		}()
+		})
 	}
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			customLogger1 := appLog.With(logger.WithString("keyA", uuid.NewString()))
 			customLogger1.Info("customLogger message")
 			customLogger1.Error("customLogger message", fmt.Errorf("customLogger error"))
 			customLogger1.Error("customLogger message", fmt.Errorf("customLogger error"), logger.WithString("keyB", uuid.NewString()))
-		}()
+		})
 	}
 	wg.Wait()
 }

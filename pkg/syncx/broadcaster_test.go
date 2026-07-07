@@ -84,7 +84,7 @@ func TestBroadcasterBroadcast(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start1
-			for i := 0; i < len(messages); i++ {
+			for range messages {
 				got1 = append(got1, <-chBr1)
 			}
 		}()
@@ -92,7 +92,7 @@ func TestBroadcasterBroadcast(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start2
-			for i := 0; i < len(messages); i++ {
+			for range messages {
 				got2 = append(got2, <-chBr2)
 			}
 		}()

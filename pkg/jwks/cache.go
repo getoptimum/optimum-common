@@ -24,7 +24,7 @@ type Config struct {
 
 // Cache owns the live keyfunc and atomically swaps it on each successful refresh.
 type Cache struct {
-	log     logger.AppLogger //nolint:staticcheck
+	log     logger.AppLogger
 	url     string
 	path    string
 	ttl     time.Duration
@@ -32,7 +32,7 @@ type Cache struct {
 }
 
 // New loads the cache (wire-first, disk-fallback) and starts the refresh loop.
-func New(ctx context.Context, log logger.AppLogger, cfg Config) (*Cache, error) { //nolint:staticcheck
+func New(ctx context.Context, log logger.AppLogger, cfg Config) (*Cache, error) {
 	if log == nil {
 		return nil, errors.New("jwks: log is required")
 	}

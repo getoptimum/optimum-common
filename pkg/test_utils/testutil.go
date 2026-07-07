@@ -116,14 +116,12 @@ func NewTestLogger[T any](t testing.TB, factory func([]io.Writer) T) T {
 // Useful for stress-testing concurrent access (e.g. RWMap, TTLMap).
 func RunConcurrently(nGoroutines, nOps int, fn func()) {
 	var wg sync.WaitGroup
-	for i := 0; i < nGoroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < nOps; j++ {
+	for range nGoroutines {
+		wg.Go(func() {
+			for range nOps {
 				fn()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

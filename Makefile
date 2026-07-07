@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 COVERAGE_THRESHOLD := 80
+=======
+COVERAGE_THRESHOLD := 81
+>>>>>>> b2ed4d5f60598c9450eae2e810b79a981c83ed8e
 FUZZ_TIME ?= 30s
 SHELL := /bin/bash
 

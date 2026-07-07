@@ -10,7 +10,7 @@ import (
 )
 
 func MustBuildAdvertisedAddresses(
-	log logger.AppLogger, //nolint:staticcheck // will drop interface later
+	log logger.AppLogger,
 	publicIPV4,
 	publicIPV6 string,
 	listenPort int,
@@ -27,7 +27,7 @@ func MustBuildAdvertisedAddresses(
 }
 
 func BuildAdvertisedAddresses(
-	log logger.AppLogger, //nolint:staticcheck // will drop interface later
+	log logger.AppLogger,
 	publicIPV4,
 	publicIPV6 string,
 	listenPort int,

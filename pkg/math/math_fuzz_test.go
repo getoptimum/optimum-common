@@ -21,14 +21,14 @@ func FuzzMathConversions(f *testing.F) {
 		val32, err32 := mathutil.SafeIntToUint32(int(i))
 		if err32 == nil {
 			require.False(t, int(i) < 0 || int(i) > math.MaxUint32, "SafeIntToUint32 should have failed for %d", i)
-			require.Equal(t, uint32(i), val32, "SafeIntToUint32 returned wrong value")
+			require.Equal(t, uint32(i), val32, "SafeIntToUint32 returned wrong value") //nolint:gosec // safe: conversion guarded by SafeIntToUint32 success
 		}
 
 		// Test SafeUint64ToInt64
 		val64, err64 := mathutil.SafeUint64ToInt64(u)
 		if err64 == nil {
 			require.False(t, u > math.MaxInt64, "SafeUint64ToInt64 should have failed for %d", u)
-			require.Equal(t, int64(u), val64, "SafeUint64ToInt64 returned wrong value")
+			require.Equal(t, int64(u), val64, "SafeUint64ToInt64 returned wrong value") //nolint:gosec // safe: conversion guarded by SafeUint64ToInt64 success
 		}
 	})
 }

@@ -13,7 +13,7 @@ func TestRoundRobinBalancer(t *testing.T) {
 		ints := []int{1, 2, 3}
 		balancer := syncx.NewRoundRobinBalancer(ints)
 
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			expected := ints[i%len(ints)]
 			require.Equal(t, expected, balancer.Next())
 		}
@@ -25,7 +25,7 @@ func TestRoundRobinBalancer(t *testing.T) {
 		strs := []string{"a", "b", "c"}
 		balancerStrings := syncx.NewRoundRobinBalancer(strs)
 
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			expected := strs[i%len(strs)]
 			require.Equal(t, expected, balancerStrings.Next())
 		}
@@ -44,11 +44,11 @@ func TestRoundRobinBalancer(t *testing.T) {
 		balancer := syncx.NewRoundRobinBalancer(ints)
 		results := make([]int, numGoroutines*numIterations)
 
-		for i := 0; i < numGoroutines; i++ {
+		for i := range numGoroutines {
 			wg.Add(1)
 			go func(startIdx int) {
 				defer wg.Done()
-				for j := 0; j < numIterations; j++ {
+				for j := range numIterations {
 					result := balancer.Next()
 					mu.Lock()
 					results[startIdx*numIterations+j] = result

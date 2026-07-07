@@ -64,9 +64,7 @@ func NewTTLMapWithContext[K comparable, V any](ctx context.Context, maxTTL, clea
 	}
 
 	ticker := time.NewTicker(cleanupInterval)
-	m.wg.Add(1)
-	go func() {
-		defer m.wg.Done()
+	m.wg.Go(func() {
 		defer ticker.Stop()
 		for {
 			select {
@@ -88,7 +86,7 @@ func NewTTLMapWithContext[K comparable, V any](ctx context.Context, maxTTL, clea
 				return
 			}
 		}
-	}()
+	})
 	return m
 }
 

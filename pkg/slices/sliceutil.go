@@ -1,5 +1,7 @@
 package slices
 
+import "slices"
+
 import "fmt"
 
 // MapSlice applies a converter function to each element of src and returns a new slice.
@@ -44,12 +46,7 @@ func UniqueComparable[T comparable](slice []T) []T {
 // ContainsInSlice checks if value exists in slice.
 // Returns true if found, false otherwise.
 func ContainsInSlice[T comparable](slice []T, value T) bool {
-	for i := range slice {
-		if slice[i] == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, value)
 }
 
 // ExcludeFromSlice returns a new slice with all values from excludeValues removed from slice
@@ -69,10 +66,7 @@ func ExcludeFromSlice[T comparable](slice, excludeValues []T) []T {
 func ChunkSlice[T any](slice []T, chunkSize int) [][]T {
 	chunks := make([][]T, 0, (len(slice)+chunkSize-1)/chunkSize)
 	for i := 0; i < len(slice); i += chunkSize {
-		end := i + chunkSize
-		if end > len(slice) {
-			end = len(slice)
-		}
+		end := min(i+chunkSize, len(slice))
 		chunks = append(chunks, slice[i:end])
 	}
 	return chunks
