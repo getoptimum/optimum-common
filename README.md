@@ -86,3 +86,9 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 ## Code of Conduct
 
 This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
+
+## License
+
+Licensed under the **BSD 3-Clause License**; see [`LICENSE`](./LICENSE). BSD-3-Clause
+is permissive and GPL-compatible, so this shared library links into both copyleft
+and proprietary Optimum products without imposing copyleft on them.
