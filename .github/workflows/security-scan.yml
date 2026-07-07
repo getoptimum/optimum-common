@@ -31,7 +31,7 @@ jobs:
         with:
           fetch-depth: 0  # Full history needed for TruffleHog
       - name: Run TruffleHog
-        uses: trufflesecurity/trufflehog@ef6e76c3c4023279497fab4721ffa071a722fd05
+        uses: trufflesecurity/trufflehog@00155c9dc586f34d189adc83d3ac2698c2ec551f
         with:
           extra_args: --only-verified
 
