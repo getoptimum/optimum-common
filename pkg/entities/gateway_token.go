@@ -2,17 +2,9 @@ package entities
 
 import "github.com/golang-jwt/jwt/v5"
 
-// TokenAudience is the `aud` claim on a gateway JWT. optimum-auth mints two
-// tokens with the same signing key and issuer but different audiences so each
-// recipient can require the one intended for it (RFC 7519 §4.1.3):
-//   - TokenAudienceP2P: the peer-visible handshake token, presented at the
-//     libp2p stream handshake. Minimal claims only (privacy boundary).
-//   - TokenAudienceServices: the services token, which carries operator_id and
-//     authenticates to centralized services (bootstrap ingest, the Mimir/Loki
-//     push proxy). Never presented to peers.
-//
-// Defining the values here lets the gateway, bootstrap, and billing verifiers
-// compare against one source instead of re-declaring the strings.
+// TokenAudience is a gateway-JWT `aud` value. optimum-auth mints a P2P and a
+// services token from one key/issuer, differing only by audience, so each
+// verifier can require the one meant for it.
 type TokenAudience string
 
 const (
@@ -24,43 +16,29 @@ func (a TokenAudience) String() string {
 	return string(a)
 }
 
-// GatewayConfirmation is the RFC 7800 `cnf` claim, populated with the gateway's
-// libp2p peer_id at mint. Verifiers compare cnf.peer_id to the authenticated
-// libp2p remote peer to bind the JWT to one node and block bearer-token replay.
+// GatewayConfirmation is the RFC 7800 `cnf` claim binding the JWT to the
+// gateway's libp2p peer_id, so a replayed bearer token can be rejected.
 type GatewayConfirmation struct {
 	PeerID string `json:"peer_id"`
 }
 
-// GatewayClaims is the claim set on a gateway JWT minted by optimum-auth. It is
-// the superset across the two audiences; a given token carries the subset that
-// applies to it:
-//   - scope_version / type / chain_id: present on both tokens.
-//   - operator_id: present ONLY on the services token (aud=services). It
-//     identifies the operator and MUST never appear on the peer-visible
-//     handshake token (aud=p2p). See optimum-bootstrap#262.
-//   - cnf: present on both when a peer_id was supplied at mint.
-//
-// CNF is a pointer because encoding/json's `omitempty` only considers a
-// limited "empty" set (nil pointer, empty slice/map/string, false, 0).
-// A zero-valued struct value would serialize as `"cnf":{"peer_id":""}` and
-// leak an empty-cnf field onto every handshake token — defeating the whole
-// point of the omission. Using `*GatewayConfirmation` makes "no cnf" a nil
-// pointer that omitempty handles correctly.
-//
-// The `aud` value is the embedded RegisteredClaims.Audience; compare it against
-// the TokenAudience constants rather than a bare string literal.
+// GatewayClaims is the superset of gateway-JWT claims across both audiences;
+// each token carries only the subset that applies to it.
 type GatewayClaims struct {
-	ScopeVersion int64                `json:"scope_version"`
-	Type         GatewayType          `json:"type"`
-	ChainID      string               `json:"chain_id,omitempty"`
-	OperatorID   string               `json:"operator_id,omitempty"`
-	CNF          *GatewayConfirmation `json:"cnf,omitempty"`
+	ScopeVersion int64       `json:"scope_version"`
+	Type         GatewayType `json:"type"`
+	ChainID      string      `json:"chain_id,omitempty"`
+	// Set only on the services token; must never leak onto the peer-visible
+	// p2p handshake token (optimum-bootstrap#262).
+	OperatorID string `json:"operator_id,omitempty"`
+	// Pointer so omitempty drops it entirely; a value struct would still emit
+	// "cnf":{"peer_id":""} on cnf-less handshake tokens.
+	CNF *GatewayConfirmation `json:"cnf,omitempty"`
 	jwt.RegisteredClaims
 }
 
-// HasAudience reports whether the token's `aud` claim contains want. A gateway
-// JWT carries a single audience, but `aud` is multi-valued per RFC 7519, so the
-// membership check is the spec-correct comparison.
+// HasAudience reports whether the token's `aud` contains want. aud is
+// multi-valued per RFC 7519, so membership is the spec-correct check.
 func (c *GatewayClaims) HasAudience(want TokenAudience) bool {
 	for _, a := range c.Audience {
 		if a == want.String() {
