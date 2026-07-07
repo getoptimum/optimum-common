@@ -1,34 +1,49 @@
+# Based on the canonical template: getoptimum/.github/golangci/golangci.yaml
+# No repo-specific additions required.
 version: "2"
+
 run:
   tests: true
   allow-parallel-runners: true
 
 linters:
+  default: none
   enable:
-    - bodyclose
-    - copyloopvar
-    - depguard
-    - dogsled
-    - dupl
+    # Official Go tooling
+    - govet
+    - staticcheck
     - errcheck
+    - ineffassign
+    - unused
+    - copyloopvar
     - errorlint
-    - funlen
+    # Resource safety (stdlib-mandated)
+    - bodyclose
+    - sqlclosecheck
+    # Naming and style (official Go naming conventions)
+    - revive
+    # Community best practices (well-maintained, low FP)
+    - misspell
+    - unconvert
+    - nakedret
     - goconst
     - gocritic
-    - gosec
-    - govet
-    - ineffassign
-    - misspell
-    - nakedret
-    - nolintlint
-    - prealloc
-    - sqlclosecheck
-    - staticcheck
-    - unconvert
-    - unparam
-    - unused
+    - dupl
+    - funlen
+    - dogsled
     - whitespace
+    - thelper
+    - gosec
+    # Org policy
+    - depguard
+    - nolintlint
+
   settings:
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
     depguard:
       rules:
         main:
@@ -37,40 +52,94 @@ linters:
             - '**/*.go'
           deny:
             - pkg: github.com/sirupsen/logrus
-              desc: not allowed
+              desc: "not allowed — use go.uber.org/zap"
             - pkg: github.com/pkg/errors
-              desc: deprecated, should be replaced by standard lib errors package
-    gocyclo:
-      min-complexity: 15
-    staticcheck:
-      checks:
-        - all
-        - -ST1000
-        - -ST1003
+              desc: "deprecated — use stdlib errors package"
+    dogsled:
+      max-blank-identifiers: 4
     dupl:
-      threshold: 100
-    goconst:
-      min-len: 2
-      min-occurrences: 5
-    misspell:
-      locale: US
-    gocritic:
-      enabled-tags:
-        - diagnostic
-        - experimental
-        - opinionated
-        - performance
-        - style
-      disabled-checks:
-        - wrapperFunc
-        - dupImport # https://github.com/go-critic/go-critic/issues/845
-        - ifElseChain
-        - octalLiteral
-        - whyNoLint
+      threshold: 200
     funlen:
       lines: 300
       statements: 200
+    goconst:
+      min-len: 2
+      min-occurrences: 5
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+      disabled-checks:
+        - regexpMust
+        - appendAssign
+        - ifElseChain
+        - wrapperFunc
+        - dupImport
+        - octalLiteral
+        - whyNoLint
+    gosec:
+      excludes:
+        - G107
+        - G404
+      confidence: medium
+    misspell:
+      locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: false
+      allow-unused: false
+    revive:
+      enable-default-rules: true
+      rules:
+        - name: var-naming
+          disabled: true
+        - name: redefines-builtin-id
+          disabled: true
+        - name: import-alias-naming
+          disabled: false
+          arguments:
+            - "^[a-z][a-z0-9]{0,}$"
+
   exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters: [dupl, gosec]
+        path: _test\.go
     paths:
+      - .*\.pb\.go$
+      - .*\.pb\.gw\.go$
+      - .*\.pulsar\.go$
       - .*_mock\.go$
-      - swagger\/*
+      - swagger\/.*
+      - third_party$
+
+issues:
+  max-issues-per-linter: 10000
+  max-same-issues: 10000
+
+formatters:
+  enable:
+    - gci
+    - gofumpt
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/getoptimum)
+      custom-order: true
+    gofumpt:
+      extra-rules: true
+  exclusions:
+    generated: lax
+    paths:
+      - .*\.pb\.go$
+      - .*\.pb\.gw\.go$
+      - .*\.pulsar\.go$
+      - third_party$

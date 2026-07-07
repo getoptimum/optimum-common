@@ -22,24 +22,13 @@ env:
   vuln-version: "v1.1.4"
 
 jobs:
-  lint:
-    name: golangci-lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-        with:
-          go-version: ${{ env.go-version }}
-          cache: true
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
-        with:
-          # match your local CLI
-          version: v2.9.0
-          args: --timeout 7m
-          only-new-issues: true
+  golangci:
+    uses: getoptimum/.github/.github/workflows/go-lint.yml@de9534b228959edbca36f90c3a9d0373bc1bdaea # main
+    with:
+      go-version: "1.26.4"
+    secrets:
+      GH_APP_ID: ${{ secrets.GH_APP_ID }}
+      GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
 
   vulncheck:
     name: govulncheck
