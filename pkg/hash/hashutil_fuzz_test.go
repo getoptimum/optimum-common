@@ -32,10 +32,6 @@ func FuzzHashing(f *testing.F) {
 			require.Equal(t, sha256Result, hashBytesResult, "HashBytes: expected HashSHA256 output")
 		}
 
-		// Test MsgHashWithTimestamp - must always return 64 hex chars
-		msgHash := hash.MsgHashWithTimestamp(topic, data, timestamp)
-		require.Len(t, msgHash, 64, "MsgHashWithTimestamp: expected 64 chars")
-
 		// Test HashSHA256String - must always return [32]byte
 		rawHash := hash.SHA256String(data)
 		require.Len(t, rawHash, 32, "HashSHA256String: expected 32 bytes")

@@ -89,30 +89,6 @@ func BytesHash(b []byte) string {
 	return SHA256(b)
 }
 
-// MsgHash returns a deterministic hash of topic + message for message identity (e.g. deduplication).
-// For time-scoped identity (e.g. same message at different times), use MsgHashWithTimestamp.
-func MsgHash(topic string, message []byte) string {
-	h := sha256.New()
-	h.Write([]byte(topic))
-	h.Write([]byte{0}) // delimiter to avoid collisions
-	h.Write(message)
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-// MsgHashWithTimestamp returns a hash of topic + message + timestamp for time-scoped identity
-// (e.g. duplicate detection when the same content can be sent at different times).
-// For content-only identity, use MsgHash.
-func MsgHashWithTimestamp(topic string, message []byte, timestamp int64) string {
-	h := sha256.New()
-	h.Write([]byte(topic))
-	h.Write(message)
-	// Convert timestamp to bytes and include in hash
-	timestampBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(timestampBytes, uint64(timestamp)) //nolint:gosec // int64 to uint64 conversion is safe for timestamps
-	h.Write(timestampBytes)
-	return hex.EncodeToString(h.Sum(nil))
-}
-
 // WriteBool writes a boolean value to the hash in a deterministic format (1 for true, 0 for false).
 func WriteBool(h hash.Hash, v bool) {
 	if v {
