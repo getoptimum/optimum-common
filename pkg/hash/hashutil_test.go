@@ -20,7 +20,7 @@ func TestHashSHA512(t *testing.T) {
 		"Hello, 123":    "84df6bdafdaa325beeaa4dedf46e6519e350ac7c9936d44d5b1de84359572d3d7047bece9f25dbb12876b9f307bb994f0df737b87757a0081583f3b23b7d4a4b",
 	}
 	for src, res := range table {
-		require.Equal(t, res, hash.HashSHA512([]byte(src)))
+		require.Equal(t, res, hash.SHA512([]byte(src)))
 	}
 }
 
@@ -31,21 +31,21 @@ func TestHashSHA256(t *testing.T) {
 		"Hello, 123":    "30b6bfae65bce9ae9ab1cef925407ddc3bcc3ee3ccbb4991619a4d7cd0c72675",
 	}
 	for src, res := range table {
-		require.Equal(t, res, hash.HashSHA256([]byte(src)))
+		require.Equal(t, res, hash.SHA256([]byte(src)))
 	}
 }
 
 func BenchmarkHashXXHash(b *testing.B) {
 	data := []byte("Hello, World!")
 	for i := 0; i < b.N; i++ {
-		hash.HashXXHash(data)
+		hash.XXHash(data)
 	}
 }
 
 func BenchmarkHashSHA256String(b *testing.B) {
 	data := []byte("Hello, World!")
 	for i := 0; i < b.N; i++ {
-		hash.HashSHA256String(data)
+		hash.SHA256String(data)
 	}
 }
 
@@ -74,7 +74,7 @@ func TestHashBytes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := hash.HashBytes(tc.input)
+			result := hash.BytesHash(tc.input)
 			require.Equal(t, tc.expected, result)
 		})
 	}
@@ -82,8 +82,8 @@ func TestHashBytes(t *testing.T) {
 
 func TestHashBytes_MatchesHashSHA256(t *testing.T) {
 	data := []byte("test data")
-	hashBytes := hash.HashBytes(data)
-	hashSHA256 := hash.HashSHA256(data)
+	hashBytes := hash.BytesHash(data)
+	hashSHA256 := hash.SHA256(data)
 	require.Equal(t, hashSHA256, hashBytes, "HashBytes should match HashSHA256 for non-empty input")
 }
 
@@ -134,13 +134,13 @@ func TestPooledHashes_ConcurrentCorrectness(t *testing.T) {
 			for range goroutines {
 				wg.Go(func() {
 					for range iterations {
-						if got := hash.HashSHA256(tc.payload); got != expected256Hex {
+						if got := hash.SHA256(tc.payload); got != expected256Hex {
 							errCh <- fmt.Errorf("HashSHA256 mismatch: got %q want %q", got, expected256Hex)
 						}
-						if got := hash.HashSHA512(tc.payload); got != expected512Hex {
+						if got := hash.SHA512(tc.payload); got != expected512Hex {
 							errCh <- fmt.Errorf("HashSHA512 mismatch: got %q want %q", got, expected512Hex)
 						}
-						if got := hash.HashSHA256String(tc.payload); got != expected256Array {
+						if got := hash.SHA256String(tc.payload); got != expected256Array {
 							errCh <- fmt.Errorf("HashSHA256String mismatch: got %x want %x", got, expected256Array)
 						}
 					}

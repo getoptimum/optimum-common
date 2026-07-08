@@ -60,33 +60,33 @@ func calcSHA512hash(data []byte) []byte {
 	return sum[:]
 }
 
-// HashSHA256 computes SHA-256 hash returns hex-encoded string
-func HashSHA256(data []byte) string {
+// SHA256 computes SHA-256 hash returns hex-encoded string
+func SHA256(data []byte) string {
 	return hex.EncodeToString(calcSHA256hash(data))
 }
 
-// HashSHA512 computes SHA-512 hash, returns hex-encoded string
-func HashSHA512(data []byte) string {
+// SHA512 computes SHA-512 hash, returns hex-encoded string
+func SHA512(data []byte) string {
 	return hex.EncodeToString(calcSHA512hash(data))
 }
 
-// HashSHA256String computes the SHA-256 hash, returns the raw 32-byte array
-func HashSHA256String(data []byte) [sha256.Size]byte {
+// SHA256String computes the SHA-256 hash, returns the raw 32-byte array
+func SHA256String(data []byte) [sha256.Size]byte {
 	return [32]byte(calcSHA256hash(data))
 }
 
-// HashXXHash computes the XXHash, fast, non-cryptographic
-func HashXXHash(data []byte) uint64 {
+// XXHash computes the XXHash, fast, non-cryptographic
+func XXHash(data []byte) uint64 {
 	return xxhash.Sum64(data)
 }
 
-// HashBytes returns a SHA256 hash of the given bytes as a hex string.
+// BytesHash returns a SHA256 hash of the given bytes as a hex string.
 // Returns empty string if input is empty.
-func HashBytes(b []byte) string {
+func BytesHash(b []byte) string {
 	if len(b) == 0 {
 		return ""
 	}
-	return HashSHA256(b)
+	return SHA256(b)
 }
 
 // MsgHash returns a deterministic hash of topic + message for message identity (e.g. deduplication).

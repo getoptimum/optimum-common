@@ -17,15 +17,15 @@ func FuzzHashing(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte, topic string, timestamp int64) {
 		// Test HashSHA256 - must always return 64 hex chars
-		sha256Result := hash.HashSHA256(data)
+		sha256Result := hash.SHA256(data)
 		require.Len(t, sha256Result, 64, "HashSHA256: expected 64 chars")
 
 		// Test HashSHA512 - must always return 128 hex chars
-		sha512Result := hash.HashSHA512(data)
+		sha512Result := hash.SHA512(data)
 		require.Len(t, sha512Result, 128, "HashSHA512: expected 128 chars")
 
 		// Test HashBytes - empty returns empty, otherwise matches SHA-256 hex output
-		hashBytesResult := hash.HashBytes(data)
+		hashBytesResult := hash.BytesHash(data)
 		if len(data) == 0 {
 			require.Empty(t, hashBytesResult, "HashBytes: expected empty string for empty input")
 		} else {
@@ -37,13 +37,13 @@ func FuzzHashing(f *testing.F) {
 		require.Len(t, msgHash, 64, "MsgHashWithTimestamp: expected 64 chars")
 
 		// Test HashSHA256String - must always return [32]byte
-		rawHash := hash.HashSHA256String(data)
+		rawHash := hash.SHA256String(data)
 		require.Len(t, rawHash, 32, "HashSHA256String: expected 32 bytes")
 
 		// Test HashXXHash - just ensure no panic
-		_ = hash.HashXXHash(data)
+		_ = hash.XXHash(data)
 
 		// Verify determinism
-		require.Equal(t, sha256Result, hash.HashSHA256(data), "HashSHA256 is not deterministic")
+		require.Equal(t, sha256Result, hash.SHA256(data), "HashSHA256 is not deterministic")
 	})
 }
