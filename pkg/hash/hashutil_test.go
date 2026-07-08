@@ -121,7 +121,6 @@ func TestPooledHashes_ConcurrentCorrectness(t *testing.T) {
 	const iterations = 100
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -133,10 +132,7 @@ func TestPooledHashes_ConcurrentCorrectness(t *testing.T) {
 			var wg sync.WaitGroup
 			errCh := make(chan error, goroutines*iterations*3)
 			for range goroutines {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-
+				wg.Go(func() {
 					for range iterations {
 						if got := hash.HashSHA256(tc.payload); got != expected256Hex {
 							errCh <- fmt.Errorf("HashSHA256 mismatch: got %q want %q", got, expected256Hex)
@@ -148,12 +144,12 @@ func TestPooledHashes_ConcurrentCorrectness(t *testing.T) {
 							errCh <- fmt.Errorf("HashSHA256String mismatch: got %x want %x", got, expected256Array)
 						}
 					}
-				}()
+				})
 			}
 			wg.Wait()
 			close(errCh)
 
-			for err := range errCh {
+			for err = range errCh {
 				require.NoError(t, err)
 			}
 		})
