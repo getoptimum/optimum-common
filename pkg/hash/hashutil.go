@@ -5,12 +5,11 @@ import (
 	"crypto/sha512"
 	"encoding/binary"
 	"encoding/hex"
-	stdhash "hash"
+	"hash"
 	"math"
 	"sync"
 
 	"github.com/cespare/xxhash/v2"
-	"github.com/go-git/go-git/v5/plumbing/hash"
 )
 
 var (
@@ -81,6 +80,15 @@ func HashXXHash(data []byte) uint64 {
 	return xxhash.Sum64(data)
 }
 
+// HashBytes returns a SHA256 hash of the given bytes as a hex string.
+// Returns empty string if input is empty.
+func HashBytes(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	return HashSHA256(b)
+}
+
 // MsgHash returns a deterministic hash of topic + message for message identity (e.g. deduplication).
 // For time-scoped identity (e.g. same message at different times), use MsgHashWithTimestamp.
 func MsgHash(topic string, message []byte) string {
@@ -106,7 +114,7 @@ func MsgHashWithTimestamp(topic string, message []byte, timestamp int64) string 
 }
 
 // WriteBool writes a boolean value to the hash in a deterministic format (1 for true, 0 for false).
-func WriteBool(h stdhash.Hash, v bool) {
+func WriteBool(h hash.Hash, v bool) {
 	if v {
 		h.Write([]byte{1})
 	} else {
@@ -115,14 +123,14 @@ func WriteBool(h stdhash.Hash, v bool) {
 }
 
 // WriteInt64 writes an int64 value to the hash in little-endian format.
-func WriteInt64(h stdhash.Hash, v int64) {
+func WriteInt64(h hash.Hash, v int64) {
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], uint64(v)) //nolint:gosec // uint64 conversion is safe
 	h.Write(buf[:])
 }
 
 // WriteFloat32 writes a float32 value to the hash by converting it to its IEEE 754 binary representation.
-func WriteFloat32(h stdhash.Hash, v float32) {
+func WriteFloat32(h hash.Hash, v float32) {
 	var buf [4]byte
 	binary.LittleEndian.PutUint32(buf[:], math.Float32bits(v))
 	h.Write(buf[:])

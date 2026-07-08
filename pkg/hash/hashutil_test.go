@@ -1,7 +1,12 @@
 package hash_test
 
 import (
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/hash"
@@ -53,7 +58,7 @@ func TestHashBytes(t *testing.T) {
 		{
 			name:     "empty input",
 			input:    []byte{},
-			expected: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			expected: "",
 		},
 		{
 			name:     "simple string",
@@ -69,7 +74,7 @@ func TestHashBytes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := hash.HashSHA256(tc.input)
+			result := hash.HashBytes(tc.input)
 			require.Equal(t, tc.expected, result)
 		})
 	}
@@ -77,9 +82,82 @@ func TestHashBytes(t *testing.T) {
 
 func TestHashBytes_MatchesHashSHA256(t *testing.T) {
 	data := []byte("test data")
-	hashBytes := hash.HashSHA256(data)
+	hashBytes := hash.HashBytes(data)
 	hashSHA256 := hash.HashSHA256(data)
 	require.Equal(t, hashSHA256, hashBytes, "HashBytes should match HashSHA256 for non-empty input")
+}
+
+func TestPooledHashes_ConcurrentCorrectness(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		payload []byte
+	}{
+		{name: "empty", payload: []byte{}},
+		{name: "text", payload: []byte("Hello, World!")},
+		{name: "binary", payload: []byte{0x00, 0x01, 0x02, 0x03, 0xff}},
+	}
+
+	largePayload, err := json.Marshal(struct {
+		Topic string `json:"topic"`
+		Body  string `json:"body"`
+		Count int    `json:"count"`
+	}{
+		Topic: "large-payload",
+		Body:  string(make([]byte, 2048)),
+		Count: 2048,
+	})
+	require.NoError(t, err)
+	testCases = append(testCases, struct {
+		name    string
+		payload []byte
+	}{
+		name:    "large",
+		payload: largePayload,
+	})
+
+	const goroutines = 16
+	const iterations = 100
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			expected256Array := sha256.Sum256(tc.payload)
+			expected512Array := sha512.Sum512(tc.payload)
+			expected256Hex := hex.EncodeToString(expected256Array[:])
+			expected512Hex := hex.EncodeToString(expected512Array[:])
+
+			var wg sync.WaitGroup
+			errCh := make(chan error, goroutines*iterations*3)
+			for range goroutines {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+
+					for range iterations {
+						if got := hash.HashSHA256(tc.payload); got != expected256Hex {
+							errCh <- fmt.Errorf("HashSHA256 mismatch: got %q want %q", got, expected256Hex)
+						}
+						if got := hash.HashSHA512(tc.payload); got != expected512Hex {
+							errCh <- fmt.Errorf("HashSHA512 mismatch: got %q want %q", got, expected512Hex)
+						}
+						if got := hash.HashSHA256String(tc.payload); got != expected256Array {
+							errCh <- fmt.Errorf("HashSHA256String mismatch: got %x want %x", got, expected256Array)
+						}
+					}
+				}()
+			}
+			wg.Wait()
+			close(errCh)
+
+			for err := range errCh {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestMsgHashWithTimestamp_Determinism(t *testing.T) {

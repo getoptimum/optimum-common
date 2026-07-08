@@ -24,6 +24,14 @@ func FuzzHashing(f *testing.F) {
 		sha512Result := hash.HashSHA512(data)
 		require.Len(t, sha512Result, 128, "HashSHA512: expected 128 chars")
 
+		// Test HashBytes - empty returns empty, otherwise matches SHA-256 hex output
+		hashBytesResult := hash.HashBytes(data)
+		if len(data) == 0 {
+			require.Empty(t, hashBytesResult, "HashBytes: expected empty string for empty input")
+		} else {
+			require.Equal(t, sha256Result, hashBytesResult, "HashBytes: expected HashSHA256 output")
+		}
+
 		// Test MsgHashWithTimestamp - must always return 64 hex chars
 		msgHash := hash.MsgHashWithTimestamp(topic, data, timestamp)
 		require.Len(t, msgHash, 64, "MsgHashWithTimestamp: expected 64 chars")
