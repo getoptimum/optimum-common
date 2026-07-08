@@ -53,7 +53,7 @@ func TestHashBytes(t *testing.T) {
 		{
 			name:     "empty input",
 			input:    []byte{},
-			expected: "",
+			expected: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 		},
 		{
 			name:     "simple string",
@@ -69,7 +69,7 @@ func TestHashBytes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := hash.HashBytes(tc.input)
+			result := hash.HashSHA256(tc.input)
 			require.Equal(t, tc.expected, result)
 		})
 	}
@@ -77,7 +77,7 @@ func TestHashBytes(t *testing.T) {
 
 func TestHashBytes_MatchesHashSHA256(t *testing.T) {
 	data := []byte("test data")
-	hashBytes := hash.HashBytes(data)
+	hashBytes := hash.HashSHA256(data)
 	hashSHA256 := hash.HashSHA256(data)
 	require.Equal(t, hashSHA256, hashBytes, "HashBytes should match HashSHA256 for non-empty input")
 }

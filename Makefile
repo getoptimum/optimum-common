@@ -106,26 +106,9 @@ help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-tag-rc: ## Tag new release candidate
-	@echo "Calculating next RC tag..."
-	@set -euo pipefail; \
-	latest=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$$' | head -n1 || true); \
-	if [ -z "$$latest" ]; then \
-		base=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$' | head -n1 || echo "v0.0.1"); \
-		next_tag="$$base-rc1"; \
-	else \
-		base=$${latest%-rc*}; \
-		rc=$${latest##*-rc}; \
-		next_rc=$$((rc+1)); \
-		next_tag="$$base-rc$$next_rc"; \
-	fi; \
-	echo "Tagging $$next_tag"; \
-	git tag -a "$$next_tag" -m "Release candidate $$next_tag"; \
-	git push origin "$$next_tag"
-
 release: ## Create a release with GoReleaser (requires tag)
 	@echo "Running goreleaser..."
 	@go tool goreleaser release --clean
 
-.PHONY: coverage coverhtml lint vulcheck check ci all help tidy fmt vet tag-rc release bench test fuzz docs docs-check
+.PHONY: coverage coverhtml lint vulcheck check ci all help tidy fmt vet release bench test fuzz docs docs-check
 .DEFAULT_GOAL := help
