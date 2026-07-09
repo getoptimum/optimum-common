@@ -17,10 +17,6 @@ concurrency:
   group: ci-${{ github.ref }}-lint
   cancel-in-progress: true
 
-env:
-  go-version: "1.26.4"
-  vuln-version: "v1.1.4"
-
 jobs:
   golangci:
     uses: getoptimum/.github/.github/workflows/go-lint.yml@398f1436255c41d176b673c771dce8d52e657ca5 # getoptimum/.github#7
@@ -36,61 +32,11 @@ jobs:
       github.event_name == 'pull_request' ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      # Official govulncheck action. It fails only when your code is actually
+      # affected (a vulnerable symbol is reachable); advisories in required but
+      # uncalled modules are reported as informational and do not block.
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
         with:
-          go-version: ${{ env.go-version }}
-          cache: true
-
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@${{ env.vuln-version }}
-
-      - name: Run dependency vulnerability scan with filtering
-        run: |
-          # Read accepted vulnerability exceptions from govulncheck.yaml
-          IGNORED_VULNS=$(awk '/- id:/ {print $3}' govulncheck.yaml | paste -sd '|' -)
-
-          if [ -z "$IGNORED_VULNS" ]; then
-            echo "No ignored vulnerabilities configured in govulncheck.yaml"
-            IGNORED_VULNS="^$"  # Match nothing
-          else
-            echo "Ignored vulnerabilities from govulncheck.yaml: $IGNORED_VULNS"
-          fi
-
-          echo "Running govulncheck..."
-          set +e  # Don't exit on error, we want to process the results
-          govulncheck -show verbose ./... 2>&1 | tee /tmp/govulncheck-output.txt
-          govulncheck_exit=$?
-          set -e
-
-          # Extract vulnerability IDs and check if only ignored ones were found
-          found_vulns=$(grep -o 'GO-[0-9]\{4\}-[0-9]\+' /tmp/govulncheck-output.txt | sort -u || true)
-
-          echo "Found vulnerabilities: $found_vulns"
-          echo "Govulncheck exit code: $govulncheck_exit"
-
-          # Check if govulncheck crashed (non-zero exit but no vulnerabilities found)
-          if [ $govulncheck_exit -ne 0 ] && [ -z "$found_vulns" ]; then
-            echo "❌ govulncheck failed with exit code $govulncheck_exit (no vulnerabilities detected in output)"
-            exit $govulncheck_exit
-          fi
-
-          if [ -z "$found_vulns" ]; then
-            echo "✅ No vulnerabilities found"
-            exit 0
-          fi
-
-          # Filter out ignored vulnerabilities
-          non_ignored=$(echo "$found_vulns" | grep -Ev "$IGNORED_VULNS" || true)
-          echo "Non-ignored vulnerabilities: $non_ignored"
-
-          if [ -z "$non_ignored" ]; then
-            echo "✅ Only accepted vulnerabilities found: $found_vulns"
-            echo "   (Documented in govulncheck.yaml as accepted risks)"
-            exit 0
-          else
-            echo "❌ Found non-accepted vulnerabilities: $non_ignored"
-            echo "   Please fix or document these in govulncheck.yaml"
-            exit 1
-          fi
+          go-version-file: go.mod
+          go-package: ./...
