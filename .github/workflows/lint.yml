@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  go-version: "1.26.4"
+  go-version: "1.26.5"
   vuln-version: "v1.1.4"
 
 jobs:

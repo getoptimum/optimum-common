@@ -17,7 +17,7 @@ foundational utilities used across the Optimum ecosystem.
 go get github.com/getoptimum/optimum-common
 ```
 
-Requires **Go 1.26.4** or later.
+Requires **Go 1.26.5** or later.
 
 ## Packages
 
