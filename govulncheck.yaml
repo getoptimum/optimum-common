@@ -119,19 +119,21 @@ accepted_risks:
     cve: N/A
     package: golang.org/x/crypto/openpgp
     title: golang.org/x/crypto/openpgp is unmaintained and unsafe by design
-    severity: Moderate
+    severity: N/A
     fixed_in: N/A
     reason: |
-      The golang.org/x/crypto/openpgp package is deprecated and unmaintained, with
-      no fixed version available (fixed_in is N/A). govulncheck reports it under
-      Module Results only, with zero calls: it is not imported by any code in
-      optimum-common (absent from the build and test dependency closure). The path
-      enters solely through release and lint tooling declared in the go.mod tool
-      block (goreleaser, golangci-lint), never through shipped library code.
-      Accepted as a module-only risk because there is no upstream fix and the
-      package is unreachable.
+      golang.org/x/crypto is a required, reachable module: shipped code uses
+      x/crypto/blake2b, sha3, and chacha20poly1305 for hashing and AEAD.
+      GO-2026-5932 is scoped to the unmaintained openpgp subpackage of that
+      module, which has no fixed version. optimum-common does not import openpgp:
+      govulncheck reports it under Module Results only (0 vulnerabilities in
+      packages we import, 1 in modules we require, and our code does not call it).
+      Since there is no version to upgrade to and the vulnerable package is
+      unreachable, this is accepted as a module-only risk. Switching to
+      github.com/ProtonMail/go-crypto/openpgp does not apply here: we import no
+      openpgp package, and x/crypto is required for its non-openpgp packages.
     review_date: "2026-07-09"
-    next_review: "2027-01-09"
+    next_review: "2026-07-15"
     status: module-only
 
   - id: GO-2026-4603
