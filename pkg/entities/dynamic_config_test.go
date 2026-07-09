@@ -1,6 +1,7 @@
 package entities_test
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -69,7 +70,7 @@ func TestDynamicConfig(t *testing.T) {
 		ClusterID:                "test_cluster",
 		ServiceVersion:           "v0.0.1",
 		UpdatedAt:                time.Unix(1763640739, 0),
-		PropagationDisabled:      true,
+		PropagationEnabled:       true,
 		ExcludeSelfMessages:      true,
 		RandomMessageSize:        1,
 		ShardFactor:              2,
@@ -88,7 +89,7 @@ func TestDynamicConfig(t *testing.T) {
 		"chain_id":                   "test",
 		"cluster_id":                 "test_cluster",
 		"service_version":            "v0.0.1",
-		"enable_ab_testing":          true,
+		"propagation_enabled":        true,
 		"exclude_self_messages":      true,
 		"updated_at":                 res["updated_at"],
 		"random_message_size_bytes":  int64(1),
@@ -138,4 +139,31 @@ func TestHashRemoteConfig(t *testing.T) {
 		// when, then
 		require.Equal(t, k, entities.HashRemoteConfig(v))
 	}
+}
+
+func TestDynamicConfig_PropagationEnabled(t *testing.T) {
+	cfg := &entities.DynamicConfig{
+		ChainID:            "hoodi",
+		ClusterID:          "c1",
+		ServiceVersion:     "v1",
+		PropagationEnabled: true,
+	}
+
+	m := cfg.ToMap()
+	require.Equal(t, true, m["propagation_enabled"])
+
+	// JSON round-trips under the positive key.
+	b, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	require.Contains(t, string(b), `"propagation_enabled":true`)
+
+	var back entities.DynamicConfig
+	require.NoError(t, json.Unmarshal([]byte(`{"propagation_enabled":true}`), &back))
+	require.True(t, back.PropagationEnabled)
+
+	// PropagationEnabled is now part of the config hash.
+	require.NotEqual(t,
+		entities.HashRemoteConfig(&entities.DynamicConfig{PropagationEnabled: false}),
+		entities.HashRemoteConfig(&entities.DynamicConfig{PropagationEnabled: true}),
+	)
 }

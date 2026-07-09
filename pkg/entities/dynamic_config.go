@@ -29,12 +29,11 @@ var (
 // DynamicConfig represents runtime-configurable parameters for P2P network behavior.
 // These settings can be updated without restarting the node.
 type DynamicConfig struct {
-	ChainID        string    `db:"chain_id" yaml:"chain_id" json:"chain_id"`
-	ClusterID      string    `db:"cluster_id" yaml:"cluster_id" json:"cluster_id"`
-	ServiceVersion string    `db:"service_version" yaml:"service_version" json:"service_version"`
-	UpdatedAt      time.Time `db:"updated_at" yaml:"-" json:"updated_at"`
-	// Important: db key is "enable_ab_testing" to avoid confusion with "propagation_enabled" used in AB testing context
-	PropagationDisabled bool `db:"enable_ab_testing" json:"propagation_disabled" yaml:"propagation_disabled"`
+	ChainID            string    `db:"chain_id" yaml:"chain_id" json:"chain_id"`
+	ClusterID          string    `db:"cluster_id" yaml:"cluster_id" json:"cluster_id"`
+	ServiceVersion     string    `db:"service_version" yaml:"service_version" json:"service_version"`
+	UpdatedAt          time.Time `db:"updated_at" yaml:"-" json:"updated_at"`
+	PropagationEnabled bool      `db:"propagation_enabled" json:"propagation_enabled" yaml:"propagation_enabled"`
 	// ExcludeSelfMessages is a flag that indicates whether messages originating from the node itself should be ignored.
 	// used for tracking eth latency measurements
 	ExcludeSelfMessages bool `db:"exclude_self_messages" yaml:"exclude_self_messages" json:"exclude_self_messages"`
@@ -120,7 +119,7 @@ func (d *DynamicConfig) ToMap() map[string]any {
 		"chain_id":              d.ChainID,
 		"cluster_id":            d.ClusterID,
 		"service_version":       d.ServiceVersion,
-		"enable_ab_testing":     d.PropagationDisabled,
+		"propagation_enabled":   d.PropagationEnabled,
 		"exclude_self_messages": d.ExcludeSelfMessages,
 		"updated_at":            time.Now(),
 
@@ -138,7 +137,7 @@ func (d *DynamicConfig) ToMap() map[string]any {
 // HashRemoteConfig computes a SHA-256 hash of the configurable fields in DynamicConfig.
 func HashRemoteConfig(cfg *DynamicConfig) string {
 	h := sha256.New()
-	hash.WriteBool(h, cfg.PropagationDisabled)
+	hash.WriteBool(h, cfg.PropagationEnabled)
 	hash.WriteInt64(h, cfg.RandomMessageSize)
 	hash.WriteInt64(h, cfg.ShardFactor)
 	hash.WriteFloat32(h, cfg.PublisherShardMultiplier)
