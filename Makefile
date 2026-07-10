@@ -64,43 +64,7 @@ lint: ## Run golangci-lint
 
 vulcheck: ## Run govulncheck for vulnerabilities
 	@echo "Running govulncheck..."
-	@go version
-	@go env GOPRIVATE
-	@set -euo pipefail; \
-	 IGNORED_VULNS=$$(awk '/- id:/ {print $$3}' govulncheck.yaml | paste -sd '|' - || echo "^$$"); \
-	 if [ -z "$$IGNORED_VULNS" ] || [ "$$IGNORED_VULNS" = "^$$" ]; then \
-	   echo "No ignored vulnerabilities configured in govulncheck.yaml"; \
-	   IGNORED_VULNS="^$$"; \
-	 else \
-	   echo "Ignored vulnerabilities from govulncheck.yaml: $$IGNORED_VULNS"; \
-	 fi; \
-	 echo "Running govulncheck..."; \
-	 set +e; \
-	 go tool govulncheck -show verbose ./... 2>&1 | tee /tmp/govulncheck-output.txt; \
-	 govulncheck_exit=$$?; \
-	 set -e; \
-	 found_vulns=$$(grep -o 'GO-[0-9]\{4\}-[0-9]\+' /tmp/govulncheck-output.txt | sort -u || true); \
-	 echo "Found vulnerabilities: $$found_vulns"; \
-	 echo "Govulncheck exit code: $$govulncheck_exit"; \
-	 if [ $$govulncheck_exit -ne 0 ] && [ -z "$$found_vulns" ]; then \
-	   echo "ERROR: govulncheck failed with exit code $$govulncheck_exit (no vulnerabilities detected in output)"; \
-	   exit $$govulncheck_exit; \
-	 fi; \
-	 if [ -z "$$found_vulns" ]; then \
-	   echo "No vulnerabilities found"; \
-	   exit 0; \
-	 fi; \
-	 non_ignored=$$(echo "$$found_vulns" | grep -Ev "$$IGNORED_VULNS" || true); \
-	 echo "Non-ignored vulnerabilities: $$non_ignored"; \
-	 if [ -z "$$non_ignored" ]; then \
-	   echo "Only accepted vulnerabilities found: $$found_vulns"; \
-	   echo "   (Documented in govulncheck.yaml as accepted risks)"; \
-	   exit 0; \
-	 else \
-	   echo "ERROR: Found non-accepted vulnerabilities: $$non_ignored"; \
-	   echo "   Please fix or document these in govulncheck.yaml"; \
-	   exit 1; \
-	 fi
+	@go tool govulncheck ./...
 
 help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
