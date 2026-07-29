@@ -3,9 +3,10 @@ package net_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/getoptimum/optimum-common/pkg/logger"
 	"github.com/getoptimum/optimum-common/pkg/net"
-	"github.com/stretchr/testify/require"
 )
 
 func TestBuildAdvertisedQUICAddresses(t *testing.T) {
