@@ -74,7 +74,7 @@ func MustBuildAdvertisedQUICAddresses(
 ) []multiaddr.Multiaddr {
 	mas, err := BuildAdvertisedQUICAddresses(log, publicIPV4, publicIPV6, listenPort)
 	if err != nil {
-		log.Fatal("failed to build advertised addresses", err,
+		log.Fatal("failed to build advertised QUIC addresses", err,
 			logger.WithString("public_ipv4", publicIPV4),
 			logger.WithString("public_ipv6", publicIPV6),
 			logger.WithInt("listen_port", listenPort),
