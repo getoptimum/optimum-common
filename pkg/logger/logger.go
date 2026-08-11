@@ -130,7 +130,7 @@ func (l *SLogger) With(fields ...Field) AppLogger {
 	return &SLogger{logger: l.logger.With(prepareSlogParams(nil, fields)...)}
 }
 
-// Slog return native slogger
+// Slog returns the underlying *slog.Logger.
 func (l *SLogger) Slog() *slog.Logger {
 	return l.logger
 }
