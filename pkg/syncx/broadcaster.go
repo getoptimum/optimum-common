@@ -56,12 +56,12 @@ func (b *Broadcaster[T]) UnregisterListener(key string) {
 	}
 }
 
-// Broadcast delivers msg to every listener, blocking on each send.
+// Broadcast sends a message to all registered listeners.
 func (b *Broadcaster[T]) Broadcast(msg T) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	for _, ch := range b.messages {
-		ch <- msg
+	for i := range b.messages {
+		b.messages[i] <- msg
 	}
 }
 
