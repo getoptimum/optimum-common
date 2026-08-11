@@ -16,9 +16,7 @@ type listener[T any] struct {
 
 // NewBroadcaster creates a new broadcaster for messages of type T.
 func NewBroadcaster[T any]() *Broadcaster[T] {
-	return &Broadcaster[T]{
-		messages: make(map[string]*listener[T]),
-	}
+	return &Broadcaster[T]{messages: make(map[string]*listener[T])}
 }
 
 // RegisterListener registers an unbuffered listener.
@@ -72,39 +70,43 @@ func (b *Broadcaster[T]) Broadcast(msg T) {
 	}
 }
 
-// BroadcastTry delivers msg without blocking. onDrop is called once per dropped
-// value for that listener (oldest evicted first, then the new value if still full).
+// BroadcastTry is non-blocking; on a full buffer it evicts the oldest value
+// then enqueues msg. onDrop runs after b.mu is released, once per drop.
 func (b *Broadcaster[T]) BroadcastTry(msg T, onDrop func(key string)) {
+	type drop struct {
+		key string
+		n   uint64
+	}
+	var drops []drop
+
 	b.mu.RLock()
-	defer b.mu.RUnlock()
 	for key, l := range b.messages {
 		l.mu.Lock()
-		n := trySendDropOldest(l.ch, msg)
+		var n uint64
+		select {
+		case l.ch <- msg:
+		default:
+			select {
+			case <-l.ch:
+				n++
+			default:
+			}
+			select {
+			case l.ch <- msg:
+			default:
+				n++
+			}
+		}
 		l.mu.Unlock()
-		if onDrop == nil {
-			continue
-		}
-		for range n {
-			onDrop(key)
+		if onDrop != nil && n != 0 {
+			drops = append(drops, drop{key: key, n: n})
 		}
 	}
-}
+	b.mu.RUnlock()
 
-func trySendDropOldest[T any](ch chan T, v T) (dropped uint64) {
-	select {
-	case ch <- v:
-		return 0
-	default:
+	for _, d := range drops {
+		for range d.n {
+			onDrop(d.key)
+		}
 	}
-	select {
-	case <-ch:
-		dropped++
-	default:
-	}
-	select {
-	case ch <- v:
-	default:
-		dropped++
-	}
-	return dropped
 }
