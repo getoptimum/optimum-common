@@ -11,7 +11,6 @@ type Broadcaster[T any] struct {
 
 type listener[T any] struct {
 	ch chan T
-	mu sync.Mutex // serializes BroadcastTry on this channel
 }
 
 // NewBroadcaster creates a new broadcaster for messages of type T.
@@ -70,8 +69,8 @@ func (b *Broadcaster[T]) Broadcast(msg T) {
 	}
 }
 
-// BroadcastTry is non-blocking; on a full buffer it evicts the oldest value
-// then enqueues msg. onDrop runs after b.mu is released, once per drop.
+// BroadcastTry is non-blocking; on a full buffer it drops msg.
+// onDrop runs after b.mu is released, once per drop.
 func (b *Broadcaster[T]) BroadcastTry(msg T, onDrop func(key string)) {
 	type drop struct {
 		key string
@@ -81,23 +80,12 @@ func (b *Broadcaster[T]) BroadcastTry(msg T, onDrop func(key string)) {
 
 	b.mu.RLock()
 	for key, l := range b.messages {
-		l.mu.Lock()
 		var n uint64
 		select {
 		case l.ch <- msg:
 		default:
-			select {
-			case <-l.ch:
-				n++
-			default:
-			}
-			select {
-			case l.ch <- msg:
-			default:
-				n++
-			}
+			n++
 		}
-		l.mu.Unlock()
 		if onDrop != nil && n != 0 {
 			drops = append(drops, drop{key: key, n: n})
 		}

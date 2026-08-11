@@ -122,7 +122,7 @@ func TestBroadcasterBroadcast(t *testing.T) {
 }
 
 func TestBroadcasterBroadcastTry(t *testing.T) {
-	t.Run("drops oldest when full", func(t *testing.T) {
+	t.Run("drops when full", func(t *testing.T) {
 		b := syncx.NewBroadcaster[int]()
 		ch := b.RegisterBufferedListener("l1", 2)
 
@@ -132,8 +132,8 @@ func TestBroadcasterBroadcastTry(t *testing.T) {
 		}
 
 		require.Equal(t, 3, drops)
-		require.Equal(t, 4, <-ch)
-		require.Equal(t, 5, <-ch)
+		require.Equal(t, 1, <-ch)
+		require.Equal(t, 2, <-ch)
 	})
 
 	t.Run("no drop when buffer has space", func(t *testing.T) {
