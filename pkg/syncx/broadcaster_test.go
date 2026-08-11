@@ -126,12 +126,12 @@ func TestBroadcasterBroadcastTry(t *testing.T) {
 		b := syncx.NewBroadcaster[int]()
 		ch := b.RegisterBufferedListener("l1", 2)
 
-		var drops int
+		var drops uint64
 		for i := 1; i <= 5; i++ {
-			b.BroadcastTry(i, func(string) { drops++ })
+			b.BroadcastTry(i, func(_ string, n uint64) { drops += n })
 		}
 
-		require.Equal(t, 3, drops)
+		require.Equal(t, uint64(3), drops)
 		require.Equal(t, 1, <-ch)
 		require.Equal(t, 2, <-ch)
 	})
@@ -142,8 +142,8 @@ func TestBroadcasterBroadcastTry(t *testing.T) {
 		ch <- 1
 		ch <- 2
 
-		var drops int
-		b.BroadcastTry(3, func(string) { drops++ })
+		var drops uint64
+		b.BroadcastTry(3, func(_ string, n uint64) { drops += n })
 
 		require.Zero(t, drops)
 		require.Equal(t, 3, len(ch))
@@ -156,7 +156,7 @@ func TestBroadcasterBroadcastTry(t *testing.T) {
 
 		done := make(chan struct{})
 		go func() {
-			b.BroadcastTry(2, func(key string) { b.UnregisterListener(key) })
+			b.BroadcastTry(2, func(key string, _ uint64) { b.UnregisterListener(key) })
 			close(done)
 		}()
 

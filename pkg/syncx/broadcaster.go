@@ -59,48 +59,31 @@ func (b *Broadcaster[T]) UnregisterListener(key string) {
 // Broadcast delivers msg to every listener, blocking on each send.
 func (b *Broadcaster[T]) Broadcast(msg T) {
 	b.mu.RLock()
-	chs := make([]chan T, 0, len(b.messages))
+	defer b.mu.RUnlock()
 	for _, ch := range b.messages {
-		chs = append(chs, ch)
-	}
-	b.mu.RUnlock()
-
-	for _, ch := range chs {
 		ch <- msg
 	}
 }
 
 // BroadcastTry is non-blocking; on a full buffer it drops msg.
-// onDrop runs after b.mu is released, once per drop.
-func (b *Broadcaster[T]) BroadcastTry(msg T, onDrop func(key string)) {
-	b.mu.RLock()
-	targets := make(map[string]chan T, len(b.messages))
+// onDrop runs after b.mu is released, once per listener with a drop count.
+func (b *Broadcaster[T]) BroadcastTry(msg T, onDrop func(key string, num uint64)) {
+	drops := make(map[string]uint64, b.activeListeners)
+
+	b.mu.Lock()
 	for key, ch := range b.messages {
-		targets[key] = ch
-	}
-	b.mu.RUnlock()
-
-	type drop struct {
-		key string
-		n   uint64
-	}
-	var drops []drop
-
-	for key, ch := range targets {
-		var n uint64
 		select {
 		case ch <- msg:
 		default:
-			n++
-		}
-		if onDrop != nil && n != 0 {
-			drops = append(drops, drop{key: key, n: n})
+			drops[key] = 1
 		}
 	}
+	b.mu.Unlock()
 
-	for _, d := range drops {
-		for range d.n {
-			onDrop(d.key)
-		}
+	if onDrop == nil {
+		return
+	}
+	for key, n := range drops {
+		onDrop(key, n)
 	}
 }
