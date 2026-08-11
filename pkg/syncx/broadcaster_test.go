@@ -120,3 +120,17 @@ func TestBroadcasterBroadcast(t *testing.T) {
 		br.Broadcast(100)
 	})
 }
+
+func TestBroadcasterBroadcastTryDropsOldest(t *testing.T) {
+	b := syncx.NewBroadcaster[int]()
+	ch := b.RegisterBufferedListener("l1", 2)
+
+	var drops int
+	for i := 1; i <= 5; i++ {
+		b.BroadcastTry(i, func(string) { drops++ })
+	}
+
+	require.Equal(t, 3, drops)
+	require.Equal(t, 4, <-ch)
+	require.Equal(t, 5, <-ch)
+}
