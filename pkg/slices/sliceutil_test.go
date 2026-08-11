@@ -174,6 +174,8 @@ func TestChunkSlice(t *testing.T) {
 		{"single chunk", []int{1, 2, 3}, 5, [][]int{{1, 2, 3}}},
 		{"empty slice", []int{}, 3, [][]int{}},
 		{"chunk size larger than slice", []int{1, 2}, 10, [][]int{{1, 2}}},
+		{"zero chunk size", []int{1, 2}, 0, nil},
+		{"negative chunk size", []int{1, 2}, -1, nil},
 	}
 
 	for _, tt := range tests {
