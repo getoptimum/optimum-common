@@ -40,6 +40,7 @@ type AppLogger interface {
 	Debug(message string, fields ...Field)
 	Fatal(message string, err error, fields ...Field)
 	With(fields ...Field) AppLogger
+	Slog() *slog.Logger
 }
 
 // SLogger is an implementation of AppLogger backed by slog.
@@ -127,6 +128,11 @@ func (l *SLogger) Fatal(message string, err error, fields ...Field) {
 // With creates a child logger with additional structured context.
 func (l *SLogger) With(fields ...Field) AppLogger {
 	return &SLogger{logger: l.logger.With(prepareSlogParams(nil, fields)...)}
+}
+
+// Slog returns the underlying *slog.Logger.
+func (l *SLogger) Slog() *slog.Logger {
+	return l.logger
 }
 
 func prepareSlogParams(err error, fields []Field) []any {
