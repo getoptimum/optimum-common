@@ -73,15 +73,10 @@ func (b *Broadcaster[T]) Broadcast(msg T) {
 // BroadcastTry is non-blocking; on a full buffer it drops msg.
 // onDrop runs after b.mu is released, once per drop.
 func (b *Broadcaster[T]) BroadcastTry(msg T, onDrop func(key string)) {
-	type target struct {
-		key string
-		ch  chan T
-	}
-	targets := make([]target, 0, len(b.messages))
-
 	b.mu.RLock()
+	targets := make(map[string]chan T, len(b.messages))
 	for key, ch := range b.messages {
-		targets = append(targets, target{key: key, ch: ch})
+		targets[key] = ch
 	}
 	b.mu.RUnlock()
 
@@ -91,15 +86,15 @@ func (b *Broadcaster[T]) BroadcastTry(msg T, onDrop func(key string)) {
 	}
 	var drops []drop
 
-	for _, t := range targets {
+	for key, ch := range targets {
 		var n uint64
 		select {
-		case t.ch <- msg:
+		case ch <- msg:
 		default:
 			n++
 		}
 		if onDrop != nil && n != 0 {
-			drops = append(drops, drop{key: t.key, n: n})
+			drops = append(drops, drop{key: key, n: n})
 		}
 	}
 
