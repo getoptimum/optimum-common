@@ -112,12 +112,14 @@ func WriteFloat32(h hash.Hash, v float32) {
 	h.Write(buf[:])
 }
 
+// WriteFloat64 writes a float64 value to the hash by converting it to its IEEE 754 binary representation.
 func WriteFloat64(h hash.Hash, v float64) {
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], math.Float64bits(v))
 	h.Write(buf[:])
 }
 
+// WriteUint32 writes a uint32 value to the hash in little-endian format.
 func WriteUint32(h hash.Hash, v uint32) {
 	var buf [4]byte
 	binary.LittleEndian.PutUint32(buf[:], v)
