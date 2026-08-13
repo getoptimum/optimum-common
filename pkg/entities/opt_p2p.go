@@ -15,10 +15,10 @@ type OptimumConfig struct {
 	MaxMessageSize int64  `yaml:"max_message_size_bytes" env:"OPTIMUM_MAX_MSG_SIZE" flag:"max_message_size_bytes" default:"1048576"`
 
 	// Coding and message settings
-	RandomMessageSize        int64   `yaml:"random_message_size_bytes" env:"OPTIMUM_RANDOM_MSG_SIZE" flag:"random_message_size_bytes" default:"512"`
-	ShardFactor              int64   `yaml:"rlnc_shard_factor" env:"OPTIMUM_SHARD_FACTOR" flag:"rlnc_shard_factor" default:"4"`
-	PublisherShardMultiplier float32 `yaml:"publisher_shard_multiplier" env:"OPTIMUM_SHARD_MULT" flag:"publisher_shard_multiplier" default:"1.5"`
-	ForwardShardThreshold    float32 `yaml:"forward_shard_threshold" env:"OPTIMUM_THRESHOLD" flag:"forward_shard_threshold" default:"0.75"`
+	RandomMessageSize        uint32  `yaml:"random_message_size_bytes" env:"OPTIMUM_RANDOM_MSG_SIZE" flag:"random_message_size_bytes" default:"512"`
+	ShardFactor              uint32  `yaml:"rlnc_shard_factor" env:"OPTIMUM_SHARD_FACTOR" flag:"rlnc_shard_factor" default:"4"`
+	PublisherShardMultiplier float64 `yaml:"publisher_shard_multiplier" env:"OPTIMUM_SHARD_MULT" flag:"publisher_shard_multiplier" default:"1.5"`
+	ForwardShardThreshold    float64 `yaml:"forward_shard_threshold" env:"OPTIMUM_THRESHOLD" flag:"forward_shard_threshold" default:"0.75"`
 
 	// Mesh topology settings
 	MeshDegreeTarget int64 `yaml:"mesh_degree_target" env:"OPTIMUM_MESH_TARGET" flag:"mesh_degree_target" default:"6"`

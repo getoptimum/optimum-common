@@ -111,3 +111,15 @@ func WriteFloat32(h hash.Hash, v float32) {
 	binary.LittleEndian.PutUint32(buf[:], math.Float32bits(v))
 	h.Write(buf[:])
 }
+
+func WriteFloat64(h hash.Hash, v float64) {
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], math.Float64bits(v))
+	h.Write(buf[:])
+}
+
+func WriteUint32(h hash.Hash, v uint32) {
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], v)
+	h.Write(buf[:])
+}

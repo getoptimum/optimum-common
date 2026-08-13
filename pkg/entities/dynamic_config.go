@@ -39,10 +39,10 @@ type DynamicConfig struct {
 	ExcludeSelfMessages bool `db:"exclude_self_messages" yaml:"exclude_self_messages" json:"exclude_self_messages"`
 
 	// Coding and message settings
-	RandomMessageSize        int64   `db:"random_message_size_bytes" yaml:"random_message_size" json:"random_message_size_bytes"`
-	ShardFactor              int64   `db:"rlnc_shard_factor" yaml:"shard_factor" json:"rlnc_shard_factor"`
-	PublisherShardMultiplier float32 `db:"publisher_shard_multiplier" yaml:"publisher_shard_multiplier" json:"publisher_shard_multiplier"`
-	ForwardShardThreshold    float32 `db:"forward_shard_threshold" yaml:"forward_shard_threshold" json:"forward_shard_threshold"`
+	RandomMessageSize        uint32  `db:"random_message_size_bytes" yaml:"random_message_size" json:"random_message_size_bytes"`
+	ShardFactor              uint32  `db:"rlnc_shard_factor" yaml:"shard_factor" json:"rlnc_shard_factor"`
+	PublisherShardMultiplier float64 `db:"publisher_shard_multiplier" yaml:"publisher_shard_multiplier" json:"publisher_shard_multiplier"`
+	ForwardShardThreshold    float64 `db:"forward_shard_threshold" yaml:"forward_shard_threshold" json:"forward_shard_threshold"`
 
 	// Mesh topology settings
 	MeshDegreeTarget int64 `db:"mesh_degree_target" yaml:"mesh_degree_target" json:"mesh_degree_target"`
@@ -138,10 +138,10 @@ func (d *DynamicConfig) ToMap() map[string]any {
 func HashRemoteConfig(cfg *DynamicConfig) string {
 	h := sha256.New()
 	hash.WriteBool(h, cfg.PropagationEnabled)
-	hash.WriteInt64(h, cfg.RandomMessageSize)
-	hash.WriteInt64(h, cfg.ShardFactor)
-	hash.WriteFloat32(h, cfg.PublisherShardMultiplier)
-	hash.WriteFloat32(h, cfg.ForwardShardThreshold)
+	hash.WriteUint32(h, cfg.RandomMessageSize)
+	hash.WriteUint32(h, cfg.ShardFactor)
+	hash.WriteFloat64(h, cfg.PublisherShardMultiplier)
+	hash.WriteFloat64(h, cfg.ForwardShardThreshold)
 	hash.WriteInt64(h, cfg.MeshDegreeTarget)
 	hash.WriteInt64(h, cfg.MeshDegreeMin)
 	hash.WriteInt64(h, cfg.MeshDegreeMax)
