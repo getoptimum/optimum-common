@@ -27,5 +27,7 @@ func (wb *RoundRobinBalancer[T]) Next() T {
 
 // Values returns a copy of all values managed by this balancer.
 func (wb *RoundRobinBalancer[T]) Values() []T {
-	return wb.values
+	out := make([]T, len(wb.values))
+	copy(out, wb.values)
+	return out
 }
