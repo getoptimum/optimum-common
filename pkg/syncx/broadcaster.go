@@ -68,9 +68,11 @@ func (b *Broadcaster[T]) Broadcast(msg T) {
 // BroadcastTry is non-blocking; on a full buffer it drops msg.
 // onDrop runs after b.mu is released, once per listener with a drop count.
 func (b *Broadcaster[T]) BroadcastTry(msg T, onDrop func(key string, num uint64)) {
-	drops := make(map[string]uint64, b.activeListeners)
-
 	b.mu.Lock()
+	// activeListeners is mutated under b.mu by registerListener and
+	// UnregisterListener, so sizing the map from it has to happen under the
+	// lock too.
+	drops := make(map[string]uint64, b.activeListeners)
 	for key, ch := range b.messages {
 		select {
 		case ch <- msg:
