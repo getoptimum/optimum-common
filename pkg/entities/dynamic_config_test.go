@@ -92,10 +92,10 @@ func TestDynamicConfig(t *testing.T) {
 		"propagation_enabled":        true,
 		"exclude_self_messages":      true,
 		"updated_at":                 res["updated_at"],
-		"random_message_size_bytes":  int64(1),
-		"rlnc_shard_factor":          int64(2),
-		"publisher_shard_multiplier": float32(3),
-		"forward_shard_threshold":    float32(4),
+		"random_message_size_bytes":  uint32(1),
+		"rlnc_shard_factor":          uint32(2),
+		"publisher_shard_multiplier": float64(3),
+		"forward_shard_threshold":    float64(4),
 		"mesh_degree_target":         int64(5),
 		"mesh_degree_min":            int64(6),
 		"mesh_degree_max":            int64(7),
@@ -106,7 +106,7 @@ func TestHashRemoteConfig(t *testing.T) {
 	// given
 	table := map[string]*entities.DynamicConfig{
 		"cc2786e1f9910a9d811400edcddaf7075195f7a16b216dcbefba3bc7c4f2ae51": {},
-		"db60d9b58747f20f922f9660d71631d4b26465836096857cd53eca21883dbad8": {
+		"e1600a51a6acec2ea4168f23e112489b40af724b8901ac744c82fe105a1a73d7": {
 			RandomMessageSize:        1,
 			ShardFactor:              1,
 			PublisherShardMultiplier: 1,
@@ -115,7 +115,7 @@ func TestHashRemoteConfig(t *testing.T) {
 			MeshDegreeMin:            1,
 			MeshDegreeMax:            1,
 		},
-		"6a6daffb5ebc958a231ab5099b2d935bf5916e3e4eeab44f8f9c70016d72b672": {
+		"9049b56b4dc78f6fa24106b9e31e9c5dc987c028953440f2eb77b67009398ba0": {
 			RandomMessageSize:        2,
 			ShardFactor:              2,
 			PublisherShardMultiplier: 2,
@@ -124,7 +124,7 @@ func TestHashRemoteConfig(t *testing.T) {
 			MeshDegreeMin:            2,
 			MeshDegreeMax:            2,
 		},
-		"f7dbb42586df129bfc7cadcaf952db8256c174915e4ac301cba67a3a2144153e": {
+		"92dcf1a7e3b3bd8193dbf48f250ca6c1bf95954ca6537c699c7b8007c358bad2": {
 			RandomMessageSize:        2,
 			ShardFactor:              2,
 			PublisherShardMultiplier: 2,

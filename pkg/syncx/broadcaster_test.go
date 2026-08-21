@@ -120,3 +120,50 @@ func TestBroadcasterBroadcast(t *testing.T) {
 		br.Broadcast(100)
 	})
 }
+
+func TestBroadcasterBroadcastTry(t *testing.T) {
+	t.Run("drops when full", func(t *testing.T) {
+		b := syncx.NewBroadcaster[int]()
+		ch := b.RegisterBufferedListener("l1", 2)
+
+		var drops uint64
+		for i := 1; i <= 5; i++ {
+			b.BroadcastTry(i, func(_ string, n uint64) { drops += n })
+		}
+
+		require.Equal(t, uint64(3), drops)
+		require.Equal(t, 1, <-ch)
+		require.Equal(t, 2, <-ch)
+	})
+
+	t.Run("no drop when buffer has space", func(t *testing.T) {
+		b := syncx.NewBroadcaster[int]()
+		ch := b.RegisterBufferedListener("l1", 64)
+		ch <- 1
+		ch <- 2
+
+		var drops uint64
+		b.BroadcastTry(3, func(_ string, n uint64) { drops += n })
+
+		require.Zero(t, drops)
+		require.Equal(t, 3, len(ch))
+	})
+
+	t.Run("onDrop can unregister without deadlock", func(t *testing.T) {
+		b := syncx.NewBroadcaster[int]()
+		ch := b.RegisterBufferedListener("l1", 1)
+		ch <- 1
+
+		done := make(chan struct{})
+		go func() {
+			b.BroadcastTry(2, func(key string, _ uint64) { b.UnregisterListener(key) })
+			close(done)
+		}()
+
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("deadlock when onDrop unregisters")
+		}
+	})
+}
