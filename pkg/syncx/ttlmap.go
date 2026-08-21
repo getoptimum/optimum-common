@@ -222,19 +222,24 @@ func (m *TTLMap[K, V]) DoAndApply(k K, fn func(v V) V) bool {
 	return true
 }
 
-// Upsert inserts zeroValue if the key does not exist, or updates the existing value
-// using fn. Either way the TTL is refreshed.
+// Upsert inserts zeroValue if the key does not exist or has expired, or updates
+// the existing live value using fn. Either way the TTL is refreshed.
 func (m *TTLMap[K, V]) Upsert(key K, fn func(value V) V, zeroValue V) {
 	s := m.shardOf(key)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	now := time.Now().UnixNano()
+
+	// An expired entry counts as absent, matching Get, Do, DoAndApply and
+	// LoadAll. Without this check fn is applied to a value the map has already
+	// stopped serving, for as long as it takes the cleanup ticker to sweep it.
 	it, ok := s.m[key]
-	if !ok {
-		s.m[key] = item[V]{value: zeroValue, expiryNano: time.Now().UnixNano() + m.maxTTL}
+	if !ok || now > it.expiryNano {
+		s.m[key] = item[V]{value: zeroValue, expiryNano: now + m.maxTTL}
 		return
 	}
-	s.m[key] = item[V]{value: fn(it.value), expiryNano: time.Now().UnixNano() + m.maxTTL}
+	s.m[key] = item[V]{value: fn(it.value), expiryNano: now + m.maxTTL}
 }
 
 // LoadAll returns a snapshot of all live (non-expired) entries.
