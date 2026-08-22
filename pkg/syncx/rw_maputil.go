@@ -17,20 +17,27 @@ func NewRWMap[K comparable, V any]() *RWMap[K, V] {
 	}
 }
 
-// NewRWMapFromStdMap creates a new thread-safe map from an existing standard map
+// NewRWMapFromStdMap creates a new thread-safe map from an existing standard map.
+// The entries are copied, so writes through the caller's map do not reach this one.
 func NewRWMapFromStdMap[K comparable, V any](m map[K]V) *RWMap[K, V] {
+	internal := make(map[K]V, len(m))
+	maps.Copy(internal, m)
 	return &RWMap[K, V]{
-		internal: m,
+		internal: internal,
 	}
 }
 
-// Replace swaps the internal map with the provided one and returns the previous map
+// Replace swaps the internal map for a copy of the provided one and returns the
+// previous map. Copying keeps the caller's reference from bypassing the lock.
 func (rm *RWMap[K, V]) Replace(m map[K]V) map[K]V {
+	replacement := make(map[K]V, len(m))
+	maps.Copy(replacement, m)
+
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
 	current := rm.internal
-	rm.internal = m
+	rm.internal = replacement
 	return current
 }
 
