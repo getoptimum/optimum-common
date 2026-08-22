@@ -73,25 +73,31 @@ func (c *Cache) Keyfunc(tok *jwt.Token) (any, error) {
 // wire first; falls back to disk so the service can boot during a brief
 // auth-provider outage.
 func (c *Cache) load(ctx context.Context) error {
-	if raw, err := c.fetch(ctx); err == nil {
-		if writeErr := io.AtomicallySaveToFile(c.path, raw); writeErr != nil {
-			// disk write failure is non-fatal — we still have the live JWKS in memory.
-			c.log.Error("failed to persist JWKS to disk cache", writeErr, logger.WithString("path", c.path))
+	raw, wireErr := c.fetch(ctx)
+	if wireErr == nil {
+		// Parse before persisting: a response that does not parse must not
+		// replace a disk cache that still boots.
+		wireErr = c.swap(raw, "wire")
+		if wireErr == nil {
+			if writeErr := io.AtomicallySaveToFile(c.path, raw); writeErr != nil {
+				// disk write failure is non-fatal — we still have the live JWKS in memory.
+				c.log.Error("failed to persist JWKS to disk cache", writeErr, logger.WithString("path", c.path))
+			}
+			return nil
 		}
-		return c.swap(raw, "wire")
-	} else {
-		c.log.Info("JWKS wire fetch failed at boot, falling back to disk cache",
-			logger.WithString("url", c.url),
-			logger.WithString("path", c.path),
-			logger.WithString("error", err.Error()),
-		)
 	}
 
-	raw, err := io.LoadFromFile(c.path)
-	if err != nil {
-		return fmt.Errorf("jwks: wire fetch failed AND disk cache unavailable at %s: %w", c.path, err)
+	c.log.Info("JWKS wire load failed at boot, falling back to disk cache",
+		logger.WithString("url", c.url),
+		logger.WithString("path", c.path),
+		logger.WithString("error", wireErr.Error()),
+	)
+
+	diskRaw, diskErr := io.LoadFromFile(c.path)
+	if diskErr != nil {
+		return fmt.Errorf("jwks: wire fetch failed AND disk cache unavailable at %s: %w", c.path, diskErr)
 	}
-	return c.swap(raw, "disk")
+	return c.swap(diskRaw, "disk")
 }
 
 // refreshLoop is the long-interval background refresh.
@@ -108,11 +114,13 @@ func (c *Cache) refreshLoop(ctx context.Context) {
 				c.log.Error("JWKS refresh failed; keeping current keyfunc", err, logger.WithString("url", c.url))
 				continue
 			}
-			if writeErr := io.AtomicallySaveToFile(c.path, raw); writeErr != nil {
-				c.log.Error("failed to persist refreshed JWKS to disk cache", writeErr, logger.WithString("path", c.path))
-			}
 			if err := c.swap(raw, "wire-refresh"); err != nil {
 				c.log.Error("refreshed JWKS could not be parsed; keeping current keyfunc", err)
+				continue
+			}
+			// Persist only what parsed, so the disk cache stays bootable.
+			if writeErr := io.AtomicallySaveToFile(c.path, raw); writeErr != nil {
+				c.log.Error("failed to persist refreshed JWKS to disk cache", writeErr, logger.WithString("path", c.path))
 			}
 		}
 	}
