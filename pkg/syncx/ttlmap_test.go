@@ -100,6 +100,19 @@ func TestTTLMap(t *testing.T) {
 		require.True(t, ok)
 		require.Equal(t, 1, val)
 	})
+
+	t.Run("upsert treats expired as absent", func(t *testing.T) {
+		m := syncx.NewTTLMap[string, int](50*time.Millisecond, time.Hour) // cleanup >> TTL so sweeper never runs
+		defer m.Close()
+		m.Upsert("k", func(v int) int { return v + 1 }, 1)
+		time.Sleep(100 * time.Millisecond)
+		called := false
+		m.Upsert("k", func(v int) int { called = true; return v + 1 }, 1)
+		require.False(t, called)
+		v, ok := m.Get("k")
+		require.True(t, ok)
+		require.Equal(t, 1, v)
+	})
 }
 
 func TestUpsert_RefreshesTTLForExistingKey(t *testing.T) {

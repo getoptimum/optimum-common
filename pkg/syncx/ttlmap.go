@@ -231,9 +231,7 @@ func (m *TTLMap[K, V]) Upsert(key K, fn func(value V) V, zeroValue V) {
 
 	now := time.Now().UnixNano()
 
-	// An expired entry counts as absent, matching Get, Do, DoAndApply and
-	// LoadAll. Without this check fn is applied to a value the map has already
-	// stopped serving, for as long as it takes the cleanup ticker to sweep it.
+	// Expired-but-not-swept is absent, same as Get/Do.
 	it, ok := s.m[key]
 	if !ok || now > it.expiryNano {
 		s.m[key] = item[V]{value: zeroValue, expiryNano: now + m.maxTTL}
