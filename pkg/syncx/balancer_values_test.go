@@ -3,8 +3,9 @@ package syncx_test
 import (
 	"testing"
 
-	"github.com/getoptimum/optimum-common/pkg/syncx"
 	"github.com/stretchr/testify/require"
+
+	"github.com/getoptimum/optimum-common/pkg/syncx"
 )
 
 func TestRoundRobinBalancer_ValuesReturnsACopy(t *testing.T) {
