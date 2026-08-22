@@ -69,9 +69,7 @@ func (b *Broadcaster[T]) Broadcast(msg T) {
 // onDrop runs after b.mu is released, once per listener with a drop count.
 func (b *Broadcaster[T]) BroadcastTry(msg T, onDrop func(key string, num uint64)) {
 	b.mu.Lock()
-	// activeListeners is mutated under b.mu by registerListener and
-	// UnregisterListener, so sizing the map from it has to happen under the
-	// lock too.
+	// activeListeners is mutated under b.mu, so read it here.
 	drops := make(map[string]uint64, b.activeListeners)
 	for key, ch := range b.messages {
 		select {
