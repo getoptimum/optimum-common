@@ -103,9 +103,22 @@ func TestRWMapReplaceAndLoadAllAndErase(t *testing.T) {
 	require.Equal(t, map[int]string{3: "three"}, collected)
 	require.Empty(t, rwMap.LoadAll())
 
-	t.Run("the map is copied, not adopted", func(t *testing.T) {
+	t.Run("NewRWMapFromStdMap copies the source", func(t *testing.T) {
 		src := map[string]int{"a": 1}
 		m := syncx.NewRWMapFromStdMap(src)
+
+		src["a"] = 99
+		src["b"] = 2
+
+		v, ok := m.Load("a")
+		require.True(t, ok)
+		require.Equal(t, 1, v)
+		require.Equal(t, 1, m.Len())
+	})
+
+	t.Run("Replace copies the replacement", func(t *testing.T) {
+		m := syncx.NewRWMap[string, int]()
+		src := map[string]int{"a": 1}
 		m.Replace(src)
 
 		src["a"] = 99
