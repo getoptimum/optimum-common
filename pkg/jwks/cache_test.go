@@ -25,7 +25,10 @@ type jwksTestRig struct {
 	priv   *ecdsa.PrivateKey
 	server *httptest.Server
 	calls  atomic.Int32
+	doc    atomic.Pointer[[]byte]
 }
+
+func (r *jwksTestRig) setDoc(b []byte) { r.doc.Store(&b) }
 
 func newRig(t *testing.T) *jwksTestRig {
 	t.Helper()
@@ -43,10 +46,11 @@ func newRig(t *testing.T) *jwksTestRig {
 	})
 	require.NoError(t, err)
 
+	rig.setDoc(jwksDoc)
 	rig.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		rig.calls.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(jwksDoc)
+		_, _ = w.Write(*rig.doc.Load())
 	}))
 	t.Cleanup(rig.server.Close)
 	return rig
@@ -156,51 +160,17 @@ func TestNew_FailsWhenWireDown_AndNoDisk(t *testing.T) {
 	require.Contains(t, err.Error(), "disk cache unavailable")
 }
 
-// switchableJWKS serves a JWKS document that can be swapped mid-test, so a
-// healthy provider can start returning a key set that does not decode.
-type switchableJWKS struct {
-	server *httptest.Server
-	body   atomic.Pointer[[]byte]
-	served atomic.Int32
-}
-
-func newSwitchableJWKS(t *testing.T) (*switchableJWKS, []byte) {
-	t.Helper()
-
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	good, err := json.Marshal(map[string]any{
-		"keys": []map[string]string{{
-			"kty": "EC", "crv": "P-256", "kid": "test-key",
-			"alg": "ES256", "use": "sig",
-			"x": base64.RawURLEncoding.EncodeToString(priv.X.Bytes()),
-			"y": base64.RawURLEncoding.EncodeToString(priv.Y.Bytes()),
-		}},
-	})
-	require.NoError(t, err)
-
-	s := &switchableJWKS{}
-	s.body.Store(&good)
-	s.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		s.served.Add(1)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(*s.body.Load())
-	}))
-	t.Cleanup(s.server.Close)
-
-	return s, good
-}
-
 // A document like {"not":"a jwk set"} parses fine, so the payload has to be a
 // key set whose key does not decode for this path to be exercised at all.
 const undecodableJWKS = `{"keys":[{"kty":"EC","crv":"P-256","kid":"test-key","alg":"ES256","use":"sig","x":"!!!not-base64!!!","y":"!!!not-base64!!!"}]}`
 
 func TestRefresh_KeepsDiskCacheBootableWhenWireGoesBad(t *testing.T) {
-	s, good := newSwitchableJWKS(t)
+	rig := newRig(t)
 	diskPath := filepath.Join(t.TempDir(), "jwks.json")
+	good := *rig.doc.Load()
 
 	_, err := jwks.New(t.Context(), logger.NewAppSLogger(logger.Debug), jwks.Config{
-		JWKSURL:  s.server.URL,
+		JWKSURL:  rig.server.URL,
 		DiskPath: diskPath,
 		Refresh:  20 * time.Millisecond,
 	})
@@ -210,12 +180,11 @@ func TestRefresh_KeepsDiskCacheBootableWhenWireGoesBad(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, string(good), string(persisted))
 
-	garbage := []byte(undecodableJWKS)
-	s.body.Store(&garbage)
-	after := s.served.Load()
+	rig.setDoc([]byte(undecodableJWKS))
+	after := rig.calls.Load()
 
 	require.Eventually(t, func() bool {
-		return s.served.Load() >= after+2
+		return rig.calls.Load() >= after+2
 	}, 2*time.Second, 20*time.Millisecond, "refresh loop did not run")
 
 	// The disk copy still holds the last payload that parsed, so the next cold
@@ -226,19 +195,19 @@ func TestRefresh_KeepsDiskCacheBootableWhenWireGoesBad(t *testing.T) {
 }
 
 func TestNew_FallsBackToDisk_WhenWireServesUnparseableJWKS(t *testing.T) {
-	s, good := newSwitchableJWKS(t)
+	rig := newRig(t)
 	diskPath := filepath.Join(t.TempDir(), "jwks.json")
+	good := *rig.doc.Load()
 
 	_, err := jwks.New(t.Context(), logger.NewAppSLogger(logger.Debug), jwks.Config{
-		JWKSURL: s.server.URL, DiskPath: diskPath, Refresh: time.Hour,
+		JWKSURL: rig.server.URL, DiskPath: diskPath, Refresh: time.Hour,
 	})
 	require.NoError(t, err)
 
-	garbage := []byte(undecodableJWKS)
-	s.body.Store(&garbage)
+	rig.setDoc([]byte(undecodableJWKS))
 
 	c, err := jwks.New(t.Context(), logger.NewAppSLogger(logger.Debug), jwks.Config{
-		JWKSURL: s.server.URL, DiskPath: diskPath, Refresh: time.Hour,
+		JWKSURL: rig.server.URL, DiskPath: diskPath, Refresh: time.Hour,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, c)

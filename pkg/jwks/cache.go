@@ -75,14 +75,8 @@ func (c *Cache) Keyfunc(tok *jwt.Token) (any, error) {
 func (c *Cache) load(ctx context.Context) error {
 	raw, wireErr := c.fetch(ctx)
 	if wireErr == nil {
-		// Parse before persisting: a response that does not parse must not
-		// replace a disk cache that still boots.
-		wireErr = c.swap(raw, "wire")
+		wireErr = c.swapThenPersist(raw, "wire")
 		if wireErr == nil {
-			if writeErr := io.AtomicallySaveToFile(c.path, raw); writeErr != nil {
-				// disk write failure is non-fatal — we still have the live JWKS in memory.
-				c.log.Error("failed to persist JWKS to disk cache", writeErr, logger.WithString("path", c.path))
-			}
 			return nil
 		}
 	}
@@ -114,13 +108,8 @@ func (c *Cache) refreshLoop(ctx context.Context) {
 				c.log.Error("JWKS refresh failed; keeping current keyfunc", err, logger.WithString("url", c.url))
 				continue
 			}
-			if err := c.swap(raw, "wire-refresh"); err != nil {
+			if err := c.swapThenPersist(raw, "wire-refresh"); err != nil {
 				c.log.Error("refreshed JWKS could not be parsed; keeping current keyfunc", err)
-				continue
-			}
-			// Persist only what parsed, so the disk cache stays bootable.
-			if writeErr := io.AtomicallySaveToFile(c.path, raw); writeErr != nil {
-				c.log.Error("failed to persist refreshed JWKS to disk cache", writeErr, logger.WithString("path", c.path))
 			}
 		}
 	}
@@ -139,6 +128,19 @@ func (c *Cache) fetch(ctx context.Context) ([]byte, error) {
 		return nil, errors.New("empty JWKS response body")
 	}
 	return *res, nil
+}
+
+// swapThenPersist parses raw before writing it, so a payload that does not
+// parse cannot replace a disk cache that still boots.
+func (c *Cache) swapThenPersist(raw []byte, source string) error {
+	if err := c.swap(raw, source); err != nil {
+		return err
+	}
+	if writeErr := io.AtomicallySaveToFile(c.path, raw); writeErr != nil {
+		// disk write failure is non-fatal — we still have the live JWKS in memory.
+		c.log.Error("failed to persist JWKS to disk cache", writeErr, logger.WithString("path", c.path))
+	}
+	return nil
 }
 
 // swap parses raw JWKS JSON, builds a keyfunc, and atomically replaces the
