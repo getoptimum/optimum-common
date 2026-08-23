@@ -168,7 +168,7 @@ func TestBroadcasterBroadcastTry(t *testing.T) {
 		}
 	})
 
-	t.Run("concurrent register and BroadcastTry", func(t *testing.T) {
+	t.Run("concurrent register and BroadcastTry", func(_ *testing.T) {
 		b := syncx.NewBroadcaster[int]()
 		var wg sync.WaitGroup
 		for i := range 8 {
