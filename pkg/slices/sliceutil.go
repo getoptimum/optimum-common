@@ -63,7 +63,11 @@ func ExcludeFromSlice[T comparable](slice, excludeValues []T) []T {
 
 // ChunkSlice splits a slice into chunks of the specified size.
 // The last chunk may be smaller than chunkSize if the slice length is not divisible by chunkSize.
+// If chunkSize <= 0, nil is returned.
 func ChunkSlice[T any](slice []T, chunkSize int) [][]T {
+	if chunkSize <= 0 {
+		return nil
+	}
 	chunks := make([][]T, 0, (len(slice)+chunkSize-1)/chunkSize)
 	for i := 0; i < len(slice); i += chunkSize {
 		end := min(i+chunkSize, len(slice))
