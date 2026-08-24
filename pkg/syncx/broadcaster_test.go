@@ -1,6 +1,7 @@
 package syncx_test
 
 import (
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -165,5 +166,31 @@ func TestBroadcasterBroadcastTry(t *testing.T) {
 		case <-time.After(time.Second):
 			t.Fatal("deadlock when onDrop unregisters")
 		}
+	})
+
+	t.Run("concurrent register and BroadcastTry", func(_ *testing.T) {
+		b := syncx.NewBroadcaster[int]()
+		var wg sync.WaitGroup
+		for i := range 8 {
+			wg.Go(func() {
+				key := "l-" + strconv.Itoa(i)
+				for range 200 {
+					ch := b.RegisterBufferedListener(key, 1)
+					select {
+					case <-ch:
+					default:
+					}
+					b.UnregisterListener(key)
+				}
+			})
+		}
+		for range 8 {
+			wg.Go(func() {
+				for range 200 {
+					b.BroadcastTry(1, nil)
+				}
+			})
+		}
+		wg.Wait()
 	})
 }
