@@ -33,6 +33,14 @@ func TestRoundRobinBalancer(t *testing.T) {
 		require.Equal(t, strs, balancerStrings.Values())
 	})
 
+	t.Run("values returns a copy", func(t *testing.T) {
+		b := syncx.NewRoundRobinBalancer([]string{"a", "b"})
+		got := b.Values()
+		got[0] = "mutated"
+		require.Equal(t, "a", b.Next())
+		require.Equal(t, []string{"a", "b"}, b.Values())
+	})
+
 	t.Run("concurrent", func(t *testing.T) {
 		var (
 			wg            sync.WaitGroup
