@@ -4,9 +4,8 @@ import "sync"
 
 // Broadcaster fans out messages of type T to named listeners.
 type Broadcaster[T any] struct {
-	mu              sync.RWMutex
-	messages        map[string]chan T
-	activeListeners uint64
+	mu       sync.RWMutex
+	messages map[string]chan T
 }
 
 // NewBroadcaster creates a new broadcaster for messages of type T.
@@ -41,7 +40,6 @@ func (b *Broadcaster[T]) registerListener(key string, bufSize int) chan T {
 		ch = make(chan T, bufSize)
 	}
 	b.messages[key] = ch
-	b.activeListeners++
 	return ch
 }
 
@@ -52,7 +50,6 @@ func (b *Broadcaster[T]) UnregisterListener(key string) {
 	if ch, ok := b.messages[key]; ok {
 		close(ch)
 		delete(b.messages, key)
-		b.activeListeners--
 	}
 }
 
@@ -68,9 +65,8 @@ func (b *Broadcaster[T]) Broadcast(msg T) {
 // BroadcastTry is non-blocking; on a full buffer it drops msg.
 // onDrop runs after b.mu is released, once per listener with a drop count.
 func (b *Broadcaster[T]) BroadcastTry(msg T, onDrop func(key string, num uint64)) {
-	drops := make(map[string]uint64, b.activeListeners)
-
 	b.mu.Lock()
+	drops := make(map[string]uint64, len(b.messages))
 	for key, ch := range b.messages {
 		select {
 		case ch <- msg:
