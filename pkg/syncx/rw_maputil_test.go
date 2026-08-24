@@ -88,6 +88,20 @@ func TestRWMapBasicOperations(t *testing.T) {
 			require.Empty(t, rwMap.LoadAll())
 		})
 	}
+
+	t.Run("from map copies the source", func(t *testing.T) {
+		t.Parallel()
+
+		src := map[int]string{1: "seed"}
+		rwMap := syncx.NewRWMapFromStdMap(src)
+		src[1] = "mutated"
+		src[2] = "added"
+
+		value, ok := rwMap.Load(1)
+		require.True(t, ok)
+		require.Equal(t, "seed", value)
+		require.Equal(t, 1, rwMap.Len())
+	})
 }
 
 func TestRWMapReplaceAndLoadAllAndErase(t *testing.T) {
@@ -95,7 +109,9 @@ func TestRWMapReplaceAndLoadAllAndErase(t *testing.T) {
 	rwMap.Store(1, "one")
 	rwMap.Store(2, "two")
 
-	replaced := rwMap.Replace(map[int]string{3: "three"})
+	src := map[int]string{3: "three"}
+	replaced := rwMap.Replace(src)
+	src[3] = "mutated"
 	require.Equal(t, map[int]string{1: "one", 2: "two"}, replaced)
 	require.Equal(t, map[int]string{3: "three"}, rwMap.LoadAll())
 
