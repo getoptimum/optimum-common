@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	commonio "github.com/getoptimum/optimum-common/pkg/io"
 	"github.com/getoptimum/optimum-common/pkg/jwks"
 	"github.com/getoptimum/optimum-common/pkg/logger"
 	"github.com/golang-jwt/jwt/v5"
@@ -24,7 +25,10 @@ type jwksTestRig struct {
 	priv   *ecdsa.PrivateKey
 	server *httptest.Server
 	calls  atomic.Int32
+	doc    atomic.Pointer[[]byte]
 }
+
+func (r *jwksTestRig) setDoc(b []byte) { r.doc.Store(&b) }
 
 func newRig(t *testing.T) *jwksTestRig {
 	t.Helper()
@@ -42,10 +46,11 @@ func newRig(t *testing.T) *jwksTestRig {
 	})
 	require.NoError(t, err)
 
+	rig.setDoc(jwksDoc)
 	rig.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		rig.calls.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(jwksDoc)
+		_, _ = w.Write(*rig.doc.Load())
 	}))
 	t.Cleanup(rig.server.Close)
 	return rig
@@ -153,4 +158,61 @@ func TestNew_FailsWhenWireDown_AndNoDisk(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "disk cache unavailable")
+}
+
+// A document like {"not":"a jwk set"} parses fine, so the payload has to be a
+// key set whose key does not decode for this path to be exercised at all.
+const undecodableJWKS = `{"keys":[{"kty":"EC","crv":"P-256","kid":"test-key","alg":"ES256","use":"sig","x":"!!!not-base64!!!","y":"!!!not-base64!!!"}]}`
+
+func TestRefresh_KeepsDiskCacheBootableWhenWireGoesBad(t *testing.T) {
+	rig := newRig(t)
+	diskPath := filepath.Join(t.TempDir(), "jwks.json")
+	good := *rig.doc.Load()
+
+	_, err := jwks.New(t.Context(), logger.NewAppSLogger(logger.Debug), jwks.Config{
+		JWKSURL:  rig.server.URL,
+		DiskPath: diskPath,
+		Refresh:  20 * time.Millisecond,
+	})
+	require.NoError(t, err)
+
+	persisted, err := commonio.LoadFromFile(diskPath)
+	require.NoError(t, err)
+	require.JSONEq(t, string(good), string(persisted))
+
+	rig.setDoc([]byte(undecodableJWKS))
+	after := rig.calls.Load()
+
+	require.Eventually(t, func() bool {
+		return rig.calls.Load() >= after+2
+	}, 2*time.Second, 20*time.Millisecond, "refresh loop did not run")
+
+	// The disk copy still holds the last payload that parsed, so the next cold
+	// boot still comes up.
+	persisted, err = commonio.LoadFromFile(diskPath)
+	require.NoError(t, err)
+	require.JSONEq(t, string(good), string(persisted))
+}
+
+func TestNew_FallsBackToDisk_WhenWireServesUnparseableJWKS(t *testing.T) {
+	rig := newRig(t)
+	diskPath := filepath.Join(t.TempDir(), "jwks.json")
+	good := *rig.doc.Load()
+
+	_, err := jwks.New(t.Context(), logger.NewAppSLogger(logger.Debug), jwks.Config{
+		JWKSURL: rig.server.URL, DiskPath: diskPath, Refresh: time.Hour,
+	})
+	require.NoError(t, err)
+
+	rig.setDoc([]byte(undecodableJWKS))
+
+	c, err := jwks.New(t.Context(), logger.NewAppSLogger(logger.Debug), jwks.Config{
+		JWKSURL: rig.server.URL, DiskPath: diskPath, Refresh: time.Hour,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, c)
+
+	persisted, readErr := commonio.LoadFromFile(diskPath)
+	require.NoError(t, readErr)
+	require.JSONEq(t, string(good), string(persisted))
 }
