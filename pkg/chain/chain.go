@@ -3,6 +3,7 @@ package chain
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -74,4 +75,21 @@ func ChainFromInt(chainID uint64) (Chain, error) {
 		return canon, nil
 	}
 	return "", fmt.Errorf("unknown chain ID: %d", chainID)
+}
+
+// ParseChainIDParam parses a chain_id query param. Empty means 0 ("all chains").
+// A literal 0 is rejected unless allowZero is true.
+func ParseChainIDParam(raw string, allowZero bool) (uint64, error) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return 0, nil
+	}
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid chain_id %q: %w", raw, err)
+	}
+	if id == 0 && !allowZero {
+		return 0, errors.New("chain_id must be a non-zero uint64")
+	}
+	return id, nil
 }
