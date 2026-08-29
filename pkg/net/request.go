@@ -110,7 +110,7 @@ func executeRequest[T any](req *stdhttp.Request, config *CurlConf[T]) (res *T, s
 	}
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return res, 0, fmt.Errorf("failed to read response body: %w", err)
+		return res, resp.StatusCode, fmt.Errorf("failed to read response body: %w", err)
 	}
 	var result T
 	if strings.TrimSpace(strings.ReplaceAll(string(b), "\"", "")) != "" {
