@@ -70,3 +70,42 @@ func TestGenesisTime(t *testing.T) {
 	_, ok := chain.GenesisTime("unknown")
 	require.False(t, ok)
 }
+
+func TestParseChainIDParam(t *testing.T) {
+	cases := []struct {
+		raw       string
+		allowZero bool
+		want      uint64
+		wantErr   bool
+	}{
+		{"", false, 0, false},
+		{"   ", false, 0, false},
+		{"1", false, 1, false},
+		{" 1 ", false, 1, false},
+		{"18446744073709551615", false, 18446744073709551615, false},
+		{"0", false, 0, true},
+		{"00", false, 0, true},
+		{"-1", false, 0, true},
+		{"+1", false, 0, true},
+		{"abc", false, 0, true},
+		{"1.0", false, 0, true},
+		{"18446744073709551616", false, 0, true},
+		{"", true, 0, false},
+		{"0", true, 0, false},
+		{"00", true, 0, false},
+		{"1", true, 1, false},
+		{"-1", true, 0, true},
+		{"abc", true, 0, true},
+		{"18446744073709551616", true, 0, true},
+	}
+	for _, c := range cases {
+		id, err := chain.ParseChainIDParam(c.raw, c.allowZero)
+		if c.wantErr {
+			require.Error(t, err)
+			require.Equal(t, uint64(0), id)
+			continue
+		}
+		require.NoError(t, err)
+		require.Equal(t, c.want, id)
+	}
+}
