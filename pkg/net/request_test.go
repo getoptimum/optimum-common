@@ -3,6 +3,7 @@ package net_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -336,4 +337,37 @@ func newTestServer(t *testing.T, handler func(w http.ResponseWriter, r *http.Req
 	}))
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+// errReadCloser fails on the first Read so the body cannot be consumed.
+type errReadCloser struct{}
+
+func (errReadCloser) Read([]byte) (int, error) { return 0, errors.New("connection reset") }
+func (errReadCloser) Close() error             { return nil }
+
+// bodyFailRoundTripper answers with a real status code but an unreadable body.
+type bodyFailRoundTripper struct{ status int }
+
+func (rt bodyFailRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: rt.status,
+		Header:     make(http.Header),
+		Body:       errReadCloser{},
+	}, nil
+}
+
+func TestCurlReportsStatusWhenBodyReadFails(t *testing.T) {
+	// given a server that answers 503 but whose body cannot be read
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	client := &http.Client{Transport: bodyFailRoundTripper{status: http.StatusServiceUnavailable}}
+
+	// when
+	res, code, err := netpkg.GetCurl[TestResponse](ctx, "http://example.invalid/test", nil,
+		netpkg.WithHTTPClient[TestResponse](client))
+
+	// then the caller still learns the status, as it does for a decode failure
+	require.ErrorContains(t, err, "failed to read response body")
+	require.Equal(t, http.StatusServiceUnavailable, code, "status code should survive a body read failure")
+	require.Nil(t, res)
 }
