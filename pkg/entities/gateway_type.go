@@ -14,18 +14,29 @@ const (
 	GatewayTypeHermes  GatewayType = "hermes"
 	GatewayTypePartner GatewayType = "partner"
 	GatewayTypeRelay   GatewayType = "relay"
+	GatewayTypeStream  GatewayType = "stream"
 )
 
-var (
-	gatewayTypeMapper = map[string]GatewayType{
-		"hermes":  GatewayTypeHermes,
-		"partner": GatewayTypePartner,
-		"relay":   GatewayTypeRelay,
-	}
-)
+var gatewayTypeMapper = map[string]GatewayType{
+	"hermes":  GatewayTypeHermes,
+	"partner": GatewayTypePartner,
+	"relay":   GatewayTypeRelay,
+	"stream":  GatewayTypeStream,
+}
 
 func (s GatewayType) String() string {
 	return string(s)
+}
+
+// CanPublish is whether this role may originate mump2p traffic. Fail-closed:
+// only hermes/partner/relay publish; stream, empty, and unknown do not.
+func (s GatewayType) CanPublish() bool {
+	switch s {
+	case GatewayTypeHermes, GatewayTypePartner, GatewayTypeRelay:
+		return true
+	default:
+		return false
+	}
 }
 
 func GatewayTypeFromString(s string) (GatewayType, error) {
