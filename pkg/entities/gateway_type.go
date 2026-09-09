@@ -14,9 +14,7 @@ const (
 	GatewayTypeHermes  GatewayType = "hermes"
 	GatewayTypePartner GatewayType = "partner"
 	GatewayTypeRelay   GatewayType = "relay"
-	// GatewayTypeStream is mesh-join, no mump2p publish. Distinct from
-	// TokenAudienceStream (`aud=stream`), which is the consumer-token audience.
-	GatewayTypeStream GatewayType = "stream"
+	GatewayTypeStream  GatewayType = "stream"
 )
 
 var gatewayTypeMapper = map[string]GatewayType{
