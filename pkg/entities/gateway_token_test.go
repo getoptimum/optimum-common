@@ -12,6 +12,7 @@ import (
 func TestTokenAudienceString(t *testing.T) {
 	require.Equal(t, "p2p", entities.TokenAudienceP2P.String())
 	require.Equal(t, "services", entities.TokenAudienceServices.String())
+	require.Equal(t, "stream", entities.TokenAudienceStream.String())
 }
 
 func TestGatewayClaimsHasAudience(t *testing.T) {
@@ -22,6 +23,7 @@ func TestGatewayClaimsHasAudience(t *testing.T) {
 	}
 	require.True(t, c.HasAudience(entities.TokenAudienceServices))
 	require.False(t, c.HasAudience(entities.TokenAudienceP2P))
+	require.False(t, c.HasAudience(entities.TokenAudienceStream))
 
 	// Empty aud matches nothing.
 	require.False(t, (&entities.GatewayClaims{}).HasAudience(entities.TokenAudienceP2P))
