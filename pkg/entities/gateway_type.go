@@ -19,14 +19,12 @@ const (
 	GatewayTypeStream GatewayType = "stream"
 )
 
-var (
-	gatewayTypeMapper = map[string]GatewayType{
-		"hermes":  GatewayTypeHermes,
-		"partner": GatewayTypePartner,
-		"relay":   GatewayTypeRelay,
-		"stream":  GatewayTypeStream,
-	}
-)
+var gatewayTypeMapper = map[string]GatewayType{
+	"hermes":  GatewayTypeHermes,
+	"partner": GatewayTypePartner,
+	"relay":   GatewayTypeRelay,
+	"stream":  GatewayTypeStream,
+}
 
 func (s GatewayType) String() string {
 	return string(s)
