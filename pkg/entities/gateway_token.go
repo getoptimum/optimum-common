@@ -2,14 +2,15 @@ package entities
 
 import "github.com/golang-jwt/jwt/v5"
 
-// TokenAudience is a gateway-JWT `aud` value. optimum-auth mints a P2P and a
-// services token from one key/issuer, differing only by audience, so each
-// verifier can require the one meant for it.
+// TokenAudience is a gateway-JWT `aud` value. optimum-auth mints one token
+// per audience off the same key: p2p (handshake), services (bootstrap),
+// stream (ADR-0011 consumers).
 type TokenAudience string
 
 const (
 	TokenAudienceP2P      TokenAudience = "p2p"
 	TokenAudienceServices TokenAudience = "services"
+	TokenAudienceStream   TokenAudience = "stream"
 )
 
 func (a TokenAudience) String() string {
@@ -22,7 +23,7 @@ type GatewayConfirmation struct {
 	PeerID string `json:"peer_id"`
 }
 
-// GatewayClaims is the superset of gateway-JWT claims across both audiences;
+// GatewayClaims is the superset of gateway-JWT claims across all audiences;
 // each token carries only the subset that applies to it.
 type GatewayClaims struct {
 	ScopeVersion int64       `json:"scope_version"`
