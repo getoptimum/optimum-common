@@ -3,8 +3,9 @@ package entities_test
 import (
 	"testing"
 
-	"github.com/getoptimum/optimum-common/pkg/entities"
 	"github.com/stretchr/testify/require"
+
+	"github.com/getoptimum/optimum-common/pkg/entities"
 )
 
 func TestGatewayTypeFromString(t *testing.T) {
