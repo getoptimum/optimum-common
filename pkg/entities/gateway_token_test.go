@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/getoptimum/optimum-common/pkg/entities"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+
+	"github.com/getoptimum/optimum-common/pkg/entities"
 )
 
 func TestTokenAudienceString(t *testing.T) {
@@ -51,9 +52,11 @@ func TestGatewayClaimsJSON(t *testing.T) {
 		ScopeVersion: 1,
 		Type:         entities.GatewayTypePartner,
 		ChainID:      "hoodi",
+		Scope:        "p2p:publish p2p:subscribe",
 	}
 	raw, err = json.Marshal(handshake)
 	require.NoError(t, err)
+	require.Contains(t, string(raw), `"scope":"p2p:publish p2p:subscribe"`)
 	require.NotContains(t, string(raw), "operator_id")
 	require.NotContains(t, string(raw), "cnf", "cnf must be omitted on the peer-visible handshake token")
 	require.NotContains(t, string(raw), "peer_id", "peer_id must not leak on the handshake token when cnf is unset")
