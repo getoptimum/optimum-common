@@ -5,31 +5,27 @@ import (
 	"strings"
 )
 
-// GatewayType is the per-key gateway role. The role fully determines
-// the publish/subscribe matrix on mump2p (see ADR-004 §Gateway types) — billing
-// does not mint per-key topic lists; verifiers hard-code the mapping.
+// GatewayType is the per-key role. Publish/subscribe is GatewayClaims.Scope;
+// Type.CanPublish is only the fallback for tokens minted before scope existed.
 type GatewayType string
 
 const (
 	GatewayTypeHermes  GatewayType = "hermes"
 	GatewayTypePartner GatewayType = "partner"
 	GatewayTypeRelay   GatewayType = "relay"
-	GatewayTypeStream  GatewayType = "stream"
 )
 
 var gatewayTypeMapper = map[string]GatewayType{
 	"hermes":  GatewayTypeHermes,
 	"partner": GatewayTypePartner,
 	"relay":   GatewayTypeRelay,
-	"stream":  GatewayTypeStream,
 }
 
 func (s GatewayType) String() string {
 	return string(s)
 }
 
-// CanPublish is whether this role may originate mump2p traffic. Fail-closed:
-// only hermes/partner/relay publish; stream, empty, and unknown do not.
+// CanPublish is the pre-scope fallback. Handshake must use GatewayClaims.CanPublish.
 func (s GatewayType) CanPublish() bool {
 	switch s {
 	case GatewayTypeHermes, GatewayTypePartner, GatewayTypeRelay:

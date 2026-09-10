@@ -57,4 +57,40 @@ func TestGatewayClaimsJSON(t *testing.T) {
 	require.NotContains(t, string(raw), "operator_id")
 	require.NotContains(t, string(raw), "cnf", "cnf must be omitted on the peer-visible handshake token")
 	require.NotContains(t, string(raw), "peer_id", "peer_id must not leak on the handshake token when cnf is unset")
+	require.NotContains(t, string(raw), `"scope"`, "empty scope must omit")
+}
+
+func TestGatewayClaimsCanPublish(t *testing.T) {
+	require.False(t, (&entities.GatewayClaims{
+		Type:  entities.GatewayTypeHermes,
+		Scope: entities.CapSubscribe,
+	}).CanPublish())
+	require.True(t, (&entities.GatewayClaims{
+		Type:  entities.GatewayTypeHermes,
+		Scope: entities.CapPublish + " " + entities.CapSubscribe,
+	}).CanPublish())
+
+	require.True(t, (&entities.GatewayClaims{
+		Scope: "  " + entities.CapSubscribe + "  " + entities.CapPublish + "  ",
+	}).CanPublish())
+
+	require.False(t, (&entities.GatewayClaims{Scope: "p2p:publishx"}).CanPublish())
+
+	require.True(t, (&entities.GatewayClaims{Type: entities.GatewayTypePartner}).CanPublish())
+	require.False(t, (&entities.GatewayClaims{Type: ""}).CanPublish())
+	require.False(t, (*entities.GatewayClaims)(nil).CanPublish())
+}
+
+func TestGatewayClaimsScopeJSON(t *testing.T) {
+	raw, err := json.Marshal(entities.GatewayClaims{
+		Type:  entities.GatewayTypePartner,
+		Scope: entities.CapSubscribe,
+	})
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"scope":"p2p:subscribe"`)
+
+	var got entities.GatewayClaims
+	require.NoError(t, json.Unmarshal([]byte(`{"type":"hermes","scope":"p2p:subscribe"}`), &got))
+	require.Equal(t, entities.CapSubscribe, got.Scope)
+	require.False(t, got.CanPublish())
 }
