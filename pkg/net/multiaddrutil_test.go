@@ -44,8 +44,11 @@ func TestAddressInfoToStringAndBack(t *testing.T) {
 		maList = append(maList, m)
 	}
 
+	peerID, err := peer.Decode("16Uiu2HAkxohm96jeTn18K7iKVdNDd5A2jgY1pFoj6SkegPFq6Tzb")
+	require.NoError(t, err)
+
 	original := peer.AddrInfo{
-		ID:    "16Uiu2HAkxohm96jeTn18K7iKVdNDd5A2jgY1pFoj6SkegPFq6Tzb",
+		ID:    peerID,
 		Addrs: maList,
 	}
 	encoded := netpkg.AddressInfoToString(original)
@@ -63,6 +66,13 @@ func TestAddressInfoToStringAndBack(t *testing.T) {
 func TestAddressInfoFromString_InvalidID(t *testing.T) {
 	// Create invalid base58 ID
 	jsonStr := `{"peerID": "not-a-base58", "addrs": []}`
+	_, err := netpkg.AddressInfoFromString(jsonStr)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to parse peer ID")
+}
+
+func TestAddressInfoFromString_RejectsEmptyPeerID(t *testing.T) {
+	jsonStr := `{"peerID": "", "addrs": []}`
 	_, err := netpkg.AddressInfoFromString(jsonStr)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to parse peer ID")
