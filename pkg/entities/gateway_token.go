@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -73,10 +74,5 @@ func (c *GatewayClaims) CanPublish() bool {
 }
 
 func scopeHas(scope, grant string) bool {
-	for _, tok := range strings.Fields(scope) {
-		if tok == grant {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(strings.Fields(scope), grant)
 }
