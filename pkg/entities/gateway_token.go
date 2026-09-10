@@ -29,6 +29,9 @@ type GatewayClaims struct {
 	ScopeVersion int64       `json:"scope_version"`
 	Type         GatewayType `json:"type"`
 	ChainID      string      `json:"chain_id,omitempty"`
+	// Capability grants on the peer-visible p2p token: RFC 8693 §4.2, space-separated,
+	// never an array. Omitted and "" alike mean a pre-scope mint; see CanPublish.
+	Scope string `json:"scope,omitempty"`
 	// Set only on the services token; must never leak onto the peer-visible
 	// p2p handshake token (optimum-bootstrap#262).
 	OperatorID string `json:"operator_id,omitempty"`
