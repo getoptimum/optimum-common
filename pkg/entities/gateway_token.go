@@ -1,6 +1,16 @@
 package entities
 
-import "github.com/golang-jwt/jwt/v5"
+import (
+	"strings"
+
+	"github.com/golang-jwt/jwt/v5"
+)
+
+// Grants on the peer-visible handshake JWT. A verifier allows only what is present.
+const (
+	CapPublish   = "p2p:publish"
+	CapSubscribe = "p2p:subscribe"
+)
 
 // TokenAudience is a gateway-JWT `aud` value. optimum-auth mints one token
 // per audience off the same key: p2p (handshake), services (bootstrap),
@@ -28,7 +38,9 @@ type GatewayConfirmation struct {
 type GatewayClaims struct {
 	ScopeVersion int64       `json:"scope_version"`
 	Type         GatewayType `json:"type"`
-	ChainID      string      `json:"chain_id,omitempty"`
+	// Scope is the RFC 8693 grant list. Empty means a pre-scope mint; CanPublish uses Type.
+	Scope   string `json:"scope,omitempty"`
+	ChainID string `json:"chain_id,omitempty"`
 	// Set only on the services token; must never leak onto the peer-visible
 	// p2p handshake token (optimum-bootstrap#262).
 	OperatorID string `json:"operator_id,omitempty"`
@@ -43,6 +55,26 @@ type GatewayClaims struct {
 func (c *GatewayClaims) HasAudience(want TokenAudience) bool {
 	for _, a := range c.Audience {
 		if a == want.String() {
+			return true
+		}
+	}
+	return false
+}
+
+// CanPublish: Scope is authoritative when set; otherwise Type (pre-scope tokens).
+func (c *GatewayClaims) CanPublish() bool {
+	if c == nil {
+		return false
+	}
+	if strings.TrimSpace(c.Scope) != "" {
+		return scopeHas(c.Scope, CapPublish)
+	}
+	return c.Type.CanPublish()
+}
+
+func scopeHas(scope, grant string) bool {
+	for _, tok := range strings.Fields(scope) {
+		if tok == grant {
 			return true
 		}
 	}
