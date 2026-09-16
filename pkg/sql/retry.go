@@ -3,10 +3,11 @@ package sql
 import (
 	"context"
 	"errors"
-	"math/rand/v2"
 	"time"
 
 	"github.com/lib/pq"
+
+	"github.com/getoptimum/optimum-common/pkg/rand"
 )
 
 // Backoff schedule for read-replica recovery conflicts (40001).
@@ -42,8 +43,17 @@ var readReplicaBackoff = func(attempt int) time.Duration {
 	if d > readReplicaRetryMaxBackoff || d <= 0 {
 		d = readReplicaRetryMaxBackoff
 	}
-	spread := float64(d) * readReplicaRetryJitter
-	return time.Duration(float64(d) - spread + rand.Float64()*2*spread) //nolint:gosec // G404: jitter, not security
+	spread := int(float64(d) * readReplicaRetryJitter)
+	if spread <= 0 {
+		return d
+	}
+	// Jitter so concurrent retriers do not wake in lockstep. If the source fails, fall
+	// back to the unjittered delay -- losing jitter is not worth failing the query over.
+	offset, err := rand.RandBetween(-spread, spread)
+	if err != nil {
+		return d
+	}
+	return d + time.Duration(offset)
 }
 
 func retryReadReplica(ctx context.Context, fn func() error) error {
