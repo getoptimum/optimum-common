@@ -59,7 +59,7 @@ func TestRetryReadReplicaExhausts(t *testing.T) {
 	assert.Equal(t, readReplicaRetryMax+1, calls)
 }
 
-// A cancelled context must abort the backoff immediately instead of sleeping out the
+// A canceled context must abort the backoff immediately instead of sleeping out the
 // remaining schedule -- this is what keeps a long backoff safe for callers on a tick.
 func TestRetryReadReplicaHonoursContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
