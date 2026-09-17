@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// stubBackoff collapses the real (multi-second) schedule so tests stay fast.
-// Returns a restore func rather than using t.Cleanup so callers can stay explicit.
+// stubBackoff collapses the real (multi-second) schedule so tests stay fast, and
+// restores it with t.Cleanup.
 func stubBackoff(t *testing.T) {
 	t.Helper()
 	orig := readReplicaBackoff
@@ -57,6 +57,30 @@ func TestRetryReadReplicaExhausts(t *testing.T) {
 	})
 	require.ErrorIs(t, err, conflict)
 	assert.Equal(t, readReplicaRetryMax+1, calls)
+}
+
+// The schedule must not be slept one more time than it is used. The loop used to back off
+// after the final attempt too, so a persistent conflict returned a capped ~8s later than
+// the schedule claims -- pure dead wait, with nothing left to retry.
+func TestRetryReadReplicaDoesNotSleepAfterLastAttempt(t *testing.T) {
+	orig := readReplicaBackoff
+	t.Cleanup(func() { readReplicaBackoff = orig })
+	var backoffs []int
+	readReplicaBackoff = func(attempt int) time.Duration {
+		backoffs = append(backoffs, attempt)
+		return time.Microsecond
+	}
+
+	calls := 0
+	retryReadReplica(context.Background(), func() error { //nolint:errcheck // asserted via calls/backoffs
+		calls++
+		return &pq.Error{Code: "40001"}
+	})
+
+	assert.Equal(t, readReplicaRetryMax+1, calls, "every attempt should run")
+	// One fewer wait than attempts: the gaps between them, not after the last.
+	assert.Len(t, backoffs, readReplicaRetryMax, "no backoff after the final attempt")
+	assert.NotContains(t, backoffs, readReplicaRetryMax, "backoff(max) is the dead wait")
 }
 
 // A canceled context must abort the backoff immediately instead of sleeping out the
