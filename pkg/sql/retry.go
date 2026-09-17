@@ -49,6 +49,8 @@ var readReplicaBackoff = func(attempt int) time.Duration {
 	return d + time.Duration(offset)
 }
 
+// retryReadReplica re-runs fn while it fails with a recovery conflict, waiting out the
+// backoff schedule between attempts and returning the last error once they are spent.
 func retryReadReplica(ctx context.Context, fn func() error) error {
 	var err error
 	for attempt := range readReplicaRetryMax + 1 {

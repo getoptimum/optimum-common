@@ -20,6 +20,8 @@ func stubBackoff(t *testing.T) {
 	t.Cleanup(func() { readReplicaBackoff = orig })
 }
 
+// A conflict that clears must be retried and then succeed, without surfacing the
+// intermediate 40001 to the caller.
 func TestRetryReadReplica(t *testing.T) {
 	stubBackoff(t)
 
