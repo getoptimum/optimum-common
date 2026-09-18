@@ -1,7 +1,11 @@
 package identity
 
 import (
+	"bytes"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,6 +45,54 @@ func GenerateIdentitySecp256k1() (crypto.PrivKey, error) {
 		return nil, fmt.Errorf("generate secp256k1 identity: %w", err)
 	}
 	return pk, nil
+}
+
+// DeriveSecp256k1PrivateKey deterministically derives a Secp256k1 private key from parentRaw and label.
+func DeriveSecp256k1PrivateKey(parentRaw []byte, label string) (*crypto.Secp256k1PrivateKey, error) {
+	parent, err := unmarshalCanonicalSecp256k1PrivateKey(parentRaw)
+	if err != nil {
+		return nil, fmt.Errorf("invalid parent secp256k1 private key: %w", err)
+	}
+	if label == "" {
+		return parent, nil
+	}
+
+	for counter := uint64(0); ; counter++ {
+		mac := hmac.New(sha256.New, parentRaw)
+		_, _ = mac.Write([]byte(label))
+		if counter != 0 {
+			var counterBytes [8]byte
+			binary.BigEndian.PutUint64(counterBytes[:], counter)
+			_, _ = mac.Write(counterBytes[:])
+		}
+
+		key, err := unmarshalCanonicalSecp256k1PrivateKey(mac.Sum(nil))
+		if err == nil {
+			return key, nil
+		}
+		if counter == ^uint64(0) {
+			return nil, errors.New("could not derive valid secp256k1 private key")
+		}
+	}
+}
+
+func unmarshalCanonicalSecp256k1PrivateKey(raw []byte) (*crypto.Secp256k1PrivateKey, error) {
+	key, err := crypto.UnmarshalSecp256k1PrivateKey(raw)
+	if err != nil {
+		return nil, err
+	}
+	secp256k1Key, ok := key.(*crypto.Secp256k1PrivateKey)
+	if !ok {
+		return nil, errors.New("not a secp256k1 private key")
+	}
+	canonical, err := secp256k1Key.Raw()
+	if err != nil {
+		return nil, err
+	}
+	if bytes.Equal(raw, make([]byte, len(raw))) || !bytes.Equal(raw, canonical) {
+		return nil, errors.New("secp256k1 private key is not canonical")
+	}
+	return secp256k1Key, nil
 }
 
 // GenIdentityEd25519 creates a new random Ed25519 private key.
