@@ -4,14 +4,26 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// stubBackoff collapses the real (multi-second) schedule so tests stay fast, and
+// restores it with t.Cleanup.
+func stubBackoff(t *testing.T) {
+	t.Helper()
+	orig := readReplicaBackoff
+	readReplicaBackoff = func(int) time.Duration { return time.Microsecond }
+	t.Cleanup(func() { readReplicaBackoff = orig })
+}
+
+// A conflict that clears must be retried and then succeed, without surfacing the
+// intermediate 40001 to the caller.
 func TestRetryReadReplica(t *testing.T) {
-	t.Parallel()
+	stubBackoff(t)
 
 	calls := 0
 	err := retryReadReplica(context.Background(), func() error {
@@ -32,4 +44,80 @@ func TestRetryReadReplica(t *testing.T) {
 	})
 	require.ErrorIs(t, err, sentinel)
 	assert.Equal(t, 1, calls)
+}
+
+// A conflict that never clears must exhaust the full schedule and surface the last error,
+// rather than giving up after the old ~600ms budget.
+func TestRetryReadReplicaExhausts(t *testing.T) {
+	stubBackoff(t)
+
+	calls := 0
+	conflict := &pq.Error{Code: "40001"}
+	err := retryReadReplica(context.Background(), func() error {
+		calls++
+		return conflict
+	})
+	require.ErrorIs(t, err, conflict)
+	assert.Equal(t, readReplicaRetryMax+1, calls)
+}
+
+// The schedule must not be slept one more time than it is used. The loop used to back off
+// after the final attempt too, so a persistent conflict returned a capped ~8s later than
+// the schedule claims -- pure dead wait, with nothing left to retry.
+func TestRetryReadReplicaDoesNotSleepAfterLastAttempt(t *testing.T) {
+	orig := readReplicaBackoff
+	t.Cleanup(func() { readReplicaBackoff = orig })
+	var backoffs []int
+	readReplicaBackoff = func(attempt int) time.Duration {
+		backoffs = append(backoffs, attempt)
+		return time.Microsecond
+	}
+
+	calls := 0
+	retryReadReplica(context.Background(), func() error { //nolint:errcheck // asserted via calls/backoffs
+		calls++
+		return &pq.Error{Code: "40001"}
+	})
+
+	assert.Equal(t, readReplicaRetryMax+1, calls, "every attempt should run")
+	// One fewer wait than attempts: the gaps between them, not after the last.
+	assert.Len(t, backoffs, readReplicaRetryMax, "no backoff after the final attempt")
+	assert.NotContains(t, backoffs, readReplicaRetryMax, "backoff(max) is the dead wait")
+}
+
+// A canceled context must abort the backoff immediately instead of sleeping out the
+// remaining schedule -- this is what keeps a long backoff safe for callers on a tick.
+func TestRetryReadReplicaHonoursContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	calls := 0
+	conflict := &pq.Error{Code: "40001"}
+	start := time.Now()
+	err := retryReadReplica(ctx, func() error {
+		calls++
+		cancel() // conflict persists, but the caller goes away after the first attempt
+		return conflict
+	})
+	require.ErrorIs(t, err, conflict)
+	assert.Equal(t, 1, calls)
+	assert.Less(t, time.Since(start), readReplicaRetryBase, "should not have slept the backoff")
+}
+
+// The schedule must grow and stay capped; jitter keeps it within +/-20% of the nominal value.
+func TestReadReplicaBackoffSchedule(t *testing.T) {
+	for attempt, nominal := range []time.Duration{
+		250 * time.Millisecond,
+		500 * time.Millisecond,
+		time.Second,
+		2 * time.Second,
+		4 * time.Second,
+		8 * time.Second,
+		8 * time.Second, // capped
+	} {
+		got := readReplicaBackoff(attempt)
+		lo := time.Duration(float64(nominal) * (1 - readReplicaRetryJitter))
+		hi := time.Duration(float64(nominal) * (1 + readReplicaRetryJitter))
+		assert.GreaterOrEqual(t, got, lo, "attempt %d below jitter range", attempt)
+		assert.LessOrEqual(t, got, hi, "attempt %d above jitter range", attempt)
+	}
 }
