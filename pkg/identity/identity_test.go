@@ -69,40 +69,41 @@ func TestDeriveSecp256k1PrivateKeyRejectsInvalidParent(t *testing.T) {
 	curveOrder, err := hex.DecodeString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	require.NoError(t, err)
 
-	tests := []struct {
-		name      string
+	tests := map[string]struct {
 		parentRaw []byte
 		label     string
 	}{
-		{name: "nil", label: "node"},
-		{name: "short", parentRaw: make([]byte, secp256k1PrivateKeySize-1), label: "node"},
-		{name: "long", parentRaw: make([]byte, secp256k1PrivateKeySize+1), label: "node"},
-		{name: "zero", parentRaw: make([]byte, secp256k1PrivateKeySize), label: "node"},
-		{name: "curve order", parentRaw: curveOrder, label: "node"},
-		{name: "invalid fallback", parentRaw: make([]byte, secp256k1PrivateKeySize), label: ""},
+		"nil":              {label: "node"},
+		"short":            {make([]byte, secp256k1PrivateKeySize-1), "node"},
+		"long":             {make([]byte, secp256k1PrivateKeySize+1), "node"},
+		"zero":             {make([]byte, secp256k1PrivateKeySize), "node"},
+		"curve order":      {curveOrder, "node"},
+		"invalid fallback": {make([]byte, secp256k1PrivateKeySize), ""},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := identity.DeriveSecp256k1PrivateKey(tt.parentRaw, tt.label)
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, err = identity.DeriveSecp256k1PrivateKey(tt.parentRaw, tt.label)
 			require.Error(t, err)
 		})
 	}
 }
 
 func testGetP2PKey(t *testing.T, key crypto.PrivKey) peer.ID {
+	t.Helper()
+
 	id, err := peer.IDFromPrivateKey(key)
 	require.NoError(t, err)
 	return id
 }
 
-func testPrivateKey(t *testing.T) (crypto.PrivKey, []byte) {
+func testPrivateKey(t *testing.T) (key crypto.PrivKey, privBytes []byte) {
 	t.Helper()
-
-	key, _, err := crypto.GenerateSecp256k1Key(rand.Reader)
+	var err error
+	key, _, err = crypto.GenerateSecp256k1Key(rand.Reader)
 	require.NoError(t, err)
 
-	privBytes, err := key.Raw()
+	privBytes, err = key.Raw()
 	require.NoError(t, err)
 	require.Len(t, privBytes, secp256k1PrivateKeySize)
 	return key, privBytes
