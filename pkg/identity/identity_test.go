@@ -69,16 +69,17 @@ func TestDeriveSecp256k1PrivateKeyRejectsInvalidParent(t *testing.T) {
 	curveOrder, err := hex.DecodeString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	require.NoError(t, err)
 
+	const nodeLabel = "node"
 	tests := map[string]struct {
 		parentRaw []byte
 		label     string
 	}{
-		"nil":              {label: "node"},
-		"short":            {make([]byte, secp256k1PrivateKeySize-1), "node"},
-		"long":             {make([]byte, secp256k1PrivateKeySize+1), "node"},
-		"zero":             {make([]byte, secp256k1PrivateKeySize), "node"},
-		"curve order":      {curveOrder, "node"},
-		"invalid fallback": {make([]byte, secp256k1PrivateKeySize), ""},
+		"nil":              {label: nodeLabel},
+		"short":            {parentRaw: make([]byte, secp256k1PrivateKeySize-1), label: nodeLabel},
+		"long":             {parentRaw: make([]byte, secp256k1PrivateKeySize+1), label: nodeLabel},
+		"zero":             {parentRaw: make([]byte, secp256k1PrivateKeySize), label: nodeLabel},
+		"curve order":      {parentRaw: curveOrder, label: nodeLabel},
+		"invalid fallback": {parentRaw: make([]byte, secp256k1PrivateKeySize), label: ""},
 	}
 
 	for name, tt := range tests {
