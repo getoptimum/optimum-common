@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -277,4 +278,44 @@ func concurrentlyLogIt(appLog logger.AppLogger) {
 		})
 	}
 	wg.Wait()
+}
+
+// TestInitLogger_UserFieldsUnderReservedKeys checks that a user field whose key collides with
+// one of the keys ReplaceAttr rewrites is emitted instead of crashing the caller.
+func TestInitLogger_UserFieldsUnderReservedKeys(t *testing.T) {
+	table := map[string]struct {
+		key   string
+		value string
+	}{
+		"string under the time key":           {key: "time", value: "noon"},
+		"string under the gray_log_level key": {key: "gray_log_level", value: "warning"},
+	}
+
+	for name, tc := range table {
+		t.Run(name, func(t *testing.T) {
+			var buf bytes.Buffer
+			l := logger.InitLogger([]io.Writer{&buf}, logger.Info)
+
+			require.NotPanics(t, func() { l.Info("hello", logger.WithString(tc.key, tc.value)) })
+
+			records := parseJSONLines(t, &buf)
+			require.Len(t, records, 1)
+			require.NotZero(t, getNumber(records[0], "timestamp"))
+			require.Equal(t, tc.value, records[0][tc.key])
+		})
+	}
+}
+
+// TestInitLogger_ReservedKeysStillRewritten checks the other direction: an attribute that does
+// carry the expected kind is still rewritten, so the Kind guards did not disable the rewrite.
+func TestInitLogger_ReservedKeysStillRewritten(t *testing.T) {
+	var buf bytes.Buffer
+	l := logger.InitLogger([]io.Writer{&buf}, logger.Info)
+
+	l.Slog().Info("hello", slog.Int64("gray_log_level", 4))
+
+	records := parseJSONLines(t, &buf)
+	require.Len(t, records, 1)
+	require.NotZero(t, getNumber(records[0], "timestamp"))
+	require.NotContains(t, records[0], "gray_log_level")
 }
