@@ -150,6 +150,15 @@ func (c *Cache) swap(raw []byte, source string) error {
 	if err != nil {
 		return fmt.Errorf("parse JWKS (%s): %w", source, err)
 	}
+	// "null", "{}" and {"keys":[]} all parse, but a set without keys verifies
+	// nothing, so it must not replace the live keys or the disk copy.
+	keys, err := kf.Storage().KeyReadAll(context.Background())
+	if err != nil {
+		return fmt.Errorf("read JWKS keys (%s): %w", source, err)
+	}
+	if len(keys) == 0 {
+		return fmt.Errorf("parse JWKS (%s): key set has no keys", source)
+	}
 	c.current.Store(&kf)
 	c.log.Info("JWKS loaded", logger.WithString("source", source), logger.WithString("path", c.path))
 	return nil
