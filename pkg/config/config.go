@@ -101,11 +101,24 @@ func Load(cfg any, opts ...Option) error {
 	for _, fi := range fields {
 		flagMap[fi.flagName] = fi.value
 	}
+	// Visit takes a callback with no error return, so the first failure is captured
+	// here and reported after the walk.
+	var flagErr error
 	l.fs.Visit(func(f *flag.Flag) {
-		if v, ok := flagMap[f.Name]; ok {
-			_ = setValue(v, f.Value.String())
+		if flagErr != nil {
+			return
+		}
+		fv, ok := flagMap[f.Name]
+		if !ok {
+			return
+		}
+		if err := setValue(fv, f.Value.String()); err != nil {
+			flagErr = fmt.Errorf("setting flag %q: %w", f.Name, err)
 		}
 	})
+	if flagErr != nil {
+		return flagErr
+	}
 
 	return nil
 }
