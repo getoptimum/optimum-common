@@ -4,3 +4,4 @@ coverage.html
 .env
 .idea
 vendor
+.serena/*
