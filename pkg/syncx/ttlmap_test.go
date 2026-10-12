@@ -317,14 +317,12 @@ func TestPutIfNotExists(t *testing.T) {
 		successes := make(chan int, attempts)
 		var wg sync.WaitGroup
 		for i := range attempts {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				<-start
 				if m.PutIfNotExists("k", i) {
 					successes <- i
 				}
-			}()
+			})
 		}
 		close(start)
 		wg.Wait()

@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
-	randMath "math/rand"
+	randMath "math/rand/v2"
 	"strconv"
 )
 

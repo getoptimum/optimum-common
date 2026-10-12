@@ -19,7 +19,7 @@ permissions:
   security-events: write
 
 env:
-  go-version: "1.26.6"
+  go-version: "1.27.2"
 
 jobs:
   secrets-scan:
@@ -47,8 +47,6 @@ jobs:
           cache: true
       - name: Download Go dependencies
         run: go mod download
-      - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@424fc4cd9c82ea0fd6bee9cd49c2db2c3cc0c93f
       - name: Run gosec security scanner
         run: |
           # Read exclusions from gosec.yaml and trim whitespace
@@ -56,9 +54,9 @@ jobs:
 
           if [ -z "$EXCLUDED_RULES" ]; then
             echo "No excluded rules configured in gosec.yaml"
-            echo "Running gosec -exclude-generated -exclude-dir=scripts -severity high ./..."
-            gosec -exclude-generated -exclude-dir=scripts -severity high ./...
+            echo "Running go tool gosec -exclude-generated -exclude-dir=scripts -severity high ./..."
+            go tool gosec -exclude-generated -exclude-dir=scripts -severity high ./...
           else
             echo "Running gosec with exclusions: $EXCLUDED_RULES"
-            gosec -exclude-generated -exclude=$EXCLUDED_RULES -exclude-dir=scripts -severity high ./...
+            go tool gosec -exclude-generated -exclude=$EXCLUDED_RULES -exclude-dir=scripts -severity high ./...
           fi
