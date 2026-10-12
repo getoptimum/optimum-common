@@ -1,7 +1,9 @@
 package rand_test
 
 import (
+	cryptorand "crypto/rand"
 	"sort"
+	"strings"
 	"testing"
 
 	randutil "github.com/getoptimum/optimum-common/pkg/rand"
@@ -72,33 +74,34 @@ func TestRandBetween_BoundsAndCoverage(t *testing.T) {
 	}
 }
 
-func TestShuffle_PermutationAndNonIdentity(t *testing.T) {
+func TestShuffle_Permutation(t *testing.T) {
 	t.Parallel()
 
 	orig := []int{1, 2, 3, 4, 5, 6, 7}
 
-	// empty and single should not panic and should be stable
-	randutil.Shuffle([]int(nil))
+	require.NoError(t, randutil.Shuffle([]int(nil)))
 	one := []int{42}
-	randutil.Shuffle(one)
+	require.NoError(t, randutil.Shuffle(one))
 	require.Equal(t, []int{42}, one)
 
-	// permutation property -> same multiset after shuffle
 	a := append([]int(nil), orig...)
-	randutil.Shuffle(a)
+	require.NoError(t, randutil.Shuffle(a))
 
 	sortedA := append([]int(nil), a...)
 	sort.Ints(sortedA)
 	require.Equal(t, orig, sortedA, "shuffle must be a permutation of the original")
+}
 
-	// with overwhelming probability at least one position differs
-	identicalPositions := 0
-	for i := range orig {
-		if a[i] == orig[i] {
-			identicalPositions++
-		}
-	}
-	require.NotEqual(t, len(orig), identicalPositions, "shuffle produced identity order (very unlikely); try rerunning")
+func TestShuffle_PropagatesRandomnessError(t *testing.T) {
+	reader := cryptorand.Reader
+	cryptorand.Reader = strings.NewReader("")
+	t.Cleanup(func() {
+		cryptorand.Reader = reader
+	})
+
+	values := []int{1, 2}
+	require.Error(t, randutil.Shuffle(values))
+	require.Equal(t, []int{1, 2}, values)
 }
 
 var (
@@ -110,9 +113,7 @@ func BenchmarkRandInt64(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		v, err := randutil.RandInt64()
-		if err != nil {
-			b.Fatal(err)
-		}
+		require.NoError(b, err)
 		sinkInt64 = v
 	}
 }
@@ -123,9 +124,7 @@ func BenchmarkRandInt64Parallel(b *testing.B) {
 		var v int64
 		for pb.Next() {
 			x, err := randutil.RandInt64()
-			if err != nil {
-				b.Fatal(err)
-			}
+			require.NoError(b, err)
 			v = x
 		}
 		sinkInt64 = v
@@ -136,9 +135,7 @@ func BenchmarkRandInt(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		v, err := randutil.RandInt()
-		if err != nil {
-			b.Fatal(err)
-		}
+		require.NoError(b, err)
 		sinkInt = v
 	}
 }
@@ -148,9 +145,7 @@ func BenchmarkRandBetween(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		v, err := randutil.RandBetween(minVal, maxVal)
-		if err != nil {
-			b.Fatal(err)
-		}
+		require.NoError(b, err)
 		sinkInt = v
 	}
 }
@@ -162,9 +157,7 @@ func BenchmarkRandBetweenParallel(b *testing.B) {
 		var v int
 		for pb.Next() {
 			x, err := randutil.RandBetween(minVal, maxVal)
-			if err != nil {
-				b.Fatal(err)
-			}
+			require.NoError(b, err)
 			v = x
 		}
 		sinkInt = v
@@ -179,7 +172,7 @@ func BenchmarkShuffle_IntSlice100(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		cp := append([]int(nil), base...)
-		randutil.Shuffle(cp)
+		require.NoError(b, randutil.Shuffle(cp))
 	}
 }
 
@@ -191,6 +184,6 @@ func BenchmarkShuffle_IntSlice1e4(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		cp := append([]int(nil), base...)
-		randutil.Shuffle(cp)
+		require.NoError(b, randutil.Shuffle(cp))
 	}
 }

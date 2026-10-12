@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
-	randMath "math/rand/v2"
 	"strconv"
 )
 
@@ -43,9 +42,15 @@ func RandBetween(minVal, maxVal int) (int, error) {
 	return minVal + int(n.Int64()), nil
 }
 
-// Shuffle shuffles a slice of any type
-func Shuffle[T any](lst []T) {
-	randMath.Shuffle(len(lst), func(i, j int) {
+// Shuffle randomly reorders lst using cryptographic randomness.
+// If it returns an error, lst may be partially shuffled.
+func Shuffle[T any](lst []T) error {
+	for i := len(lst) - 1; i > 0; i-- {
+		j, err := RandBetween(0, i+1)
+		if err != nil {
+			return err
+		}
 		lst[i], lst[j] = lst[j], lst[i]
-	})
+	}
+	return nil
 }
