@@ -1,7 +1,6 @@
 package syncx_test
 
 import (
-	"encoding/binary"
 	"strconv"
 	"testing"
 	"time"
@@ -9,16 +8,17 @@ import (
 	"github.com/getoptimum/optimum-common/pkg/syncx"
 )
 
-// These benchmarks compare single-owner ID deduplication with identical 16-byte
-// keys. Both DedupCache timings include reading the caller's monotonic clock.
+// These benchmarks compare single-owner ID deduplication with identical uint64
+// keys. Consecutive counters keep the low bits balanced across shards.
+// Both DedupCache timings include reading the caller's monotonic clock.
 // Run without -race, for example:
 // go test ./pkg/syncx -run '^$' -bench '^BenchmarkIDCache' -benchmem -count=3
 func BenchmarkIDCacheLookup(b *testing.B) {
 	for _, n := range []int{10_000, 1_000_000} {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
-			ids := make([]syncx.EventID, 2*n)
+			ids := make([]syncx.EventID, 3*n)
 			for i := range ids {
-				binary.LittleEndian.PutUint64(ids[i][:8], uint64(i))
+				ids[i] = uint64(i)
 			}
 			b.Run("TTLMap", func(b *testing.B) {
 				m := syncx.NewTTLMap[syncx.EventID, struct{}](time.Hour, time.Hour)
@@ -29,7 +29,7 @@ func BenchmarkIDCacheLookup(b *testing.B) {
 				for _, hit := range []bool{true, false} {
 					name, keys := "Hit", ids[:n]
 					if !hit {
-						name, keys = "Miss", ids[n:]
+						name, keys = "Miss", ids[n:2*n]
 					}
 					b.Run(name, func(b *testing.B) {
 						b.ReportAllocs()
@@ -56,7 +56,7 @@ func BenchmarkIDCacheLookup(b *testing.B) {
 				for _, hit := range []bool{true, false} {
 					name, keys := "Hit", ids[:n]
 					if !hit {
-						name, keys = "Miss", ids[n:]
+						name, keys = "Miss", ids[n:2*n]
 					}
 					b.Run(name, func(b *testing.B) {
 						b.ReportAllocs()
@@ -83,7 +83,7 @@ func BenchmarkIDCacheLookup(b *testing.B) {
 				for _, hit := range []bool{true, false} {
 					name, keys := "Hit", ids[:n]
 					if !hit {
-						name, keys = "Miss", ids[n:]
+						name, keys = "Miss", ids[n:2*n]
 					}
 					b.Run(name, func(b *testing.B) {
 						b.ReportAllocs()
@@ -101,6 +101,44 @@ func BenchmarkIDCacheLookup(b *testing.B) {
 					})
 				}
 			})
+			b.Run("RotatingBloomDedupCache", func(b *testing.B) {
+				const rotation = 24 * time.Hour
+				m := syncx.NewRotatingBloomDedupCache(n, 1e-6, rotation)
+				for _, id := range ids[:n] {
+					m.Remember(id, 0)
+				}
+				for _, id := range ids[n : 2*n] {
+					m.Remember(id, int64(rotation))
+				}
+				origin := time.Now()
+				for _, kind := range []struct {
+					name string
+					keys []syncx.EventID
+					hit  bool
+				}{
+					{name: "ActiveHit", keys: ids[n : 2*n], hit: true},
+					{name: "PreviousHit", keys: ids[:n], hit: true},
+					{name: "Miss", keys: ids[2*n:]},
+				} {
+					b.Run(kind.name, func(b *testing.B) {
+						b.ReportAllocs()
+						hits := 0
+						b.ResetTimer()
+						for i := range b.N {
+							if m.Contains(kind.keys[i%n], int64(rotation)+time.Since(origin).Nanoseconds()) {
+								hits++
+							}
+						}
+						b.StopTimer()
+						if kind.hit && hits != b.N {
+							b.Fatalf("unexpected hits: %d of %d", hits, b.N)
+						}
+						if !kind.hit {
+							b.ReportMetric(float64(hits)/float64(b.N), "false-positive-hits/op")
+						}
+					})
+				}
+			})
 		})
 	}
 }
@@ -113,7 +151,7 @@ func BenchmarkIDCacheFill(b *testing.B) {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			ids := make([]syncx.EventID, n)
 			for i := range ids {
-				binary.LittleEndian.PutUint64(ids[i][:8], uint64(i))
+				ids[i] = uint64(i)
 			}
 			b.Run("TTLMap", func(b *testing.B) {
 				b.ReportAllocs()
@@ -163,88 +201,61 @@ func BenchmarkIDCacheFill(b *testing.B) {
 				b.StopTimer()
 				b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(n), "ns/ID")
 			})
+			b.Run("RotatingBloomDedupCache", func(b *testing.B) {
+				origin := time.Now()
+				b.ReportAllocs()
+				b.ResetTimer()
+				for range b.N {
+					m := syncx.NewRotatingBloomDedupCache(n, 1e-6, time.Hour)
+					for _, id := range ids {
+						m.Remember(id, time.Since(origin).Nanoseconds())
+					}
+					if !m.Contains(ids[0], time.Since(origin).Nanoseconds()) {
+						b.Fatal("remembered ID was not found")
+					}
+				}
+				b.StopTimer()
+				b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(n), "ns/ID")
+			})
 		})
 	}
 }
 
-// One operation processes a new ID and its duplicate, remembering only misses.
-// All caches use a real 20 ms TTL so normal benchmark runs exercise cleanup.
-// TTLMap sweeps every millisecond; both DedupCaches expire up to 256 records
-// every 64 pairs. Faster implementations retain more IDs at this unthrottled
-// rate; entries reports the final retained count, including unswept expired entries.
-// This measures cache throughput, not the ADR's fixed-rate end-to-end workload.
-func BenchmarkIDCacheChurn(b *testing.B) {
-	const ttl = 20 * time.Millisecond
-	b.Run("TTLMap", func(b *testing.B) {
-		m := syncx.NewTTLMap[syncx.EventID, struct{}](ttl, time.Millisecond)
-		defer m.Close()
-		duplicates := 0
+func BenchmarkRotatingBloomDedupCacheRotation(b *testing.B) {
+	const (
+		capacity = 1_000_000
+		rotation = time.Second
+	)
+	ids := make([]syncx.EventID, capacity)
+	for i := range ids {
+		ids[i] = uint64(i)
+	}
+	b.Run("Steady", func(b *testing.B) {
+		m := syncx.NewRotatingBloomDedupCache(capacity, 1e-6, rotation)
+		for _, id := range ids {
+			m.Remember(id, 0)
+		}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := range b.N {
-			var id syncx.EventID
-			binary.LittleEndian.PutUint64(id[:8], uint64(i))
-			for range 2 {
-				if _, ok := m.Get(id); ok {
-					duplicates++
-				} else {
-					m.Put(id, struct{}{})
-				}
+		for range b.N {
+			if !m.Contains(ids[0], 0) {
+				b.Fatal("remembered ID was not found")
 			}
 		}
-		b.StopTimer()
-		m.Close()
-		b.ReportMetric(float64(m.Len()), "entries")
-		b.ReportMetric(float64(duplicates)/float64(b.N), "duplicates/op")
 	})
-	b.Run("DedupCache", func(b *testing.B) {
-		origin := time.Now()
-		m := syncx.NewDedupCache(ttl)
-		duplicates := 0
+	b.Run("FullCycle", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := range b.N {
-			var id syncx.EventID
-			binary.LittleEndian.PutUint64(id[:8], uint64(i))
-			for copy := range 2 {
-				now := time.Since(origin).Nanoseconds()
-				if copy == 0 && i%64 == 0 {
-					m.Expire(now, 256)
-				}
-				if m.Contains(id, now) {
-					duplicates++
-				} else {
-					m.Remember(id, now)
-				}
+		for range b.N {
+			m := syncx.NewRotatingBloomDedupCache(capacity, 1e-6, rotation)
+			for _, id := range ids {
+				m.Remember(id, 0)
 			}
-		}
-		b.StopTimer()
-		b.ReportMetric(float64(m.Len()), "entries")
-		b.ReportMetric(float64(duplicates)/float64(b.N), "duplicates/op")
-	})
-	b.Run("ShardedDedupCache", func(b *testing.B) {
-		origin := time.Now()
-		m := syncx.NewShardedDedupCache(ttl)
-		duplicates := 0
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := range b.N {
-			var id syncx.EventID
-			binary.LittleEndian.PutUint64(id[:8], uint64(i))
-			for copy := range 2 {
-				now := time.Since(origin).Nanoseconds()
-				if copy == 0 && i%64 == 0 {
-					m.Expire(now, 256)
-				}
-				if m.Contains(id, now) {
-					duplicates++
-				} else {
-					m.Remember(id, now)
-				}
+			m.Contains(ids[0], int64(rotation))
+			for _, id := range ids {
+				m.Remember(id, int64(rotation))
 			}
+			m.Contains(ids[0], 2*int64(rotation))
 		}
-		b.StopTimer()
-		b.ReportMetric(float64(m.Len()), "entries")
-		b.ReportMetric(float64(duplicates)/float64(b.N), "duplicates/op")
 	})
 }

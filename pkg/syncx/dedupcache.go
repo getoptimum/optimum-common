@@ -3,7 +3,7 @@ package syncx
 import "time"
 
 // EventID identifies an event stored in a DedupCache.
-type EventID [16]byte
+type EventID = uint64
 
 type dedupRecord struct {
 	id       EventID

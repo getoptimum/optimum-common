@@ -1,10 +1,6 @@
 package syncx
 
-import (
-	"container/list"
-	"hash/maphash"
-	"time"
-)
+import "time"
 
 const (
 	shardedDedupCacheShards    = 32
@@ -22,12 +18,13 @@ type shardedDedupRecord struct {
 // It is not safe for concurrent use: one goroutine must own the cache. All
 // timestamp arguments are nonnegative, monotonic elapsed nanoseconds from the
 // same clock and must not decrease. IDs are routed across exactly 32 maps by
-// hash/maphash.Comparable over the complete EventID.
+// their low five bits, which should be uniformly distributed.
 type ShardedDedupCache struct {
-	ttl     int64
-	seed    maphash.Seed
-	shards  [shardedDedupCacheShards]map[EventID]int64
-	records list.List
+	ttl    int64
+	shards [shardedDedupCacheShards]map[EventID]int64
+	queue  []shardedDedupRecord
+	head   int
+	size   int
 }
 
 // NewShardedDedupCache creates a cache with ttl. It panics if ttl is not positive.
@@ -37,8 +34,7 @@ func NewShardedDedupCache(ttl time.Duration) *ShardedDedupCache {
 	}
 
 	c := &ShardedDedupCache{
-		ttl:  int64(ttl),
-		seed: maphash.MakeSeed(),
+		ttl: int64(ttl),
 	}
 	for i := range c.shards {
 		c.shards[i] = make(map[EventID]int64, 64)
@@ -60,28 +56,39 @@ func (c *ShardedDedupCache) Remember(id EventID, now int64) {
 		panic("syncx: DedupCache deadline overflows int64")
 	}
 
+	if c.size == len(c.queue) {
+		capacity := len(c.queue) * 2
+		if capacity == 0 {
+			capacity = 16
+		}
+		queue := make([]shardedDedupRecord, capacity)
+		for i := range c.size {
+			queue[i] = c.queue[(c.head+i)%len(c.queue)]
+		}
+		c.queue = queue
+		c.head = 0
+	}
+
 	deadline := now + c.ttl
 	shard := c.shardIndex(id)
 	c.shards[shard][id] = deadline
-	c.records.PushFront(shardedDedupRecord{id: id, deadline: deadline, shard: shard})
+	c.queue[(c.head+c.size)%len(c.queue)] = shardedDedupRecord{id: id, deadline: deadline, shard: shard}
+	c.size++
 }
 
 // Expire removes up to budget expired records at now and returns the number of
 // map entries removed. Stale records count toward budget and cannot remove an
 // ID that was remembered again with a later deadline.
 func (c *ShardedDedupCache) Expire(now int64, budget int) (removed int) {
-	for budget > 0 {
-		element := c.records.Back()
-		if element == nil {
-			break
-		}
-
-		record := element.Value.(shardedDedupRecord)
+	for budget > 0 && c.size > 0 {
+		record := c.queue[c.head]
 		if now < record.deadline {
 			break
 		}
 
-		c.records.Remove(element)
+		c.queue[c.head] = shardedDedupRecord{}
+		c.head = (c.head + 1) % len(c.queue)
+		c.size--
 		budget--
 
 		entries := c.shards[record.shard]
@@ -103,6 +110,6 @@ func (c *ShardedDedupCache) Len() int {
 	return total
 }
 
-func (c *ShardedDedupCache) shardIndex(id EventID) int {
-	return int(maphash.Comparable(c.seed, id) & shardedDedupCacheShardMask)
+func (_ *ShardedDedupCache) shardIndex(id EventID) int {
+	return int(id & shardedDedupCacheShardMask)
 }
