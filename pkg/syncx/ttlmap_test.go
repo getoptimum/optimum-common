@@ -267,3 +267,75 @@ func TestDo_DoesNotHoldLock_DuringUserFunction(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, 2, val)
 }
+
+func TestPutIfNotExists(t *testing.T) {
+	t.Run("inserts a missing key", func(t *testing.T) {
+		m := syncx.NewTTLMap[string, int](time.Minute, time.Hour)
+		defer m.Close()
+
+		require.True(t, m.PutIfNotExists("k", 1))
+		value, ok := m.Get("k")
+		require.True(t, ok)
+		require.Equal(t, 1, value)
+	})
+
+	t.Run("preserves a live key", func(t *testing.T) {
+		maxTTL := 300 * time.Millisecond
+		m := syncx.NewTTLMap[string, int](maxTTL, time.Hour)
+		defer m.Close()
+
+		m.Put("k", 1)
+		time.Sleep(100 * time.Millisecond)
+		require.False(t, m.PutIfNotExists("k", 2))
+		value, ok := m.Get("k")
+		require.True(t, ok)
+		require.Equal(t, 1, value)
+
+		time.Sleep(250 * time.Millisecond)
+		_, ok = m.Get("k")
+		require.False(t, ok)
+	})
+
+	t.Run("replaces an expired unswept key", func(t *testing.T) {
+		m := syncx.NewTTLMap[string, int](50*time.Millisecond, time.Hour)
+		defer m.Close()
+
+		m.Put("k", 1)
+		time.Sleep(100 * time.Millisecond)
+		require.True(t, m.PutIfNotExists("k", 2))
+		value, ok := m.Get("k")
+		require.True(t, ok)
+		require.Equal(t, 2, value)
+	})
+
+	t.Run("allows one concurrent insert", func(t *testing.T) {
+		m := syncx.NewTTLMap[string, int](time.Minute, time.Hour)
+		defer m.Close()
+
+		const attempts = 32
+		start := make(chan struct{})
+		successes := make(chan int, attempts)
+		var wg sync.WaitGroup
+		for i := range attempts {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				if m.PutIfNotExists("k", i) {
+					successes <- i
+				}
+			}()
+		}
+		close(start)
+		wg.Wait()
+		close(successes)
+
+		winner, ok := <-successes
+		require.True(t, ok)
+		_, ok = <-successes
+		require.False(t, ok)
+		value, ok := m.Get("k")
+		require.True(t, ok)
+		require.Equal(t, winner, value)
+	})
+}

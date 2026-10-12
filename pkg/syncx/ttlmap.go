@@ -256,3 +256,18 @@ func (m *TTLMap[K, V]) LoadAll() map[K]V {
 	}
 	return result
 }
+
+// PutIfNotExists stores val when key is missing or expired and returns true.
+// It returns false for a live key, leaving its value and expiry unchanged.
+func (m *TTLMap[K, V]) PutIfNotExists(key K, val V) bool {
+	s := m.shardOf(key)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UnixNano()
+	if it, ok := s.m[key]; ok && now <= it.expiryNano {
+		return false
+	}
+	s.m[key] = item[V]{value: val, expiryNano: now + m.maxTTL}
+	return true
+}
