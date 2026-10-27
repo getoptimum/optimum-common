@@ -1,0 +1,16 @@
+version: v2
+plugins:
+  - local:
+      - go
+      - tool
+      - protoc-gen-go
+    out: .
+    opt:
+      - module=github.com/getoptimum/optimum-common
+      - Mgetoptimum/rlnc/types/v1/rlnc.proto=github.com/getoptimum/optimum-common/pkg/rlncpb/types
+      - Mgetoptimum/rlnc/types/v1/smh.proto=github.com/getoptimum/optimum-common/pkg/rlncpb/shm
+inputs:
+  - module: buf.build/getoptimum/rlnc:v0.6.0
+    paths:
+      - getoptimum/rlnc/types/v1/rlnc.proto
+      - getoptimum/rlnc/types/v1/smh.proto

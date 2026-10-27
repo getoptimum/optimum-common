@@ -36,6 +36,9 @@ Requires **Go 1.27.3** or later.
 | `pkg/net`        | Networking: external IP detection, multiaddr builder, HTTP client |
 | `pkg/pointers`   | Generic pointer helpers                                           |
 | `pkg/rand`       | Cryptographic random utilities                                    |
+| `pkg/rlnc`       | GF(256) arithmetic, basis reduction and RLNC sharder sizing       |
+| `pkg/rlncpb`     | RLNC protobuf types generated from `buf.build/getoptimum/rlnc`    |
+| `pkg/shm`        | Shared-memory client for rlnc-server lanes                        |
 | `pkg/slices`     | Generic slice operations (unique, filter, chunk, flatten)         |
 | `pkg/sql`        | SQL query builders for bulk insert and upsert                     |
 | `pkg/syncx`      | Concurrency: TTL map, read-write map, broadcaster, balancer       |
