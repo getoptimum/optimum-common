@@ -19,7 +19,7 @@ permissions:
   security-events: write
 
 env:
-  go-version: "1.27.2"
+  go-version: "1.27.3"
 
 jobs:
   secrets-scan:
@@ -31,7 +31,7 @@ jobs:
         with:
           fetch-depth: 0  # Full history needed for TruffleHog
       - name: Run TruffleHog
-        uses: trufflesecurity/trufflehog@f714bf454f350590f4a24c3ddb1aef02c35bf5b6
+        uses: trufflesecurity/trufflehog@31ce31ee1abbcc7dc8eee5764c17121c3044c8b2
         with:
           extra_args: --only-verified
 
