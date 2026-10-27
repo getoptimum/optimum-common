@@ -71,13 +71,19 @@ func InitLogger(writers []io.Writer, mode LogMode, fields ...Field) AppLogger {
 	for i, w := range writers {
 		handlers[i] = newDedupHandler(slog.NewJSONHandler(w, &slog.HandlerOptions{
 			Level: logLevelFromMode(mode),
+			// User attributes can reuse reserved keys.
+			// Check Kind before calling typed slog.Value accessors.
 			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 				switch a.Key {
 				case "time":
-					return slog.Int64("timestamp", a.Value.Time().Unix())
+					if a.Value.Kind() == slog.KindTime {
+						return slog.Int64("timestamp", a.Value.Time().Unix())
+					}
 
 				case "gray_log_level":
-					return slog.Int64("level", a.Value.Int64())
+					if a.Value.Kind() == slog.KindInt64 {
+						return slog.Int64("level", a.Value.Int64())
+					}
 				}
 
 				return a
