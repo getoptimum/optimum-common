@@ -27,8 +27,8 @@ func Reduce(basis [][]byte, pivots []int, row []byte) {
 
 // Insert adds row, which must already be reduced against basis and nonzero at
 // pivot, its leading column. The row is copied and scaled so its pivot is one,
-// then inserted in pivot order. It returns the updated basis and pivots, which
-// must have one entry per row.
+// then inserted in pivot order. It returns the updated basis and pivots. As in
+// Reduce, pivots that do not have one entry per row are rebuilt from basis.
 //
 // With clearColumn, the new pivot's column is also eliminated from the existing
 // rows, so the basis stays in reduced row-echelon form: the same coding space
@@ -46,6 +46,13 @@ func Insert(basis [][]byte, pivots []int, row []byte, pivot int, clearColumn boo
 			if factor := existing[pivot]; factor != 0 {
 				XorScaled(existing[pivot:], inserted[pivot:], factor)
 			}
+		}
+	}
+
+	if len(pivots) != len(basis) {
+		pivots = make([]int, len(basis))
+		for i, existing := range basis {
+			pivots[i] = LeadingColumn(existing)
 		}
 	}
 

@@ -1,3 +1,3 @@
-// Package rlnc provides GF(256) arithmetic, basis reduction and sharder sizing
+// Package rlnc provides GF(256) arithmetic, basis reduction and sharder constants
 // for code that works with RLNC symbols outside rlnc-server.
 package rlnc

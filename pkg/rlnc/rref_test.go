@@ -154,6 +154,13 @@ func TestReduceWithoutPivots(t *testing.T) {
 	require.Equal(t, []byte{0, 0, 0}, withoutPivots)
 }
 
+func TestInsertWithoutPivots(t *testing.T) {
+	basis, pivots := rlnc.Insert([][]byte{{1, 1}}, nil, []byte{0, 1}, 1, false)
+
+	require.Equal(t, [][]byte{{1, 1}, {0, 1}}, basis)
+	require.Equal(t, []int{0, 1}, pivots)
+}
+
 func TestValidateRREF(t *testing.T) {
 	testCases := []struct {
 		name      string
