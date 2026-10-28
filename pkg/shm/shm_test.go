@@ -932,6 +932,73 @@ func TestServiceExecuteMessage(t *testing.T) {
 	}
 }
 
+func TestServiceVerifyServer(t *testing.T) {
+	tests := []struct {
+		name        string
+		output      *shmpb.OpOutput
+		wantVersion string
+		wantErr     error
+	}{
+		{
+			name: "compatible server",
+			output: &shmpb.OpOutput{
+				Response: mustMarshal(t, &shmpb.ServerInfoResponse{
+					FrameVersion:  FrameVersion,
+					ServerVersion: "v0.12.0",
+				}),
+			},
+			wantVersion: "v0.12.0",
+		},
+		{
+			name: "server predates frame versioning",
+			output: &shmpb.OpOutput{
+				Error: &shmpb.OpError{Code: shmpb.OpErrorCode_OP_ERROR_CODE_UNSUPPORTED_OPERATION, Err: "unsupported"},
+			},
+			wantErr: ErrIncompatibleServer,
+		},
+		{
+			name: "different frame version",
+			output: &shmpb.OpOutput{
+				Response: mustMarshal(t, &shmpb.ServerInfoResponse{
+					FrameVersion:  FrameVersion + 1,
+					ServerVersion: "v9.0.0",
+				}),
+			},
+			wantVersion: "v9.0.0",
+			wantErr:     ErrIncompatibleServer,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mem := newTestMem(t)
+			ls := newLaneSetStub(func(ls *laneSetStub) {
+				ls.getMemFn = func(_ int) (*libshm.Mem, error) { return mem, nil }
+			})
+			svc := NewWithLaneSet(ls, 1)
+
+			op := shmpb.OperationType_OPERATION_TYPE_SERVER_INFO
+			workerDone := startWorkerWithOpOutput(
+				func(_ *shmpb.OpInput, _ shmpb.OperationType, _ []byte) *shmpb.OpOutput { return tc.output },
+			)(t, mem, op, nil)
+
+			version, err := svc.VerifyServer()
+
+			result := <-workerDone
+			require.NoError(t, result.err)
+			require.Equal(t, op, result.request.GetOperation())
+			require.Equal(t, FrameVersion, result.request.GetFrameVersion())
+			require.Equal(t, tc.wantVersion, version)
+
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestWriteInputFrameMatchesProtoMarshal(t *testing.T) {
 	tests := []struct {
 		name string
@@ -968,7 +1035,11 @@ func TestWriteInputFrameMatchesProtoMarshal(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			want, err := proto.Marshal(&shmpb.OpInput{Operation: tc.op, Msg: mustMarshal(t, tc.req)})
+			want, err := proto.Marshal(&shmpb.OpInput{
+				Operation:    tc.op,
+				Msg:          mustMarshal(t, tc.req),
+				FrameVersion: FrameVersion,
+			})
 			require.NoError(t, err)
 
 			size := binary.LittleEndian.Uint32(region[:libshm.FrameHeaderSize])
@@ -992,7 +1063,7 @@ func TestWriteInputFrameRejectsInvalidRequests(t *testing.T) {
 	t.Run("marshal size mismatch", func(t *testing.T) {
 		region := make([]byte, 64)
 		err := writeInputFrame(region, shmpb.OperationType_OPERATION_TYPE_DECODE, 8, appendN(9))
-		require.ErrorContains(t, err, "encoded 13 bytes, expected 12")
+		require.ErrorContains(t, err, "encoded 15 bytes, expected 14")
 		require.Equal(t, make([]byte, libshm.FrameHeaderSize), region[:libshm.FrameHeaderSize],
 			"a rejected frame must not publish a length")
 	})
@@ -1072,6 +1143,7 @@ func TestOpFrameFieldNumbersMatchSchema(t *testing.T) {
 	input := (&shmpb.OpInput{}).ProtoReflect().Descriptor().Fields()
 	require.Equal(t, input.ByName("operation").Number(), opInputOperationField)
 	require.Equal(t, input.ByName("msg").Number(), opInputMsgField)
+	require.Equal(t, input.ByName("frame_version").Number(), opInputFrameVersionField)
 
 	output := (&shmpb.OpOutput{}).ProtoReflect().Descriptor().Fields()
 	require.Equal(t, output.ByName("response").Number(), opOutputResponseField)

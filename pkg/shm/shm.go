@@ -25,16 +25,28 @@ const shmWaitTimeout = 2 * time.Second
 // encodes and parses by hand. See the package documentation before changing
 // them. TestOpFrameFieldNumbersMatchSchema pins them to the generated schema.
 const (
-	opInputOperationField protowire.Number = 1
-	opInputMsgField       protowire.Number = 2
+	opInputOperationField    protowire.Number = 1
+	opInputMsgField          protowire.Number = 2
+	opInputFrameVersionField protowire.Number = 3
 
 	opOutputResponseField protowire.Number = 1
 	opOutputErrorField    protowire.Number = 2
 )
 
-// errFrameTooLarge reports a request whose OpInput frame does not fit the
-// lane's input region.
-var errFrameTooLarge = errors.New("op input frame exceeds lane input region")
+// FrameVersion is the RLNC frame layout this node expects rlnc-server to
+// produce and accept. It must match the server's types.FrameVersion. Every
+// OpInput carries it, so a server on another layout rejects each operation.
+const FrameVersion uint32 = 1
+
+var (
+	// errFrameTooLarge reports a request whose OpInput frame does not fit the
+	// lane's input region.
+	errFrameTooLarge = errors.New("op input frame exceeds lane input region")
+
+	// ErrIncompatibleServer reports an rlnc-server that predates frame
+	// versioning or uses a different frame layout.
+	ErrIncompatibleServer = errors.New("incompatible rlnc-server")
+)
 
 type (
 	// Service defines a wrapper around a shared memory lane set with a set of utility
@@ -96,6 +108,33 @@ func New(lanes int, name string) (*Service, error) {
 		ls:    ls,
 		slots: make(chan struct{}, lanes),
 	}, nil
+}
+
+// VerifyServer asks rlnc-server for its frame version and returns its build
+// version. Servers that predate frame versioning reject the operation as
+// unsupported. Either case, or a different frame version, wraps
+// ErrIncompatibleServer.
+func (s *Service) VerifyServer() (serverVersion string, err error) {
+	var resp shmpb.ServerInfoResponse
+	err = s.ExecuteMessage(shmpb.OperationType_OPERATION_TYPE_SERVER_INFO, &shmpb.ServerInfoRequest{}, &resp)
+	if opErr, ok := errors.AsType[*shmpb.OpError](err); ok &&
+		opErr.GetCode() == shmpb.OpErrorCode_OP_ERROR_CODE_UNSUPPORTED_OPERATION {
+		return "", fmt.Errorf("%w: server predates frame versioning: %w", ErrIncompatibleServer, err)
+	}
+	if err != nil {
+		return "", fmt.Errorf("execute server info request: %w", err)
+	}
+
+	if resp.GetFrameVersion() != FrameVersion {
+		return resp.GetServerVersion(), fmt.Errorf(
+			"%w: frame version %d, expected %d",
+			ErrIncompatibleServer,
+			resp.GetFrameVersion(),
+			FrameVersion,
+		)
+	}
+
+	return resp.GetServerVersion(), nil
 }
 
 // SetObserver installs the metric sink. Call before the service is used.
@@ -293,7 +332,8 @@ func (s *Service) execute(
 	return nil
 }
 
-// writeInputFrame encodes OpInput{operation: op, msg: <appendMsg>} straight
+// writeInputFrame encodes OpInput{operation: op, msg: <appendMsg>,
+// frame_version: FrameVersion} straight
 // into the lane's input region, behind the little-endian frame length the
 // server reads first. appendMsg must append exactly msgSize bytes!!! The bytes
 // match proto.Marshal, which omits zero-valued proto3 fields.
@@ -313,6 +353,8 @@ func writeInputFrame(
 	if msgSize > 0 {
 		size += protowire.SizeTag(opInputMsgField) + protowire.SizeBytes(msgSize)
 	}
+
+	size += protowire.SizeTag(opInputFrameVersionField) + protowire.SizeVarint(uint64(FrameVersion))
 
 	if size > len(region)-shm.FrameHeaderSize {
 		return fmt.Errorf("%w: %d > %d bytes", errFrameTooLarge, size, len(region)-shm.FrameHeaderSize)
@@ -340,6 +382,10 @@ func writeInputFrame(
 			return fmt.Errorf("marshal op input: %w", err)
 		}
 	}
+
+	// proto.Marshal writes fields in number order, so frame_version goes last.
+	frame = protowire.AppendTag(frame, opInputFrameVersionField, protowire.VarintType)
+	frame = protowire.AppendVarint(frame, uint64(FrameVersion))
 
 	if len(frame) != size {
 		return fmt.Errorf("marshal op input: encoded %d bytes, expected %d", len(frame), size)
