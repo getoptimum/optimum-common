@@ -10,7 +10,7 @@ plugins:
       - Mgetoptimum/rlnc/types/v1/rlnc.proto=github.com/getoptimum/optimum-common/pkg/rlncpb/types
       - Mgetoptimum/rlnc/types/v1/smh.proto=github.com/getoptimum/optimum-common/pkg/rlncpb/shm
 inputs:
-  - module: buf.build/getoptimum/rlnc:v0.6.0
+  - module: buf.build/getoptimum/rlnc:v0.7.0
     paths:
       - getoptimum/rlnc/types/v1/rlnc.proto
       - getoptimum/rlnc/types/v1/smh.proto
