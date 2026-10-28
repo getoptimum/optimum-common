@@ -8,7 +8,7 @@ import (
 	"github.com/getoptimum/optimum-common/pkg/rlnc"
 )
 
-func TestMul(t *testing.T) {
+func TestGFMultiply(t *testing.T) {
 	testCases := []struct {
 		name        string
 		left, right byte
@@ -23,17 +23,17 @@ func TestMul(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.output, rlnc.Mul(tc.left, tc.right))
-			require.Equal(t, tc.output, rlnc.Mul(tc.right, tc.left))
+			require.Equal(t, tc.output, rlnc.GFMultiply(tc.left, tc.right))
+			require.Equal(t, tc.output, rlnc.GFMultiply(tc.right, tc.left))
 		})
 	}
 }
 
-func TestInverse(t *testing.T) {
-	require.Zero(t, rlnc.Inverse(0))
+func TestGFInverse(t *testing.T) {
+	require.Zero(t, rlnc.GFInverse(0))
 
 	for value := 1; value < 256; value++ {
-		require.Equal(t, byte(1), rlnc.Mul(byte(value), rlnc.Inverse(byte(value))), "value %d", value)
+		require.Equal(t, byte(1), rlnc.GFMultiply(byte(value), rlnc.GFInverse(byte(value))), "value %d", value)
 	}
 }
 

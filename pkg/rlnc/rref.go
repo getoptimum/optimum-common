@@ -39,7 +39,7 @@ func Insert(basis [][]byte, pivots []int, row []byte, pivot int, clearColumn boo
 	inserted := make([]byte, len(row))
 
 	copy(inserted, row)
-	Scale(inserted[pivot:], Inverse(inserted[pivot]))
+	Scale(inserted[pivot:], GFInverse(inserted[pivot]))
 
 	if clearColumn {
 		for _, existing := range basis {

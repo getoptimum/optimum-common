@@ -1,8 +1,8 @@
 package rlnc
 
-// Mul multiplies two elements of the RLNC encoder's GF(256) field, which uses
+// GFMultiply multiplies two elements of the RLNC encoder's GF(256) field, which uses
 // the primitive polynomial 0x11d.
-func Mul(left, right byte) byte {
+func GFMultiply(left, right byte) byte {
 	var product byte
 	for right != 0 {
 		if right&1 != 0 {
@@ -22,9 +22,9 @@ func Mul(left, right byte) byte {
 	return product
 }
 
-// Inverse returns the multiplicative inverse of value in GF(256). Zero has no
+// GFInverse returns the multiplicative inverse of value in GF(256). Zero has no
 // inverse and returns zero.
-func Inverse(value byte) byte {
+func GFInverse(value byte) byte {
 	if value == 0 {
 		return 0
 	}
@@ -34,10 +34,10 @@ func Inverse(value byte) byte {
 	base := value
 	for exponent := 254; exponent > 0; exponent >>= 1 {
 		if exponent&1 != 0 {
-			result = Mul(result, base)
+			result = GFMultiply(result, base)
 		}
 
-		base = Mul(base, base)
+		base = GFMultiply(base, base)
 	}
 
 	return result
@@ -46,7 +46,7 @@ func Inverse(value byte) byte {
 // Scale multiplies every element of row by factor in place.
 func Scale(row []byte, factor byte) {
 	for index := range row {
-		row[index] = Mul(factor, row[index])
+		row[index] = GFMultiply(factor, row[index])
 	}
 }
 
@@ -54,7 +54,7 @@ func Scale(row []byte, factor byte) {
 // must be at least as long as dst.
 func XorScaled(dst, src []byte, factor byte) {
 	for index := range dst {
-		dst[index] ^= Mul(factor, src[index])
+		dst[index] ^= GFMultiply(factor, src[index])
 	}
 }
 

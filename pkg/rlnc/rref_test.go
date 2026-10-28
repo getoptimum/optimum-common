@@ -45,7 +45,7 @@ func referenceBasis(rows [][]byte, k int) [][]byte {
 		}
 
 		basis[rank], basis[pivot] = basis[pivot], basis[rank]
-		rlnc.Scale(basis[rank], rlnc.Inverse(basis[rank][column]))
+		rlnc.Scale(basis[rank], rlnc.GFInverse(basis[rank][column]))
 		for i, row := range basis {
 			if i != rank {
 				rlnc.XorScaled(row, basis[rank], row[column])
@@ -137,7 +137,7 @@ func TestInsertModes(t *testing.T) {
 
 	// Row 0 has 3 times row 1 added to it, clearing column 1.
 	basis, _ = addRows(rows, true)
-	require.Equal(t, [][]byte{{1, 0, 7 ^ rlnc.Mul(3, 5)}, {0, 1, 5}}, basis)
+	require.Equal(t, [][]byte{{1, 0, 7 ^ rlnc.GFMultiply(3, 5)}, {0, 1, 5}}, basis)
 	require.NoError(t, rlnc.ValidateRREF(basis, 3))
 }
 
