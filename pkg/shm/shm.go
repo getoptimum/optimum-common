@@ -460,6 +460,9 @@ func parseOpOutput(frame []byte) (response []byte, opErr *shmpb.OpError, err err
 // - TryLockLane(lane) returns (false, nil) when another local goroutine owns the
 // lock—that is the normal case, and claimLane does continue. A non-nil error
 // likewise means an invalid lane-set/index.
+//
+// A single scan can go stale and fail while another lane is idle.
+// Ref: https://github.com/getoptimum/optimum-common/issues/226
 func (s *Service) claimLane() (*claimedLane, error) {
 	if s.ls == nil || s.lanes == 0 {
 		return nil, fmt.Errorf("lane set is closed")
