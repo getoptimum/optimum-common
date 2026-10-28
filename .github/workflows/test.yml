@@ -28,10 +28,22 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - name: Generate GitHub App Token
+        id: generate-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: getoptimum
+          # Least privilege: read-only, scoped to the private modules this repo needs.
+          repositories: shm
+          permission-contents: read
+
+      - name: Setup Go (private modules)
+        uses: ./.github/actions/setup-go-private
         with:
           go-version: ${{ env.go-version }}
-          cache: true
+          token: ${{ steps.generate-token.outputs.token }}
 
       - name: Run tests and measure coverage
         run:  make test
