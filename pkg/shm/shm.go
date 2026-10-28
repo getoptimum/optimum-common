@@ -398,13 +398,9 @@ func writeInputFrame(
 
 // parseOpOutput parses an OpOutput frame in place. response aliases frame. A
 // present error field is a server error even when empty, as a nil check on the
-// unmarshaled message would report it.
+// unmarshaled message would report it. Repeated error fields merge, as
+// proto.Unmarshal merges repeated occurrences of a message field.
 func parseOpOutput(frame []byte) (response []byte, opErr *shmpb.OpError, err error) {
-	var (
-		errBz  []byte
-		hasErr bool
-	)
-
 	for len(frame) > 0 {
 		num, typ, n := protowire.ConsumeTag(frame)
 		if n < 0 {
@@ -418,8 +414,15 @@ func parseOpOutput(frame []byte) (response []byte, opErr *shmpb.OpError, err err
 			response, n = protowire.ConsumeBytes(frame)
 
 		case num == opOutputErrorField && typ == protowire.BytesType:
-			errBz, n = protowire.ConsumeBytes(frame)
-			hasErr = true
+			var errBz []byte
+			if errBz, n = protowire.ConsumeBytes(frame); n >= 0 {
+				if opErr == nil {
+					opErr = new(shmpb.OpError)
+				}
+				if err := (proto.UnmarshalOptions{Merge: true}).Unmarshal(errBz, opErr); err != nil {
+					return nil, nil, fmt.Errorf("unmarshal op error: %w", err)
+				}
+			}
 
 		default:
 			n = protowire.ConsumeFieldValue(num, typ, frame)
@@ -432,13 +435,8 @@ func parseOpOutput(frame []byte) (response []byte, opErr *shmpb.OpError, err err
 		frame = frame[n:]
 	}
 
-	if !hasErr {
+	if opErr == nil {
 		return response, nil, nil
-	}
-
-	opErr = new(shmpb.OpError)
-	if err := proto.Unmarshal(errBz, opErr); err != nil {
-		return nil, nil, fmt.Errorf("unmarshal op error: %w", err)
 	}
 
 	return nil, opErr, nil

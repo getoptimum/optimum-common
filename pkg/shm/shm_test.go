@@ -1101,6 +1101,14 @@ func TestParseOpOutputMatchesProtoUnmarshal(t *testing.T) {
 			name:  "unknown fields are skipped",
 			frame: withUnknownField(mustMarshal(t, &shmpb.OpOutput{Response: []byte("ok")})),
 		},
+		{
+			// Concatenated messages hold the error field twice.
+			name: "repeated errors merge",
+			frame: append(
+				mustMarshal(t, &shmpb.OpOutput{Error: &shmpb.OpError{Code: shmpb.OpErrorCode_OP_ERROR_CODE_PANIC_RECOVERED}}),
+				mustMarshal(t, &shmpb.OpOutput{Error: &shmpb.OpError{Err: "panic"}})...,
+			),
+		},
 	}
 
 	for _, tc := range tests {
@@ -1127,6 +1135,10 @@ func TestParseOpOutputMatchesProtoUnmarshal(t *testing.T) {
 		"malformed":          []byte("not-a-protobuf"),
 		"truncated response": mustMarshal(t, &shmpb.OpOutput{Response: []byte("ok")})[:3],
 		"malformed error":    protowire.AppendBytes(protowire.AppendTag(nil, opOutputErrorField, protowire.BytesType), []byte{0xff}),
+		"malformed earlier error": append(
+			protowire.AppendBytes(protowire.AppendTag(nil, opOutputErrorField, protowire.BytesType), []byte{0xff}),
+			mustMarshal(t, &shmpb.OpOutput{Error: &shmpb.OpError{Err: "panic"}})...,
+		),
 	} {
 		t.Run(name, func(t *testing.T) {
 			response, opErr, err := parseOpOutput(frame)
