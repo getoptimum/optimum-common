@@ -10,9 +10,8 @@ import (
 var ErrInvalidBasis = errors.New("invalid basis")
 
 // Reduce removes the directions of basis from row in place. basis must be in
-// row-echelon form with each pivot equal to one, as built by Insert in either
-// mode. Rows are zero before their pivot, so only the suffix from each pivot
-// needs field arithmetic.
+// reduced row-echelon form, as built by Insert. Rows are zero before their
+// pivot, so only the suffix from each pivot needs field arithmetic.
 //
 // pivots[i] is the leading column of basis[i]. If pivots does not have one
 // entry per row, leading columns are found by scanning each row.
@@ -27,25 +26,21 @@ func Reduce(basis [][]byte, pivots []int, row []byte) {
 
 // Insert adds row, which must already be reduced against basis and nonzero at
 // pivot, its leading column. The row is copied and scaled so its pivot is one,
-// then inserted in pivot order. It returns the updated basis and pivots. As in
-// Reduce, pivots that do not have one entry per row are rebuilt from basis.
+// then eliminated from the existing rows and inserted in pivot order, preserving
+// reduced row-echelon form without sorting or reducing the whole basis again.
+// Existing rows are modified in place, so the caller must own them.
 //
-// With clearColumn, the new pivot's column is also eliminated from the existing
-// rows, so the basis stays in reduced row-echelon form: the same coding space
-// always gives the same rows, whatever order rows arrive in. Without it, the
-// existing rows are left as they are, which is cheaper but order dependent.
-// clearColumn modifies existing rows in place, so the caller must own them.
-func Insert(basis [][]byte, pivots []int, row []byte, pivot int, clearColumn bool) (newBasis [][]byte, newPivots []int) {
+// It returns the updated basis and pivots. As in Reduce, pivots that do not
+// have one entry per row are rebuilt from basis.
+func Insert(basis [][]byte, pivots []int, row []byte, pivot int) (newBasis [][]byte, newPivots []int) {
 	inserted := make([]byte, len(row))
 
 	copy(inserted, row)
 	Scale(inserted[pivot:], GFInverse(inserted[pivot]))
 
-	if clearColumn {
-		for _, existing := range basis {
-			if factor := existing[pivot]; factor != 0 {
-				XorScaled(existing[pivot:], inserted[pivot:], factor)
-			}
+	for _, existing := range basis {
+		if factor := existing[pivot]; factor != 0 {
+			XorScaled(existing[pivot:], inserted[pivot:], factor)
 		}
 	}
 
@@ -62,8 +57,7 @@ func Insert(basis [][]byte, pivots []int, row []byte, pivot int, clearColumn boo
 }
 
 // ValidateRREF checks that basis is in reduced row-echelon form and that every
-// row has the given width. A basis built by Insert without clearColumn fails
-// this check.
+// row has the given width.
 func ValidateRREF(basis [][]byte, width int) error {
 	previous := -1
 

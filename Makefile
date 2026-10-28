@@ -72,12 +72,14 @@ proto-gen: ## Generate pkg/rlncpb from buf.build/getoptimum/rlnc
 
 check-proto-gen-diff: ## Fail if pkg/rlncpb is not up to date
 	@echo "Checking generated Protobuf files are up to date..."
-	@if [ -n "$$(git status --porcelain -- pkg/rlncpb)" ]; then \
+	@status=$$(git status --porcelain --untracked-files=all -- pkg/rlncpb) || exit 1; \
+	if [ -n "$$status" ]; then \
 		echo "pkg/rlncpb has uncommitted changes. Commit or stash them before checking."; \
 		exit 1; \
 	fi
 	@go tool buf generate
-	@if [ -n "$$(git status --porcelain -- pkg/rlncpb)" ]; then \
+	@status=$$(git status --porcelain --untracked-files=all -- pkg/rlncpb) || exit 1; \
+	if [ -n "$$status" ]; then \
 		echo "Generated Protobuf files are not up to date. Please run 'make proto-gen' and commit the changes."; \
 		exit 1; \
 	fi

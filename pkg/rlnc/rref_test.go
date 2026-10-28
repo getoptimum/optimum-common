@@ -13,13 +13,13 @@ import (
 
 // addRows builds a basis from rows with Reduce and Insert, skipping rows that
 // add no new direction.
-func addRows(rows [][]byte, clearColumn bool) (basis [][]byte, pivots []int) {
+func addRows(rows [][]byte) (basis [][]byte, pivots []int) {
 	for _, row := range rows {
 		candidate := slices.Clone(row)
 		rlnc.Reduce(basis, pivots, candidate)
 
 		if pivot := rlnc.LeadingColumn(candidate); pivot >= 0 {
-			basis, pivots = rlnc.Insert(basis, pivots, candidate, pivot, clearColumn)
+			basis, pivots = rlnc.Insert(basis, pivots, candidate, pivot)
 		}
 	}
 
@@ -78,7 +78,7 @@ func randomRows(rng *rand.Rand, n, k int, dependent bool) [][]byte {
 	return rows
 }
 
-func TestInsertClearColumnMatchesElimination(t *testing.T) {
+func TestInsertMatchesElimination(t *testing.T) {
 	rng := rand.New(rand.NewPCG(12, 34))
 
 	for _, k := range []int{3, 16, 64} {
@@ -86,7 +86,7 @@ func TestInsertClearColumnMatchesElimination(t *testing.T) {
 			t.Run(fmt.Sprintf("K=%d/dependent=%t", k, dependent), func(t *testing.T) {
 				rows := randomRows(rng, k, k, dependent)
 
-				basis, pivots := addRows(rows, true)
+				basis, pivots := addRows(rows)
 				want := referenceBasis(rows, k)
 
 				require.Equal(t, want, basis)
@@ -99,50 +99,17 @@ func TestInsertClearColumnMatchesElimination(t *testing.T) {
 	}
 }
 
-func TestInsertWithoutClearColumnKeepsRank(t *testing.T) {
-	rng := rand.New(rand.NewPCG(56, 78))
-
-	for _, k := range []int{3, 16, 64} {
-		for _, dependent := range []bool{false, true} {
-			t.Run(fmt.Sprintf("K=%d/dependent=%t", k, dependent), func(t *testing.T) {
-				rows := randomRows(rng, k, k, dependent)
-
-				basis, pivots := addRows(rows, false)
-				require.Len(t, basis, len(referenceBasis(rows, k)))
-
-				for i, row := range basis {
-					require.Equal(t, rlnc.LeadingColumn(row), pivots[i])
-					require.Equal(t, byte(1), row[pivots[i]])
-				}
-				require.True(t, slices.IsSorted(pivots))
-
-				// Every input row lies in the span of the basis.
-				for _, row := range rows {
-					candidate := slices.Clone(row)
-					rlnc.Reduce(basis, pivots, candidate)
-					require.Equal(t, -1, rlnc.LeadingColumn(candidate))
-				}
-			})
-		}
-	}
-}
-
-func TestInsertModes(t *testing.T) {
+func TestInsertClearsPivotColumn(t *testing.T) {
 	rows := [][]byte{{1, 3, 7}, {0, 1, 5}}
 
-	// Row 0 keeps the 3 above row 1's pivot.
-	basis, _ := addRows(rows, false)
-	require.Equal(t, [][]byte{{1, 3, 7}, {0, 1, 5}}, basis)
-	require.ErrorIs(t, rlnc.ValidateRREF(basis, 3), rlnc.ErrInvalidBasis)
-
 	// Row 0 has 3 times row 1 added to it, clearing column 1.
-	basis, _ = addRows(rows, true)
+	basis, _ := addRows(rows)
 	require.Equal(t, [][]byte{{1, 0, 7 ^ rlnc.GFMultiply(3, 5)}, {0, 1, 5}}, basis)
 	require.NoError(t, rlnc.ValidateRREF(basis, 3))
 }
 
 func TestReduceWithoutPivots(t *testing.T) {
-	basis, pivots := addRows([][]byte{{1, 2, 0}, {0, 0, 1}}, true)
+	basis, pivots := addRows([][]byte{{1, 2, 0}, {0, 0, 1}})
 
 	withPivots := []byte{3, 6, 9}
 	rlnc.Reduce(basis, pivots, withPivots)
@@ -155,9 +122,9 @@ func TestReduceWithoutPivots(t *testing.T) {
 }
 
 func TestInsertWithoutPivots(t *testing.T) {
-	basis, pivots := rlnc.Insert([][]byte{{1, 1}}, nil, []byte{0, 1}, 1, false)
+	basis, pivots := rlnc.Insert([][]byte{{1, 1}}, nil, []byte{0, 1}, 1)
 
-	require.Equal(t, [][]byte{{1, 1}, {0, 1}}, basis)
+	require.Equal(t, [][]byte{{1, 0}, {0, 1}}, basis)
 	require.Equal(t, []int{0, 1}, pivots)
 }
 

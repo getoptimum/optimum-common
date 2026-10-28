@@ -27,9 +27,11 @@ jobs:
   vulncheck:
     name: govulncheck
     runs-on: ubuntu-latest
-    # Run on PRs and on version tags; skip for normal non-tag pushes to branches
+    # Run on PRs and on version tags; skip for normal non-tag pushes to branches.
+    # Fork PRs get no secrets, so they can't mint the token for private modules.
     if: >
-      github.event_name == 'pull_request' ||
+      (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
