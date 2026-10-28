@@ -64,6 +64,106 @@ func TestSafeIntToUint32(t *testing.T) {
 	})
 }
 
+func TestSafeInt64ToUint64(t *testing.T) {
+	testCases := []struct {
+		name      string
+		input     int64
+		output    uint64
+		expectErr bool
+	}{
+		{
+			name:   "valid input",
+			input:  10,
+			output: 10,
+		},
+		{
+			name:   "zero",
+			input:  0,
+			output: 0,
+		},
+		{
+			name:   "max int64",
+			input:  math.MaxInt64,
+			output: math.MaxInt64,
+		},
+		{
+			name:      "negative",
+			input:     -1,
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, err := mathutil.SafeInt64ToUint64(tc.input)
+
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.output, output)
+			}
+		})
+	}
+
+	require.Panics(t, func() {
+		mathutil.MustSafeInt64ToUint64(-1)
+	})
+	require.NotPanics(t, func() {
+		mathutil.MustSafeInt64ToUint64(math.MaxInt64)
+	})
+}
+
+func TestSafeIntToUint64(t *testing.T) {
+	testCases := []struct {
+		name      string
+		input     int
+		output    uint64
+		expectErr bool
+	}{
+		{
+			name:   "valid input",
+			input:  10,
+			output: 10,
+		},
+		{
+			name:   "zero",
+			input:  0,
+			output: 0,
+		},
+		{
+			name:   "max int",
+			input:  math.MaxInt,
+			output: math.MaxInt,
+		},
+		{
+			name:      "negative",
+			input:     -1,
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, err := mathutil.SafeIntToUint64(tc.input)
+
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.output, output)
+			}
+		})
+	}
+
+	require.Panics(t, func() {
+		mathutil.MustSafeIntToUint64(-1)
+	})
+	require.NotPanics(t, func() {
+		mathutil.MustSafeIntToUint64(math.MaxInt)
+	})
+}
+
 func TestSafeUint64ToInt64(t *testing.T) {
 	testCases := []struct {
 		name      string
