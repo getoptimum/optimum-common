@@ -33,11 +33,6 @@ const (
 	opOutputErrorField    protowire.Number = 2
 )
 
-// FrameVersion is the RLNC frame layout this node expects rlnc-server to
-// produce and accept. It must match the server's types.FrameVersion. Every
-// OpInput carries it, so a server on another layout rejects each operation.
-const FrameVersion uint32 = 1
-
 var (
 	// errFrameTooLarge reports a request whose OpInput frame does not fit the
 	// lane's input region.
@@ -59,6 +54,11 @@ type (
 		// admission gate, transient local contention was reported as a hard "no
 		// idle lanes" operation failure instead of applying back-pressure.
 		slots chan struct{}
+
+		// frameVersion is the RLNC frame layout the caller expects rlnc-server to
+		// produce and accept. Every OpInput carries it, so a server on another
+		// layout rejects each operation.
+		frameVersion uint32
 
 		// observer is an optional metric sink.
 		observer Observer
@@ -86,28 +86,28 @@ type (
 )
 
 // NewWithLaneSet returns a Service over an existing lane set. Callers are
-// admitted up to lanes at a time. Tests use it to inject a stub LaneSet.
-func NewWithLaneSet(ls LaneSet, lanes int) *Service {
+// admitted up to lanes at a time. Tests use it to inject a stub LaneSet. See
+// New for frameVersion.
+func NewWithLaneSet(ls LaneSet, lanes int, frameVersion uint32) *Service {
 	return &Service{
-		ls:    ls,
-		lanes: lanes,
-		slots: make(chan struct{}, max(0, lanes)),
+		ls:           ls,
+		lanes:        lanes,
+		slots:        make(chan struct{}, max(0, lanes)),
+		frameVersion: frameVersion,
 	}
 }
 
 // New attaches to the lanes an rlnc-server published under name. The server
-// must already be running with a matching name and lane count.
-func New(lanes int, name string) (*Service, error) {
+// must already be running with a matching name and lane count. frameVersion is
+// the RLNC frame layout the caller expects, normally RLNC's types.FrameVersion.
+// It is stamped on every operation and checked by VerifyServer.
+func New(lanes int, name string, frameVersion uint32) (*Service, error) {
 	ls, err := shm.AttachLaneSet(lanes, name)
 	if err != nil {
 		return nil, fmt.Errorf("attach lane set: %w", err)
 	}
 
-	return &Service{
-		lanes: lanes,
-		ls:    ls,
-		slots: make(chan struct{}, lanes),
-	}, nil
+	return NewWithLaneSet(ls, lanes, frameVersion), nil
 }
 
 // VerifyServer asks rlnc-server for its frame version and returns its build
@@ -125,12 +125,12 @@ func (s *Service) VerifyServer() (serverVersion string, err error) {
 		return "", fmt.Errorf("execute server info request: %w", err)
 	}
 
-	if resp.GetFrameVersion() != FrameVersion {
+	if resp.GetFrameVersion() != s.frameVersion {
 		return resp.GetServerVersion(), fmt.Errorf(
 			"%w: frame version %d, expected %d",
 			ErrIncompatibleServer,
 			resp.GetFrameVersion(),
-			FrameVersion,
+			s.frameVersion,
 		)
 	}
 
@@ -260,7 +260,7 @@ func (s *Service) execute(
 	}()
 
 	// 1. Write the operation and payload to the lane's input frame.
-	if err := writeInputFrame(claimed.mem.Input(), op, msgSize, appendMsg); err != nil {
+	if err := writeInputFrame(claimed.mem.Input(), op, s.frameVersion, msgSize, appendMsg); err != nil {
 		timer.fail(PhaseSubmit)
 		return fmt.Errorf("write request: %w", err)
 	}
@@ -333,13 +333,14 @@ func (s *Service) execute(
 }
 
 // writeInputFrame encodes OpInput{operation: op, msg: <appendMsg>,
-// frame_version: FrameVersion} straight
+// frame_version: frameVersion} straight
 // into the lane's input region, behind the little-endian frame length the
 // server reads first. appendMsg must append exactly msgSize bytes!!! The bytes
 // match proto.Marshal, which omits zero-valued proto3 fields.
 func writeInputFrame(
 	region []byte,
 	op shmpb.OperationType,
+	frameVersion uint32,
 	msgSize int,
 	appendMsg func(dst []byte) ([]byte, error),
 ) error {
@@ -354,7 +355,9 @@ func writeInputFrame(
 		size += protowire.SizeTag(opInputMsgField) + protowire.SizeBytes(msgSize)
 	}
 
-	size += protowire.SizeTag(opInputFrameVersionField) + protowire.SizeVarint(uint64(FrameVersion))
+	if frameVersion != 0 {
+		size += protowire.SizeTag(opInputFrameVersionField) + protowire.SizeVarint(uint64(frameVersion))
+	}
 
 	if size > len(region)-shm.FrameHeaderSize {
 		return fmt.Errorf("%w: %d > %d bytes", errFrameTooLarge, size, len(region)-shm.FrameHeaderSize)
@@ -384,8 +387,10 @@ func writeInputFrame(
 	}
 
 	// proto.Marshal writes fields in number order, so frame_version goes last.
-	frame = protowire.AppendTag(frame, opInputFrameVersionField, protowire.VarintType)
-	frame = protowire.AppendVarint(frame, uint64(FrameVersion))
+	if frameVersion != 0 {
+		frame = protowire.AppendTag(frame, opInputFrameVersionField, protowire.VarintType)
+		frame = protowire.AppendVarint(frame, uint64(frameVersion))
+	}
 
 	if len(frame) != size {
 		return fmt.Errorf("marshal op input: encoded %d bytes, expected %d", len(frame), size)
