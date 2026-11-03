@@ -20,6 +20,8 @@ import (
 	libshm "github.com/getoptimum/shm/pkg/shm"
 )
 
+const testFrameVersion uint32 = 1
+
 func TestNewWithLaneSet(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -39,7 +41,7 @@ func TestNewWithLaneSet(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ls := newLaneSetStub()
 
-			svc := NewWithLaneSet(ls, tc.lanes)
+			svc := NewWithLaneSet(ls, tc.lanes, testFrameVersion)
 
 			require.NotNil(t, svc)
 			require.Equal(t, ls, svc.ls)
@@ -57,7 +59,7 @@ func TestServiceClaimLane(t *testing.T) {
 				return idleMem, nil
 			}
 		})
-		svc := NewWithLaneSet(ls, 2)
+		svc := NewWithLaneSet(ls, 2, testFrameVersion)
 		claimed, err := svc.claimLane()
 		require.NoError(t, err)
 		require.Equal(t, 0, claimed.lane)
@@ -76,7 +78,7 @@ func TestServiceClaimLane(t *testing.T) {
 				return idleMem, nil
 			}
 		})
-		svc := NewWithLaneSet(ls, 2)
+		svc := NewWithLaneSet(ls, 2, testFrameVersion)
 
 		claimed, err := svc.claimLane()
 		require.NoError(t, err)
@@ -89,8 +91,8 @@ func TestServiceClaimLane(t *testing.T) {
 func TestServiceClaimLaneFailures(t *testing.T) {
 	t.Run("rejects closed or empty lane set", func(t *testing.T) {
 		for _, svc := range []*Service{
-			NewWithLaneSet(nil, 1),
-			NewWithLaneSet(newLaneSetStub(), 0),
+			NewWithLaneSet(nil, 1, testFrameVersion),
+			NewWithLaneSet(newLaneSetStub(), 0, testFrameVersion),
 		} {
 			_, err := svc.claimLane()
 			require.ErrorContains(t, err, "lane set is closed")
@@ -104,7 +106,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			}
 		})
 
-		_, err := NewWithLaneSet(ls, 1).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion).claimLane()
 		require.ErrorContains(t, err, "get lane 0 memory: lookup failed")
 	})
 
@@ -115,7 +117,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			ls.tryLockLaneFn = func(_ int) (bool, error) { return false, errors.New("lock failed") }
 		})
 
-		_, err := NewWithLaneSet(ls, 1).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion).claimLane()
 		require.ErrorContains(t, err, "try lock lane 0: lock failed")
 		require.Equal(t, 1, ls.tryLockCalled)
 	})
@@ -127,7 +129,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			ls.tryLockLaneFn = func(_ int) (bool, error) { return false, nil }
 		})
 
-		_, err := NewWithLaneSet(ls, 1).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion).claimLane()
 		require.ErrorContains(t, err, "no idle lanes available")
 		require.Equal(t, 1, ls.tryLockCalled)
 		require.Zero(t, ls.unlockCalled)
@@ -151,7 +153,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			}
 		})
 
-		claimed, err := NewWithLaneSet(ls, 2).claimLane()
+		claimed, err := NewWithLaneSet(ls, 2, testFrameVersion).claimLane()
 		require.NoError(t, err)
 		require.Equal(t, 1, claimed.lane)
 		require.Equal(t, 1, ls.unlockCalled)
@@ -170,13 +172,13 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			ls.unlockLaneFn = func(_ int) error { return errors.New("unlock failed") }
 		})
 
-		_, err := NewWithLaneSet(ls, 1).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion).claimLane()
 		require.ErrorContains(t, err, "unlock lane 0: unlock failed")
 	})
 }
 
 func TestServiceNextLaneIndexWraps(t *testing.T) {
-	svc := NewWithLaneSet(newLaneSetStub(), 2)
+	svc := NewWithLaneSet(newLaneSetStub(), 2, testFrameVersion)
 
 	require.Equal(t, 0, svc.nextLaneIndex())
 	require.Equal(t, 1, svc.nextLaneIndex())
@@ -223,7 +225,7 @@ func TestServiceExecuteOpWaitsForLocalCapacity(t *testing.T) {
 		return getMemCalls
 	}
 
-	svc := NewWithLaneSet(ls, 1)
+	svc := NewWithLaneSet(ls, 1, testFrameVersion)
 
 	first := make(chan error, 1)
 	go func() {
@@ -308,7 +310,7 @@ func TestServiceExecuteOpBoundsConcurrencyToLaneCount(t *testing.T) {
 		}
 	})
 
-	svc := NewWithLaneSet(ls, lanes)
+	svc := NewWithLaneSet(ls, lanes, testFrameVersion)
 
 	errs := make(chan error, callers)
 
@@ -430,7 +432,7 @@ func TestServiceExecuteOp(t *testing.T) {
 				tc.configureLS(ls, mem)
 			}
 
-			svc := NewWithLaneSet(ls, 1)
+			svc := NewWithLaneSet(ls, 1, testFrameVersion)
 
 			var workerDone <-chan opWorkerResult
 			if tc.worker != nil {
@@ -676,7 +678,7 @@ func (l *laneSetStub) UnlockLane(lane int) error {
 
 func TestPhaseTimerReportsOperationEndToEnd(t *testing.T) {
 	obs := &observerStub{}
-	svc := NewWithLaneSet(newLaneSetStub(), 1)
+	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion)
 	svc.SetObserver(obs)
 
 	timer := svc.newPhaseTimer("TEST_OP")
@@ -704,7 +706,7 @@ func TestPhaseTimerReportsOperationEndToEnd(t *testing.T) {
 
 func TestPhaseTimerFailReportsFailedOperation(t *testing.T) {
 	obs := &observerStub{}
-	svc := NewWithLaneSet(newLaneSetStub(), 1)
+	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion)
 	svc.SetObserver(obs)
 
 	timer := svc.newPhaseTimer("TEST_OP")
@@ -725,7 +727,7 @@ func TestPhaseTimerExcludesObserverCostFromNextPhase(t *testing.T) {
 	const observerCost = 50 * time.Millisecond
 
 	obs := &observerStub{cost: observerCost}
-	svc := NewWithLaneSet(newLaneSetStub(), 1)
+	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion)
 	svc.SetObserver(obs)
 
 	timer := svc.newPhaseTimer("TEST_OP")
@@ -812,7 +814,7 @@ func (o *observerStub) LaneReleased() {}
 
 func TestServiceExecuteOpReportsRejectionBeforeAdmission(t *testing.T) {
 	obs := &observerStub{}
-	svc := NewWithLaneSet(newLaneSetStub(), 0)
+	svc := NewWithLaneSet(newLaneSetStub(), 0, testFrameVersion)
 	svc.SetObserver(obs)
 
 	_, err := svc.ExecuteOp(shmpb.OperationType_OPERATION_TYPE_DECODE, nil)
@@ -833,7 +835,7 @@ func TestServiceExecuteOpReportsRejectionBeforeAdmission(t *testing.T) {
 
 func TestPhaseTimerFailWithBlamesCauseNotPhase(t *testing.T) {
 	obs := &observerStub{}
-	svc := NewWithLaneSet(newLaneSetStub(), 1)
+	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion)
 	svc.SetObserver(obs)
 
 	timer := svc.newPhaseTimer("TEST_OP")
@@ -853,7 +855,7 @@ func TestPhaseTimerResumeExcludesCallerObserverCost(t *testing.T) {
 	const observerCost = 50 * time.Millisecond
 
 	obs := &observerStub{cost: observerCost}
-	svc := NewWithLaneSet(newLaneSetStub(), 1)
+	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion)
 	svc.SetObserver(obs)
 
 	timer := svc.newPhaseTimer("TEST_OP")
@@ -903,7 +905,7 @@ func TestServiceExecuteMessage(t *testing.T) {
 			ls := newLaneSetStub(func(ls *laneSetStub) {
 				ls.getMemFn = func(_ int) (*libshm.Mem, error) { return mem, nil }
 			})
-			svc := NewWithLaneSet(ls, 1)
+			svc := NewWithLaneSet(ls, 1, testFrameVersion)
 
 			op := shmpb.OperationType_OPERATION_TYPE_SHARD
 			workerDone := startWorkerWithOpOutput(
@@ -943,7 +945,7 @@ func TestServiceVerifyServer(t *testing.T) {
 			name: "compatible server",
 			output: &shmpb.OpOutput{
 				Response: mustMarshal(t, &shmpb.ServerInfoResponse{
-					FrameVersion:  FrameVersion,
+					FrameVersion:  testFrameVersion,
 					ServerVersion: "v0.12.0",
 				}),
 			},
@@ -960,7 +962,7 @@ func TestServiceVerifyServer(t *testing.T) {
 			name: "different frame version",
 			output: &shmpb.OpOutput{
 				Response: mustMarshal(t, &shmpb.ServerInfoResponse{
-					FrameVersion:  FrameVersion + 1,
+					FrameVersion:  testFrameVersion + 1,
 					ServerVersion: "v9.0.0",
 				}),
 			},
@@ -975,7 +977,7 @@ func TestServiceVerifyServer(t *testing.T) {
 			ls := newLaneSetStub(func(ls *laneSetStub) {
 				ls.getMemFn = func(_ int) (*libshm.Mem, error) { return mem, nil }
 			})
-			svc := NewWithLaneSet(ls, 1)
+			svc := NewWithLaneSet(ls, 1, testFrameVersion)
 
 			op := shmpb.OperationType_OPERATION_TYPE_SERVER_INFO
 			workerDone := startWorkerWithOpOutput(
@@ -987,7 +989,7 @@ func TestServiceVerifyServer(t *testing.T) {
 			result := <-workerDone
 			require.NoError(t, result.err)
 			require.Equal(t, op, result.request.GetOperation())
-			require.Equal(t, FrameVersion, result.request.GetFrameVersion())
+			require.Equal(t, testFrameVersion, result.request.GetFrameVersion())
 			require.Equal(t, tc.wantVersion, version)
 
 			if tc.wantErr != nil {
@@ -1001,13 +1003,15 @@ func TestServiceVerifyServer(t *testing.T) {
 
 func TestWriteInputFrameMatchesProtoMarshal(t *testing.T) {
 	tests := []struct {
-		name string
-		op   shmpb.OperationType
-		req  proto.Message
+		name         string
+		op           shmpb.OperationType
+		frameVersion uint32
+		req          proto.Message
 	}{
 		{
-			name: "decode request with symbols",
-			op:   shmpb.OperationType_OPERATION_TYPE_DECODE,
+			name:         "decode request with symbols",
+			op:           shmpb.OperationType_OPERATION_TYPE_DECODE,
+			frameVersion: testFrameVersion,
 			req: &rlncpbtypes.DecodeRequest{
 				ReceivedSymbol: &rlncpbtypes.Symbol{Coefficients: []byte{1, 2}, Data: []byte("data")},
 				LocalSymbols: rlncpbtypes.NewSymbolSet(
@@ -1016,21 +1020,29 @@ func TestWriteInputFrameMatchesProtoMarshal(t *testing.T) {
 			},
 		},
 		{
-			name: "empty request",
-			op:   shmpb.OperationType_OPERATION_TYPE_SHARD,
-			req:  &rlncpbtypes.ShardRequest{},
+			name:         "empty request",
+			op:           shmpb.OperationType_OPERATION_TYPE_SHARD,
+			frameVersion: testFrameVersion,
+			req:          &rlncpbtypes.ShardRequest{},
 		},
 		{
-			name: "zero operation",
-			op:   shmpb.OperationType_OPERATION_TYPE_UNSPECIFIED,
-			req:  &rlncpbtypes.ShardRequest{Data: bytes.Repeat([]byte{7}, 300)},
+			name:         "zero operation",
+			op:           shmpb.OperationType_OPERATION_TYPE_UNSPECIFIED,
+			frameVersion: testFrameVersion,
+			req:          &rlncpbtypes.ShardRequest{Data: bytes.Repeat([]byte{7}, 300)},
+		},
+		{
+			name:         "zero frame version",
+			op:           shmpb.OperationType_OPERATION_TYPE_SHARD,
+			frameVersion: 0,
+			req:          &rlncpbtypes.ShardRequest{Data: []byte("payload")},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			region := make([]byte, 1<<12)
-			err := writeInputFrame(region, tc.op, proto.Size(tc.req), func(dst []byte) ([]byte, error) {
+			err := writeInputFrame(region, tc.op, tc.frameVersion, proto.Size(tc.req), func(dst []byte) ([]byte, error) {
 				return proto.MarshalOptions{}.MarshalAppend(dst, tc.req)
 			})
 			require.NoError(t, err)
@@ -1038,7 +1050,7 @@ func TestWriteInputFrameMatchesProtoMarshal(t *testing.T) {
 			want, err := proto.Marshal(&shmpb.OpInput{
 				Operation:    tc.op,
 				Msg:          mustMarshal(t, tc.req),
-				FrameVersion: FrameVersion,
+				FrameVersion: tc.frameVersion,
 			})
 			require.NoError(t, err)
 
@@ -1055,14 +1067,14 @@ func TestWriteInputFrameRejectsInvalidRequests(t *testing.T) {
 
 	t.Run("oversized request", func(t *testing.T) {
 		region := make([]byte, 16)
-		err := writeInputFrame(region, shmpb.OperationType_OPERATION_TYPE_DECODE, 32, appendN(32))
+		err := writeInputFrame(region, shmpb.OperationType_OPERATION_TYPE_DECODE, testFrameVersion, 32, appendN(32))
 		require.ErrorIs(t, err, errFrameTooLarge)
 		require.Equal(t, make([]byte, len(region)), region, "a rejected frame must not touch the region")
 	})
 
 	t.Run("marshal size mismatch", func(t *testing.T) {
 		region := make([]byte, 64)
-		err := writeInputFrame(region, shmpb.OperationType_OPERATION_TYPE_DECODE, 8, appendN(9))
+		err := writeInputFrame(region, shmpb.OperationType_OPERATION_TYPE_DECODE, testFrameVersion, 8, appendN(9))
 		require.ErrorContains(t, err, "encoded 15 bytes, expected 14")
 		require.Equal(t, make([]byte, libshm.FrameHeaderSize), region[:libshm.FrameHeaderSize],
 			"a rejected frame must not publish a length")
@@ -1070,7 +1082,7 @@ func TestWriteInputFrameRejectsInvalidRequests(t *testing.T) {
 
 	t.Run("marshal error", func(t *testing.T) {
 		region := make([]byte, 64)
-		err := writeInputFrame(region, shmpb.OperationType_OPERATION_TYPE_DECODE, 1, func([]byte) ([]byte, error) {
+		err := writeInputFrame(region, shmpb.OperationType_OPERATION_TYPE_DECODE, testFrameVersion, 1, func([]byte) ([]byte, error) {
 			return nil, errors.New("boom")
 		})
 		require.ErrorContains(t, err, "marshal op input: boom")
