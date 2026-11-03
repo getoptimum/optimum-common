@@ -13,9 +13,9 @@ const (
 	shardMask = numShards - 1
 )
 
-// item stores the payload alongside its expiry as a monotonic int64 nanosecond
-// timestamp. Using int64 instead of time.Time halves the field size (8 vs 24 bytes)
-// and reduces comparison cost to a single integer compare.
+// item stores the payload alongside its expiry as an int64 nanosecond offset on the
+// map's monotonic clock (see TTLMap.now). Using int64 instead of time.Time reduces the
+// field size (8 vs 24 bytes) and the comparison cost to a single integer compare.
 type item[V any] struct {
 	value      V
 	expiryNano int64
@@ -40,6 +40,10 @@ type TTLMap[K comparable, V any] struct {
 	shards [numShards]cacheShard[K, V]
 	seed   maphash.Seed
 	maxTTL int64 // nanoseconds
+	// epoch anchors expiries to the monotonic clock. A Unix timestamp follows the wall
+	// clock, so an NTP step or a VM resume would expire every entry at once, or keep
+	// stale ones alive for as long as the clock moved back.
+	epoch time.Time
 
 	wg        sync.WaitGroup
 	stopCh    chan struct{}
@@ -57,6 +61,7 @@ func NewTTLMapWithContext[K comparable, V any](ctx context.Context, maxTTL, clea
 	m := &TTLMap[K, V]{
 		seed:   maphash.MakeSeed(),
 		maxTTL: maxTTL.Nanoseconds(),
+		epoch:  time.Now(),
 		stopCh: make(chan struct{}),
 	}
 	for i := range m.shards {
@@ -69,7 +74,7 @@ func NewTTLMapWithContext[K comparable, V any](ctx context.Context, maxTTL, clea
 		for {
 			select {
 			case <-ticker.C:
-				now := time.Now().UnixNano()
+				now := m.now()
 				for i := range m.shards {
 					s := &m.shards[i]
 					s.mu.Lock()
@@ -98,6 +103,12 @@ func (m *TTLMap[K, V]) Close() {
 	})
 }
 
+// now returns the nanoseconds elapsed since the map was created. time.Since reads the
+// monotonic clock carried by epoch, so wall-clock adjustments do not move expiries.
+func (m *TTLMap[K, V]) now() int64 {
+	return int64(time.Since(m.epoch))
+}
+
 // shardOf returns the shard responsible for key k.
 func (m *TTLMap[K, V]) shardOf(k K) *cacheShard[K, V] {
 	return &m.shards[maphash.Comparable(m.seed, k)&shardMask]
@@ -120,7 +131,7 @@ func (m *TTLMap[K, V]) Len() int {
 func (m *TTLMap[K, V]) Put(k K, v V) {
 	s := m.shardOf(k)
 	s.mu.Lock()
-	s.m[k] = item[V]{value: v, expiryNano: time.Now().UnixNano() + m.maxTTL}
+	s.m[k] = item[V]{value: v, expiryNano: m.now() + m.maxTTL}
 	s.mu.Unlock()
 }
 
@@ -144,7 +155,7 @@ func (m *TTLMap[K, V]) Get(k K) (val V, ok bool) {
 		s.mu.RUnlock()
 		return val, false
 	}
-	if time.Now().UnixNano() <= it.expiryNano {
+	if m.now() <= it.expiryNano {
 		val = it.value
 		s.mu.RUnlock()
 		return val, true
@@ -153,7 +164,7 @@ func (m *TTLMap[K, V]) Get(k K) (val V, ok bool) {
 
 	// Expired: upgrade to write lock to evict.
 	s.mu.Lock()
-	if it2, ok2 := s.m[k]; ok2 && time.Now().UnixNano() > it2.expiryNano {
+	if it2, ok2 := s.m[k]; ok2 && m.now() > it2.expiryNano {
 		delete(s.m, k)
 	}
 	s.mu.Unlock()
@@ -168,13 +179,13 @@ func (m *TTLMap[K, V]) GetAndRefresh(k K) (val V, ok bool) {
 	defer s.mu.Unlock()
 
 	it, ok := s.m[k]
-	if !ok || time.Now().UnixNano() > it.expiryNano {
+	if !ok || m.now() > it.expiryNano {
 		if ok {
 			delete(s.m, k)
 		}
 		return val, false
 	}
-	it.expiryNano = time.Now().UnixNano() + m.maxTTL
+	it.expiryNano = m.now() + m.maxTTL
 	s.m[k] = it
 	return it.value, true
 }
@@ -188,10 +199,10 @@ func (m *TTLMap[K, V]) Do(k K, fn func(v V)) bool {
 	s.mu.RLock()
 	it, ok := s.m[k]
 	s.mu.RUnlock()
-	if !ok || time.Now().UnixNano() > it.expiryNano {
+	if !ok || m.now() > it.expiryNano {
 		if ok {
 			s.mu.Lock()
-			if it2, ok2 := s.m[k]; ok2 && time.Now().UnixNano() > it2.expiryNano {
+			if it2, ok2 := s.m[k]; ok2 && m.now() > it2.expiryNano {
 				delete(s.m, k)
 			}
 			s.mu.Unlock()
@@ -213,7 +224,7 @@ func (m *TTLMap[K, V]) DoAndApply(k K, fn func(v V) V) bool {
 	if !ok {
 		return false
 	}
-	if time.Now().UnixNano() > it.expiryNano {
+	if m.now() > it.expiryNano {
 		delete(s.m, k)
 		return false
 	}
@@ -229,7 +240,7 @@ func (m *TTLMap[K, V]) Upsert(key K, fn func(value V) V, zeroValue V) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	now := time.Now().UnixNano()
+	now := m.now()
 
 	// Expired-but-not-swept is absent, same as Get/Do.
 	it, ok := s.m[key]
@@ -242,7 +253,7 @@ func (m *TTLMap[K, V]) Upsert(key K, fn func(value V) V, zeroValue V) {
 
 // LoadAll returns a snapshot of all live (non-expired) entries.
 func (m *TTLMap[K, V]) LoadAll() map[K]V {
-	now := time.Now().UnixNano()
+	now := m.now()
 	result := make(map[K]V)
 	for i := range m.shards {
 		s := &m.shards[i]
@@ -264,7 +275,7 @@ func (m *TTLMap[K, V]) PutIfNotExists(key K, val V) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	now := time.Now().UnixNano()
+	now := m.now()
 	if it, ok := s.m[key]; ok && now <= it.expiryNano {
 		return false
 	}
