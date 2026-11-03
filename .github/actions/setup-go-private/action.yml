@@ -1,0 +1,33 @@
+name: Setup Go with private module auth
+description: Configure Go, cache, and Git auth for private modules.
+
+inputs:
+  go-version:
+    description: Go version to install.
+    required: false
+  go-version-file:
+    description: File to read the Go version from, such as go.mod.
+    required: false
+  token:
+    description: Token used to access private modules.
+    required: true
+  goprivate:
+    description: GOPRIVATE setting.
+    required: false
+    default: github.com/getoptimum
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version: ${{ inputs.go-version }}
+        go-version-file: ${{ inputs.go-version-file }}
+        cache: true
+
+    - name: Configure Git for private modules
+      shell: bash
+      run: |
+        git config --global url."https://x-access-token:${{ inputs.token }}@github.com/".insteadOf "https://github.com/"
+        echo "GOPRIVATE=${{ inputs.goprivate }}" >> "$GITHUB_ENV"

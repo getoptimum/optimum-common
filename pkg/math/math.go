@@ -28,6 +28,42 @@ func SafeIntToUint32(i int) (uint32, error) {
 	return uint32(i), nil
 }
 
+// MustSafeInt64ToUint64 invokes SafeInt64ToUint64 and panics if an error is returned.
+func MustSafeInt64ToUint64(i int64) uint64 {
+	v, err := SafeInt64ToUint64(i)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// SafeInt64ToUint64 converts an int64 to a uint64, returning an error if the
+// value is negative.
+func SafeInt64ToUint64(i int64) (uint64, error) {
+	if i < 0 {
+		return 0, fmt.Errorf("cannot convert negative int64 %d to uint64", i)
+	}
+	return uint64(i), nil
+}
+
+// MustSafeIntToUint64 invokes SafeIntToUint64 and panics if an error is returned.
+func MustSafeIntToUint64(i int) uint64 {
+	v, err := SafeIntToUint64(i)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// SafeIntToUint64 converts an int to a uint64, returning an error if the value
+// is negative.
+func SafeIntToUint64(i int) (uint64, error) {
+	if i < 0 {
+		return 0, fmt.Errorf("cannot convert negative int %d to uint64", i)
+	}
+	return uint64(i), nil
+}
+
 // MustSafeUint64ToInt64 invokes SafeUint64ToInt64 and panics if an error is returned.
 func MustSafeUint64ToInt64(u uint64) int64 {
 	v, err := SafeUint64ToInt64(u)

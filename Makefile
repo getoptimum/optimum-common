@@ -25,7 +25,7 @@ test: ## Run all tests with race detector and coverage
 	@echo "Running tests..."
 	go test -timeout 10m -v ./... -count=1 -race -covermode=atomic -cover -coverprofile=cover.out
 	@echo "Remove not critical packages for coverage threshold..."
-	@grep -v 'test_utils/' cover.out > cover.out.tmp && mv cover.out.tmp cover.out
+	@grep -v -e 'test_utils/' -e '\.pb\.go:' cover.out > cover.out.tmp && mv cover.out.tmp cover.out
 	@echo "Calculating total coverage..."
 	@COVERAGE_TOTAL=$$(go tool cover -func=cover.out | awk '/^total:/ {gsub("%", "", $$3); print $$3}'); \
 	rm cover.out; \
@@ -66,6 +66,24 @@ vulcheck: ## Run govulncheck for vulnerabilities
 	@echo "Running govulncheck..."
 	@go tool govulncheck ./...
 
+proto-gen: ## Generate pkg/rlncpb from buf.build/getoptimum/rlnc
+	@echo "Generating Protobuf files..."
+	@go tool buf generate
+
+check-proto-gen-diff: ## Fail if pkg/rlncpb is not up to date
+	@echo "Checking generated Protobuf files are up to date..."
+	@status=$$(git status --porcelain --untracked-files=all -- pkg/rlncpb) || exit 1; \
+	if [ -n "$$status" ]; then \
+		echo "pkg/rlncpb has uncommitted changes. Commit or stash them before checking."; \
+		exit 1; \
+	fi
+	@go tool buf generate
+	@status=$$(git status --porcelain --untracked-files=all -- pkg/rlncpb) || exit 1; \
+	if [ -n "$$status" ]; then \
+		echo "Generated Protobuf files are not up to date. Please run 'make proto-gen' and commit the changes."; \
+		exit 1; \
+	fi
+
 help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -74,5 +92,5 @@ release: ## Create a release with GoReleaser (requires tag)
 	@echo "Running goreleaser..."
 	@go tool goreleaser release --clean
 
-.PHONY: coverage coverhtml lint vulcheck check ci all help tidy fmt vet release bench test fuzz docs docs-check
+.PHONY: coverage coverhtml lint vulcheck check ci all help tidy fmt vet release bench test fuzz docs docs-check proto-gen check-proto-gen-diff
 .DEFAULT_GOAL := help
