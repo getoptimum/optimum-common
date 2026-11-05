@@ -46,21 +46,6 @@ func getNumber(m map[string]any, key string) float64 {
 	return 0
 }
 
-type writer struct {
-}
-
-func (w writer) Write(p []byte) (n int, err error) {
-	return len(p), nil
-}
-
-func BenchmarkLogger(b *testing.B) {
-	l0 := logger.InitLogger([]io.Writer{writer{}}, logger.Debug)
-	l0 = l0.With(logger.WithService("service1"))
-	for i := 0; i < b.N; i++ {
-		l0.Info("hello world")
-	}
-}
-
 func TestLoggerNewAppLogger(t *testing.T) {
 	l0 := logger.NewAppLogger(logger.Debug)
 	var wg sync.WaitGroup

@@ -161,13 +161,6 @@ func TestExternalIP_RespectsSystemInterfaces(t *testing.T) {
 		"ExternalIP() returned loopback despite having external candidates: %s", gotStr)
 }
 
-func BenchmarkExternalIP(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_, err := netpkg.ExternalIP()
-		require.NoError(b, err, "ExternalIP() should not return an error")
-	}
-}
-
 func TestSortAddresses(t *testing.T) {
 	testCases := []struct {
 		name     string
