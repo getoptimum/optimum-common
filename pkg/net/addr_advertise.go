@@ -1,6 +1,7 @@
 package net
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -35,22 +36,9 @@ func BuildAdvertisedAddresses(
 	if listenPort <= 0 || listenPort > 65535 {
 		return nil, fmt.Errorf("invalid listenPort: %d", listenPort)
 	}
-	result := make([]multiaddr.Multiaddr, 0, 8)
-
-	publicAddressV4, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", publicIPV4, listenPort))
+	result, err := publicAddresses(log, publicIPV4, publicIPV6, fmt.Sprintf("tcp/%d", listenPort))
 	if err != nil {
-		// advertised address is critical for our application, if it is not valid, there is no reason to continue
-		return nil, fmt.Errorf("failed to build advertised address: %w", err)
-	}
-	result = append(result, publicAddressV4)
-
-	if publicIPV6 != "" {
-		publicAddressV6, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip6/%s/tcp/%d", publicIPV6, listenPort))
-		if err != nil {
-			log.Error("failed to build advertised address v6", err, logger.WithString("public_ip", publicIPV6))
-		} else {
-			result = append(result, publicAddressV6)
-		}
+		return nil, err
 	}
 
 	for _, ipStr := range GetInterfaceIPs() {
@@ -92,21 +80,9 @@ func BuildAdvertisedQUICAddresses(
 	if listenPort <= 0 || listenPort > 65535 {
 		return nil, fmt.Errorf("invalid listenPort: %d", listenPort)
 	}
-	result := make([]multiaddr.Multiaddr, 0, 8)
-
-	publicAddressV4, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/udp/%d/quic-v1", publicIPV4, listenPort))
+	result, err := publicAddresses(log, publicIPV4, publicIPV6, fmt.Sprintf("udp/%d/quic-v1", listenPort))
 	if err != nil {
-		return nil, fmt.Errorf("failed to build advertised address: %w", err)
-	}
-	result = append(result, publicAddressV4)
-
-	if publicIPV6 != "" {
-		publicAddressV6, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip6/%s/udp/%d/quic-v1", publicIPV6, listenPort))
-		if err != nil {
-			log.Error("failed to build advertised address v6", err, logger.WithString("public_ip", publicIPV6))
-		} else {
-			result = append(result, publicAddressV6)
-		}
+		return nil, err
 	}
 
 	for _, ipStr := range GetInterfaceIPs() {
@@ -120,4 +96,36 @@ func BuildAdvertisedQUICAddresses(
 		result = append(result, ma)
 	}
 	return slices.UniqueSlice(result), nil
+}
+
+// publicAddresses builds the public addresses for transport (e.g. "tcp/4001").
+// GetExternalIPs leaves publicIPV4 empty on an IPv6-only host, so either
+// family alone is enough, but the one that is set must be valid.
+func publicAddresses(log logger.AppLogger, publicIPV4, publicIPV6, transport string) ([]multiaddr.Multiaddr, error) {
+	if publicIPV4 == "" && publicIPV6 == "" {
+		return nil, errors.New("no public IP address to advertise")
+	}
+	result := make([]multiaddr.Multiaddr, 0, 8)
+
+	if publicIPV4 != "" {
+		publicAddressV4, err := multiaddr.NewMultiaddr("/ip4/" + publicIPV4 + "/" + transport)
+		if err != nil {
+			// advertised address is critical for our application, if it is not valid, there is no reason to continue
+			return nil, fmt.Errorf("failed to build advertised address: %w", err)
+		}
+		result = append(result, publicAddressV4)
+	}
+
+	if publicIPV6 != "" {
+		publicAddressV6, err := multiaddr.NewMultiaddr("/ip6/" + publicIPV6 + "/" + transport)
+		switch {
+		case err != nil && publicIPV4 == "":
+			return nil, fmt.Errorf("failed to build advertised address: %w", err)
+		case err != nil:
+			log.Error("failed to build advertised address v6", err, logger.WithString("public_ip", publicIPV6))
+		default:
+			result = append(result, publicAddressV6)
+		}
+	}
+	return result, nil
 }

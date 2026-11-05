@@ -29,6 +29,20 @@ func TestBuildAdvertisedQUICAddresses(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, res, mustMA(t, "/ip4/1.2.3.4/udp/4001/quic-v1"))
 	})
+	t.Run("should work with empty ipv4", func(t *testing.T) {
+		res, err := net.BuildAdvertisedQUICAddresses(l, "", "2001:db8::1", 4001)
+		require.NoError(t, err)
+		require.Contains(t, res, mustMA(t, "/ip6/2001:db8::1/udp/4001/quic-v1"))
+	})
+	t.Run("should return err without any public ip", func(t *testing.T) {
+		res, err := net.BuildAdvertisedQUICAddresses(l, "", "", 4001)
+		require.Error(t, err)
+		require.Empty(t, res)
+
+		res, err = net.BuildAdvertisedQUICAddresses(l, "", "not-an-ip", 4001)
+		require.Error(t, err)
+		require.Empty(t, res)
+	})
 	t.Run("should not fail on invalid ipv6 and still return ipv4", func(t *testing.T) {
 		res, err := net.BuildAdvertisedQUICAddresses(l, "1.2.3.4", "not-an-ip", 4001)
 		require.NoError(t, err)
