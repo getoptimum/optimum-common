@@ -174,6 +174,42 @@ func TestInvalidTypeConversion(t *testing.T) {
 	require.Contains(t, err.Error(), "invalid syntax")
 }
 
+func TestInvalidFlagConversion(t *testing.T) {
+	type flagConfig struct {
+		Port int `flag:"port"`
+	}
+
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.String("port", "", "port")
+	require.NoError(t, fs.Parse([]string{"-port", "notanumber"}))
+
+	cfg := flagConfig{}
+	err := config.Load(&cfg, config.WithFlagSet(fs))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "port")
+	require.Contains(t, err.Error(), "invalid syntax")
+	require.Zero(t, cfg.Port)
+}
+
+// Visit walks in lexical order, so the first failing flag is the one reported.
+func TestInvalidFlagConversionReportsFirstFailure(t *testing.T) {
+	type flagConfig struct {
+		Alpha int `flag:"alpha"`
+		Omega int `flag:"omega"`
+	}
+
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.String("alpha", "", "alpha")
+	fs.String("omega", "", "omega")
+	require.NoError(t, fs.Parse([]string{"-alpha", "bad-alpha", "-omega", "bad-omega"}))
+
+	cfg := flagConfig{}
+	err := config.Load(&cfg, config.WithFlagSet(fs))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "alpha")
+	require.NotContains(t, err.Error(), "omega")
+}
+
 func TestUnsupportedType(t *testing.T) {
 	type UnsupportedConfig struct {
 		Data map[string]string `env:"DATA"` // maps not supported
