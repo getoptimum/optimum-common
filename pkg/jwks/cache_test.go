@@ -216,3 +216,67 @@ func TestNew_FallsBackToDisk_WhenWireServesUnparseableJWKS(t *testing.T) {
 	require.NoError(t, readErr)
 	require.JSONEq(t, string(good), string(persisted))
 }
+
+// A 200 whose body decodes as a key set but carries no keys ("null", "{}",
+// {"keys":[]}) can verify nothing, so it must not replace the live keys or
+// the disk copy.
+func TestRefresh_KeepsKeysWhenWireServesEmptyKeySet(t *testing.T) {
+	for _, empty := range []string{`{"keys":[]}`, `{}`, `null`} {
+		t.Run(empty, func(t *testing.T) {
+			rig := newRig(t)
+			diskPath := filepath.Join(t.TempDir(), "jwks.json")
+			good := *rig.doc.Load()
+
+			c, err := jwks.New(t.Context(), logger.NewAppSLogger(logger.Debug), jwks.Config{
+				JWKSURL:  rig.server.URL,
+				DiskPath: diskPath,
+				Refresh:  20 * time.Millisecond,
+			})
+			require.NoError(t, err)
+
+			rig.setDoc([]byte(empty))
+			after := rig.calls.Load()
+			require.Eventually(t, func() bool {
+				return rig.calls.Load() >= after+2
+			}, 2*time.Second, 20*time.Millisecond, "refresh loop did not run")
+
+			token, _, err := new(jwt.Parser).ParseUnverified(rig.sign(t), jwt.MapClaims{})
+			require.NoError(t, err)
+			key, err := c.Keyfunc(token)
+			require.NoError(t, err, "live keys were replaced by an empty key set")
+			require.NotNil(t, key)
+
+			persisted, err := commonio.LoadFromFile(diskPath)
+			require.NoError(t, err)
+			require.JSONEq(t, string(good), string(persisted))
+		})
+	}
+}
+
+func TestNew_FallsBackToDisk_WhenWireServesEmptyKeySet(t *testing.T) {
+	rig := newRig(t)
+	diskPath := filepath.Join(t.TempDir(), "jwks.json")
+	good := *rig.doc.Load()
+
+	_, err := jwks.New(t.Context(), logger.NewAppSLogger(logger.Debug), jwks.Config{
+		JWKSURL: rig.server.URL, DiskPath: diskPath, Refresh: time.Hour,
+	})
+	require.NoError(t, err)
+
+	rig.setDoc([]byte(`{"keys":[]}`))
+
+	c, err := jwks.New(t.Context(), logger.NewAppSLogger(logger.Debug), jwks.Config{
+		JWKSURL: rig.server.URL, DiskPath: diskPath, Refresh: time.Hour,
+	})
+	require.NoError(t, err)
+
+	token, _, err := new(jwt.Parser).ParseUnverified(rig.sign(t), jwt.MapClaims{})
+	require.NoError(t, err)
+	key, err := c.Keyfunc(token)
+	require.NoError(t, err, "boot kept an empty key set instead of the disk copy")
+	require.NotNil(t, key)
+
+	persisted, err := commonio.LoadFromFile(diskPath)
+	require.NoError(t, err)
+	require.JSONEq(t, string(good), string(persisted))
+}
