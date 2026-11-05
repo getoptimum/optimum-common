@@ -807,7 +807,15 @@ func (x *ShardRequest) GetK() uint32 {
 type ShardResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// shards is a collection of m data shards produced from the input payload.
-	Shards        [][]byte `protobuf:"bytes,1,rep,name=shards,proto3" json:"shards,omitempty"`
+	Shards [][]byte `protobuf:"bytes,1,rep,name=shards,proto3" json:"shards,omitempty"`
+	// commitment is the content-addressed commitment over every generation of
+	// k shards, laid out as {version (1 B) || k (2 B) || s (4 B) || G (2 B) ||
+	// hash_0 || ... || hash_{G-1} (32 B each)}, big-endian, where s is the shard
+	// size, G is m/k and hash_g is the SHA-256 of generation g's k shards. It is
+	// set only when k is set.
+	Commitment []byte `protobuf:"bytes,2,opt,name=commitment,proto3" json:"commitment,omitempty"`
+	// msg_id is the SHA-256 of commitment. It is set only when k is set.
+	MsgId         []byte `protobuf:"bytes,3,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -845,6 +853,20 @@ func (*ShardResponse) Descriptor() ([]byte, []int) {
 func (x *ShardResponse) GetShards() [][]byte {
 	if x != nil {
 		return x.Shards
+	}
+	return nil
+}
+
+func (x *ShardResponse) GetCommitment() []byte {
+	if x != nil {
+		return x.Commitment
+	}
+	return nil
+}
+
+func (x *ShardResponse) GetMsgId() []byte {
+	if x != nil {
+		return x.MsgId
 	}
 	return nil
 }
@@ -975,7 +997,18 @@ type DecodeRequest struct {
 	// that the sink node has received from the network and intends to use for decoding.
 	ReceivedSymbol *Symbol `protobuf:"bytes,1,opt,name=received_symbol,json=receivedSymbol,proto3" json:"received_symbol,omitempty"`
 	// local_symbols defines the sink node's local SymbolSet.
-	LocalSymbols  *SymbolSet `protobuf:"bytes,2,opt,name=local_symbols,json=localSymbols,proto3" json:"local_symbols,omitempty"`
+	LocalSymbols *SymbolSet `protobuf:"bytes,2,opt,name=local_symbols,json=localSymbols,proto3" json:"local_symbols,omitempty"`
+	// commitment is the commitment that arrived with received_symbol, laid out
+	// as in ShardResponse. When set, Decode verifies it before it uses the
+	// symbol, and verifies the decoded generation against it at full rank. When
+	// empty, Decode skips both checks.
+	Commitment []byte `protobuf:"bytes,3,opt,name=commitment,proto3" json:"commitment,omitempty"`
+	// msg_id is the message ID the commitment must hash to.
+	MsgId []byte `protobuf:"bytes,4,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	// chunk_id is the generation received_symbol belongs to.
+	ChunkId uint32 `protobuf:"varint,5,opt,name=chunk_id,json=chunkId,proto3" json:"chunk_id,omitempty"`
+	// total_chunks is the number of generations G stated by the sender.
+	TotalChunks   uint32 `protobuf:"varint,6,opt,name=total_chunks,json=totalChunks,proto3" json:"total_chunks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1024,6 +1057,34 @@ func (x *DecodeRequest) GetLocalSymbols() *SymbolSet {
 	return nil
 }
 
+func (x *DecodeRequest) GetCommitment() []byte {
+	if x != nil {
+		return x.Commitment
+	}
+	return nil
+}
+
+func (x *DecodeRequest) GetMsgId() []byte {
+	if x != nil {
+		return x.MsgId
+	}
+	return nil
+}
+
+func (x *DecodeRequest) GetChunkId() uint32 {
+	if x != nil {
+		return x.ChunkId
+	}
+	return 0
+}
+
+func (x *DecodeRequest) GetTotalChunks() uint32 {
+	if x != nil {
+		return x.TotalChunks
+	}
+	return 0
+}
+
 // DecodeResponse defines the response message for the Decode method, which
 // contains the updated SymbolSet after processing the received symbols, as well
 // as metadata about the decoding step, such as whether decoding is complete,
@@ -1041,9 +1102,17 @@ type DecodeResponse struct {
 	Innovative bool `protobuf:"varint,3,opt,name=innovative,proto3" json:"innovative,omitempty"`
 	// data contains the decoded slices in order. It is null if decoding has not
 	// been completed.
-	Data          [][]byte `protobuf:"bytes,4,rep,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Data [][]byte `protobuf:"bytes,4,rep,name=data,proto3" json:"data,omitempty"`
+	// polluted indicates that the received symbol brought the SymbolSet to full
+	// rank but the decoded generation does not match its commitment hash. decoded
+	// is then false and data is null.
+	Polluted bool `protobuf:"varint,5,opt,name=polluted,proto3" json:"polluted,omitempty"`
+	// invalid_commitment indicates that the commitment failed to parse, does not
+	// hash to msg_id, or does not match the received symbol, chunk_id or
+	// total_chunks. symbols is then the unchanged local SymbolSet.
+	InvalidCommitment bool `protobuf:"varint,6,opt,name=invalid_commitment,json=invalidCommitment,proto3" json:"invalid_commitment,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *DecodeResponse) Reset() {
@@ -1104,6 +1173,202 @@ func (x *DecodeResponse) GetData() [][]byte {
 	return nil
 }
 
+func (x *DecodeResponse) GetPolluted() bool {
+	if x != nil {
+		return x.Polluted
+	}
+	return false
+}
+
+func (x *DecodeResponse) GetInvalidCommitment() bool {
+	if x != nil {
+		return x.InvalidCommitment
+	}
+	return false
+}
+
+// IdentifyRequest defines the request message for the Identify method, which
+// searches a generation's candidate symbols for a subset of k that decodes to
+// the generation's commitment hash, and audits the remaining candidates against
+// that decode.
+type IdentifyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// commitment is the accepted commitment for the message, laid out as in
+	// ShardResponse.
+	Commitment []byte `protobuf:"bytes,1,opt,name=commitment,proto3" json:"commitment,omitempty"`
+	// msg_id is the message ID the commitment must hash to.
+	MsgId []byte `protobuf:"bytes,2,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	// chunk_id is the generation the candidates belong to.
+	ChunkId uint32 `protobuf:"varint,3,opt,name=chunk_id,json=chunkId,proto3" json:"chunk_id,omitempty"`
+	// total_chunks is the number of generations G.
+	TotalChunks uint32 `protobuf:"varint,4,opt,name=total_chunks,json=totalChunks,proto3" json:"total_chunks,omitempty"`
+	// candidates are the symbols to search, all of the same generation.
+	Candidates []*Symbol `protobuf:"bytes,5,rep,name=candidates,proto3" json:"candidates,omitempty"`
+	// sources holds one opaque source label per candidate, in the same order.
+	// Candidates that share a label were delivered by the same source.
+	Sources []uint32 `protobuf:"varint,6,rep,packed,name=sources,proto3" json:"sources,omitempty"`
+	// budget is the maximum number of subset decode attempts.
+	Budget        uint32 `protobuf:"varint,7,opt,name=budget,proto3" json:"budget,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IdentifyRequest) Reset() {
+	*x = IdentifyRequest{}
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IdentifyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IdentifyRequest) ProtoMessage() {}
+
+func (x *IdentifyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IdentifyRequest.ProtoReflect.Descriptor instead.
+func (*IdentifyRequest) Descriptor() ([]byte, []int) {
+	return file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *IdentifyRequest) GetCommitment() []byte {
+	if x != nil {
+		return x.Commitment
+	}
+	return nil
+}
+
+func (x *IdentifyRequest) GetMsgId() []byte {
+	if x != nil {
+		return x.MsgId
+	}
+	return nil
+}
+
+func (x *IdentifyRequest) GetChunkId() uint32 {
+	if x != nil {
+		return x.ChunkId
+	}
+	return 0
+}
+
+func (x *IdentifyRequest) GetTotalChunks() uint32 {
+	if x != nil {
+		return x.TotalChunks
+	}
+	return 0
+}
+
+func (x *IdentifyRequest) GetCandidates() []*Symbol {
+	if x != nil {
+		return x.Candidates
+	}
+	return nil
+}
+
+func (x *IdentifyRequest) GetSources() []uint32 {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+func (x *IdentifyRequest) GetBudget() uint32 {
+	if x != nil {
+		return x.Budget
+	}
+	return 0
+}
+
+// IdentifyResponse defines the response message for the Identify method.
+type IdentifyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// identified indicates that a subset of k candidates decoded to the
+	// generation's commitment hash.
+	Identified bool `protobuf:"varint,1,opt,name=identified,proto3" json:"identified,omitempty"`
+	// polluted_indices are the indices into candidates of the symbols that fail
+	// the audit against the verified decode. It is empty unless identified.
+	PollutedIndices []uint32 `protobuf:"varint,2,rep,packed,name=polluted_indices,json=pollutedIndices,proto3" json:"polluted_indices,omitempty"`
+	// polluted_sources are the source labels proven to have delivered at least
+	// one polluted symbol. It may be non-empty even when identified is false.
+	PollutedSources []uint32 `protobuf:"varint,3,rep,packed,name=polluted_sources,json=pollutedSources,proto3" json:"polluted_sources,omitempty"`
+	// invalid_commitment indicates that the commitment failed to parse, does not
+	// hash to msg_id, or does not match the candidates, chunk_id or total_chunks.
+	InvalidCommitment bool `protobuf:"varint,4,opt,name=invalid_commitment,json=invalidCommitment,proto3" json:"invalid_commitment,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *IdentifyResponse) Reset() {
+	*x = IdentifyResponse{}
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IdentifyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IdentifyResponse) ProtoMessage() {}
+
+func (x *IdentifyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IdentifyResponse.ProtoReflect.Descriptor instead.
+func (*IdentifyResponse) Descriptor() ([]byte, []int) {
+	return file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *IdentifyResponse) GetIdentified() bool {
+	if x != nil {
+		return x.Identified
+	}
+	return false
+}
+
+func (x *IdentifyResponse) GetPollutedIndices() []uint32 {
+	if x != nil {
+		return x.PollutedIndices
+	}
+	return nil
+}
+
+func (x *IdentifyResponse) GetPollutedSources() []uint32 {
+	if x != nil {
+		return x.PollutedSources
+	}
+	return nil
+}
+
+func (x *IdentifyResponse) GetInvalidCommitment() bool {
+	if x != nil {
+		return x.InvalidCommitment
+	}
+	return false
+}
+
 // ReassembleRequest defines the request message for the Reassemble method, which
 // takes in a set of successfully decoded data shards and reassembles them back
 // into the original opaque payload.
@@ -1119,7 +1384,7 @@ type ReassembleRequest struct {
 
 func (x *ReassembleRequest) Reset() {
 	*x = ReassembleRequest{}
-	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[14]
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1131,7 +1396,7 @@ func (x *ReassembleRequest) String() string {
 func (*ReassembleRequest) ProtoMessage() {}
 
 func (x *ReassembleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[14]
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1144,7 +1409,7 @@ func (x *ReassembleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReassembleRequest.ProtoReflect.Descriptor instead.
 func (*ReassembleRequest) Descriptor() ([]byte, []int) {
-	return file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP(), []int{14}
+	return file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ReassembleRequest) GetShards() [][]byte {
@@ -1166,7 +1431,7 @@ type ReassembleResponse struct {
 
 func (x *ReassembleResponse) Reset() {
 	*x = ReassembleResponse{}
-	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[15]
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1178,7 +1443,7 @@ func (x *ReassembleResponse) String() string {
 func (*ReassembleResponse) ProtoMessage() {}
 
 func (x *ReassembleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[15]
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1191,7 +1456,7 @@ func (x *ReassembleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReassembleResponse.ProtoReflect.Descriptor instead.
 func (*ReassembleResponse) Descriptor() ([]byte, []int) {
-	return file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP(), []int{15}
+	return file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ReassembleResponse) GetData() []byte {
@@ -1236,7 +1501,7 @@ type VerifyShardsRequest struct {
 
 func (x *VerifyShardsRequest) Reset() {
 	*x = VerifyShardsRequest{}
-	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[16]
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1248,7 +1513,7 @@ func (x *VerifyShardsRequest) String() string {
 func (*VerifyShardsRequest) ProtoMessage() {}
 
 func (x *VerifyShardsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[16]
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1261,7 +1526,7 @@ func (x *VerifyShardsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyShardsRequest.ProtoReflect.Descriptor instead.
 func (*VerifyShardsRequest) Descriptor() ([]byte, []int) {
-	return file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP(), []int{16}
+	return file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *VerifyShardsRequest) GetShards() [][]byte {
@@ -1300,7 +1565,7 @@ type VerifyShardsResponse struct {
 
 func (x *VerifyShardsResponse) Reset() {
 	*x = VerifyShardsResponse{}
-	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[17]
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1312,7 +1577,7 @@ func (x *VerifyShardsResponse) String() string {
 func (*VerifyShardsResponse) ProtoMessage() {}
 
 func (x *VerifyShardsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[17]
+	mi := &file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1325,7 +1590,7 @@ func (x *VerifyShardsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyShardsResponse.ProtoReflect.Descriptor instead.
 func (*VerifyShardsResponse) Descriptor() ([]byte, []int) {
-	return file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP(), []int{17}
+	return file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *VerifyShardsResponse) GetValid() bool {
@@ -1375,25 +1640,56 @@ const file_getoptimum_rlnc_types_v1_rlnc_proto_rawDesc = "" +
 	"\x04data\x18\x01 \x01(\fR\x04data\x12$\n" +
 	"\x0emax_shard_size\x18\x02 \x01(\rR\fmaxShardSize\x12\x11\n" +
 	"\x01k\x18\x03 \x01(\rH\x00R\x01k\x88\x01\x01B\x04\n" +
-	"\x02_k\"'\n" +
+	"\x02_k\"^\n" +
 	"\rShardResponse\x12\x16\n" +
-	"\x06shards\x18\x01 \x03(\fR\x06shards\"x\n" +
+	"\x06shards\x18\x01 \x03(\fR\x06shards\x12\x1e\n" +
+	"\n" +
+	"commitment\x18\x02 \x01(\fR\n" +
+	"commitment\x12\x15\n" +
+	"\x06msg_id\x18\x03 \x01(\fR\x05msgId\"x\n" +
 	"\x11CreateHashRequest\x12\x16\n" +
 	"\x06shards\x18\x01 \x03(\fR\x06shards\x12K\n" +
 	"\rhash_strategy\x18\x02 \x01(\x0e2&.getoptimum.rlnc.types.v1.HashStrategyR\fhashStrategy\"@\n" +
 	"\x12CreateHashResponse\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\rR\x04hash\x12\x16\n" +
-	"\x06shards\x18\x02 \x03(\fR\x06shards\"\xa4\x01\n" +
+	"\x06shards\x18\x02 \x03(\fR\x06shards\"\x99\x02\n" +
 	"\rDecodeRequest\x12I\n" +
 	"\x0freceived_symbol\x18\x01 \x01(\v2 .getoptimum.rlnc.types.v1.SymbolR\x0ereceivedSymbol\x12H\n" +
-	"\rlocal_symbols\x18\x02 \x01(\v2#.getoptimum.rlnc.types.v1.SymbolSetR\flocalSymbols\"\x9d\x01\n" +
+	"\rlocal_symbols\x18\x02 \x01(\v2#.getoptimum.rlnc.types.v1.SymbolSetR\flocalSymbols\x12\x1e\n" +
+	"\n" +
+	"commitment\x18\x03 \x01(\fR\n" +
+	"commitment\x12\x15\n" +
+	"\x06msg_id\x18\x04 \x01(\fR\x05msgId\x12\x19\n" +
+	"\bchunk_id\x18\x05 \x01(\rR\achunkId\x12!\n" +
+	"\ftotal_chunks\x18\x06 \x01(\rR\vtotalChunks\"\xe8\x01\n" +
 	"\x0eDecodeResponse\x12=\n" +
 	"\asymbols\x18\x01 \x01(\v2#.getoptimum.rlnc.types.v1.SymbolSetR\asymbols\x12\x18\n" +
 	"\adecoded\x18\x02 \x01(\bR\adecoded\x12\x1e\n" +
 	"\n" +
 	"innovative\x18\x03 \x01(\bR\n" +
 	"innovative\x12\x12\n" +
-	"\x04data\x18\x04 \x03(\fR\x04data\"+\n" +
+	"\x04data\x18\x04 \x03(\fR\x04data\x12\x1a\n" +
+	"\bpolluted\x18\x05 \x01(\bR\bpolluted\x12-\n" +
+	"\x12invalid_commitment\x18\x06 \x01(\bR\x11invalidCommitment\"\xfa\x01\n" +
+	"\x0fIdentifyRequest\x12\x1e\n" +
+	"\n" +
+	"commitment\x18\x01 \x01(\fR\n" +
+	"commitment\x12\x15\n" +
+	"\x06msg_id\x18\x02 \x01(\fR\x05msgId\x12\x19\n" +
+	"\bchunk_id\x18\x03 \x01(\rR\achunkId\x12!\n" +
+	"\ftotal_chunks\x18\x04 \x01(\rR\vtotalChunks\x12@\n" +
+	"\n" +
+	"candidates\x18\x05 \x03(\v2 .getoptimum.rlnc.types.v1.SymbolR\n" +
+	"candidates\x12\x18\n" +
+	"\asources\x18\x06 \x03(\rR\asources\x12\x16\n" +
+	"\x06budget\x18\a \x01(\rR\x06budget\"\xb7\x01\n" +
+	"\x10IdentifyResponse\x12\x1e\n" +
+	"\n" +
+	"identified\x18\x01 \x01(\bR\n" +
+	"identified\x12)\n" +
+	"\x10polluted_indices\x18\x02 \x03(\rR\x0fpollutedIndices\x12)\n" +
+	"\x10polluted_sources\x18\x03 \x03(\rR\x0fpollutedSources\x12-\n" +
+	"\x12invalid_commitment\x18\x04 \x01(\bR\x11invalidCommitment\"+\n" +
 	"\x11ReassembleRequest\x12\x16\n" +
 	"\x06shards\x18\x01 \x03(\fR\x06shards\"(\n" +
 	"\x12ReassembleResponse\x12\x12\n" +
@@ -1435,7 +1731,7 @@ func file_getoptimum_rlnc_types_v1_rlnc_proto_rawDescGZIP() []byte {
 }
 
 var file_getoptimum_rlnc_types_v1_rlnc_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_getoptimum_rlnc_types_v1_rlnc_proto_goTypes = []any{
 	(CodingType)(0),                // 0: getoptimum.rlnc.types.v1.CodingType
 	(MappingType)(0),               // 1: getoptimum.rlnc.types.v1.MappingType
@@ -1454,10 +1750,12 @@ var file_getoptimum_rlnc_types_v1_rlnc_proto_goTypes = []any{
 	(*CreateHashResponse)(nil),     // 14: getoptimum.rlnc.types.v1.CreateHashResponse
 	(*DecodeRequest)(nil),          // 15: getoptimum.rlnc.types.v1.DecodeRequest
 	(*DecodeResponse)(nil),         // 16: getoptimum.rlnc.types.v1.DecodeResponse
-	(*ReassembleRequest)(nil),      // 17: getoptimum.rlnc.types.v1.ReassembleRequest
-	(*ReassembleResponse)(nil),     // 18: getoptimum.rlnc.types.v1.ReassembleResponse
-	(*VerifyShardsRequest)(nil),    // 19: getoptimum.rlnc.types.v1.VerifyShardsRequest
-	(*VerifyShardsResponse)(nil),   // 20: getoptimum.rlnc.types.v1.VerifyShardsResponse
+	(*IdentifyRequest)(nil),        // 17: getoptimum.rlnc.types.v1.IdentifyRequest
+	(*IdentifyResponse)(nil),       // 18: getoptimum.rlnc.types.v1.IdentifyResponse
+	(*ReassembleRequest)(nil),      // 19: getoptimum.rlnc.types.v1.ReassembleRequest
+	(*ReassembleResponse)(nil),     // 20: getoptimum.rlnc.types.v1.ReassembleResponse
+	(*VerifyShardsRequest)(nil),    // 21: getoptimum.rlnc.types.v1.VerifyShardsRequest
+	(*VerifyShardsResponse)(nil),   // 22: getoptimum.rlnc.types.v1.VerifyShardsResponse
 }
 var file_getoptimum_rlnc_types_v1_rlnc_proto_depIdxs = []int32{
 	3,  // 0: getoptimum.rlnc.types.v1.SymbolSet.symbols:type_name -> getoptimum.rlnc.types.v1.Symbol
@@ -1471,12 +1769,13 @@ var file_getoptimum_rlnc_types_v1_rlnc_proto_depIdxs = []int32{
 	3,  // 8: getoptimum.rlnc.types.v1.DecodeRequest.received_symbol:type_name -> getoptimum.rlnc.types.v1.Symbol
 	4,  // 9: getoptimum.rlnc.types.v1.DecodeRequest.local_symbols:type_name -> getoptimum.rlnc.types.v1.SymbolSet
 	4,  // 10: getoptimum.rlnc.types.v1.DecodeResponse.symbols:type_name -> getoptimum.rlnc.types.v1.SymbolSet
-	2,  // 11: getoptimum.rlnc.types.v1.VerifyShardsRequest.hash_strategy:type_name -> getoptimum.rlnc.types.v1.HashStrategy
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	3,  // 11: getoptimum.rlnc.types.v1.IdentifyRequest.candidates:type_name -> getoptimum.rlnc.types.v1.Symbol
+	2,  // 12: getoptimum.rlnc.types.v1.VerifyShardsRequest.hash_strategy:type_name -> getoptimum.rlnc.types.v1.HashStrategy
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_getoptimum_rlnc_types_v1_rlnc_proto_init() }
@@ -1486,14 +1785,14 @@ func file_getoptimum_rlnc_types_v1_rlnc_proto_init() {
 	}
 	file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[6].OneofWrappers = []any{}
 	file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[8].OneofWrappers = []any{}
-	file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[16].OneofWrappers = []any{}
+	file_getoptimum_rlnc_types_v1_rlnc_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_getoptimum_rlnc_types_v1_rlnc_proto_rawDesc), len(file_getoptimum_rlnc_types_v1_rlnc_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

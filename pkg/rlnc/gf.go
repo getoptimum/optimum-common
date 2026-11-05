@@ -69,3 +69,15 @@ func LeadingColumn(row []byte) int {
 
 	return -1
 }
+
+// mulTable holds every GF(256) product, so AuditSymbol costs one lookup per
+// coefficient and data byte instead of a bitwise multiply.
+var mulTable = func() (table [256][256]byte) {
+	for left := range 256 {
+		for right := range 256 {
+			table[left][right] = GFMultiply(byte(left), byte(right))
+		}
+	}
+
+	return table
+}()

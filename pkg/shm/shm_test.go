@@ -20,7 +20,10 @@ import (
 	libshm "github.com/getoptimum/shm/pkg/shm"
 )
 
-const testFrameVersion uint32 = 1
+const (
+	testFrameVersion    uint32 = 1
+	testProtocolVersion uint32 = 1
+)
 
 func TestNewWithLaneSet(t *testing.T) {
 	tests := []struct {
@@ -41,7 +44,7 @@ func TestNewWithLaneSet(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ls := newLaneSetStub()
 
-			svc := NewWithLaneSet(ls, tc.lanes, testFrameVersion)
+			svc := NewWithLaneSet(ls, tc.lanes, testFrameVersion, testProtocolVersion)
 
 			require.NotNil(t, svc)
 			require.Equal(t, ls, svc.ls)
@@ -59,7 +62,7 @@ func TestServiceClaimLane(t *testing.T) {
 				return idleMem, nil
 			}
 		})
-		svc := NewWithLaneSet(ls, 2, testFrameVersion)
+		svc := NewWithLaneSet(ls, 2, testFrameVersion, testProtocolVersion)
 		claimed, err := svc.claimLane()
 		require.NoError(t, err)
 		require.Equal(t, 0, claimed.lane)
@@ -78,7 +81,7 @@ func TestServiceClaimLane(t *testing.T) {
 				return idleMem, nil
 			}
 		})
-		svc := NewWithLaneSet(ls, 2, testFrameVersion)
+		svc := NewWithLaneSet(ls, 2, testFrameVersion, testProtocolVersion)
 
 		claimed, err := svc.claimLane()
 		require.NoError(t, err)
@@ -91,8 +94,8 @@ func TestServiceClaimLane(t *testing.T) {
 func TestServiceClaimLaneFailures(t *testing.T) {
 	t.Run("rejects closed or empty lane set", func(t *testing.T) {
 		for _, svc := range []*Service{
-			NewWithLaneSet(nil, 1, testFrameVersion),
-			NewWithLaneSet(newLaneSetStub(), 0, testFrameVersion),
+			NewWithLaneSet(nil, 1, testFrameVersion, testProtocolVersion),
+			NewWithLaneSet(newLaneSetStub(), 0, testFrameVersion, testProtocolVersion),
 		} {
 			_, err := svc.claimLane()
 			require.ErrorContains(t, err, "lane set is closed")
@@ -106,7 +109,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			}
 		})
 
-		_, err := NewWithLaneSet(ls, 1, testFrameVersion).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane()
 		require.ErrorContains(t, err, "get lane 0 memory: lookup failed")
 	})
 
@@ -117,7 +120,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			ls.tryLockLaneFn = func(_ int) (bool, error) { return false, errors.New("lock failed") }
 		})
 
-		_, err := NewWithLaneSet(ls, 1, testFrameVersion).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane()
 		require.ErrorContains(t, err, "try lock lane 0: lock failed")
 		require.Equal(t, 1, ls.tryLockCalled)
 	})
@@ -129,7 +132,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			ls.tryLockLaneFn = func(_ int) (bool, error) { return false, nil }
 		})
 
-		_, err := NewWithLaneSet(ls, 1, testFrameVersion).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane()
 		require.ErrorContains(t, err, "no idle lanes available")
 		require.Equal(t, 1, ls.tryLockCalled)
 		require.Zero(t, ls.unlockCalled)
@@ -153,7 +156,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			}
 		})
 
-		claimed, err := NewWithLaneSet(ls, 2, testFrameVersion).claimLane()
+		claimed, err := NewWithLaneSet(ls, 2, testFrameVersion, testProtocolVersion).claimLane()
 		require.NoError(t, err)
 		require.Equal(t, 1, claimed.lane)
 		require.Equal(t, 1, ls.unlockCalled)
@@ -172,13 +175,13 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			ls.unlockLaneFn = func(_ int) error { return errors.New("unlock failed") }
 		})
 
-		_, err := NewWithLaneSet(ls, 1, testFrameVersion).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane()
 		require.ErrorContains(t, err, "unlock lane 0: unlock failed")
 	})
 }
 
 func TestServiceNextLaneIndexWraps(t *testing.T) {
-	svc := NewWithLaneSet(newLaneSetStub(), 2, testFrameVersion)
+	svc := NewWithLaneSet(newLaneSetStub(), 2, testFrameVersion, testProtocolVersion)
 
 	require.Equal(t, 0, svc.nextLaneIndex())
 	require.Equal(t, 1, svc.nextLaneIndex())
@@ -225,7 +228,7 @@ func TestServiceExecuteOpWaitsForLocalCapacity(t *testing.T) {
 		return getMemCalls
 	}
 
-	svc := NewWithLaneSet(ls, 1, testFrameVersion)
+	svc := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion)
 
 	first := make(chan error, 1)
 	go func() {
@@ -310,7 +313,7 @@ func TestServiceExecuteOpBoundsConcurrencyToLaneCount(t *testing.T) {
 		}
 	})
 
-	svc := NewWithLaneSet(ls, lanes, testFrameVersion)
+	svc := NewWithLaneSet(ls, lanes, testFrameVersion, testProtocolVersion)
 
 	errs := make(chan error, callers)
 
@@ -432,7 +435,7 @@ func TestServiceExecuteOp(t *testing.T) {
 				tc.configureLS(ls, mem)
 			}
 
-			svc := NewWithLaneSet(ls, 1, testFrameVersion)
+			svc := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion)
 
 			var workerDone <-chan opWorkerResult
 			if tc.worker != nil {
@@ -678,7 +681,7 @@ func (l *laneSetStub) UnlockLane(lane int) error {
 
 func TestPhaseTimerReportsOperationEndToEnd(t *testing.T) {
 	obs := &observerStub{}
-	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion)
+	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion, testProtocolVersion)
 	svc.SetObserver(obs)
 
 	timer := svc.newPhaseTimer("TEST_OP")
@@ -706,7 +709,7 @@ func TestPhaseTimerReportsOperationEndToEnd(t *testing.T) {
 
 func TestPhaseTimerFailReportsFailedOperation(t *testing.T) {
 	obs := &observerStub{}
-	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion)
+	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion, testProtocolVersion)
 	svc.SetObserver(obs)
 
 	timer := svc.newPhaseTimer("TEST_OP")
@@ -727,7 +730,7 @@ func TestPhaseTimerExcludesObserverCostFromNextPhase(t *testing.T) {
 	const observerCost = 50 * time.Millisecond
 
 	obs := &observerStub{cost: observerCost}
-	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion)
+	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion, testProtocolVersion)
 	svc.SetObserver(obs)
 
 	timer := svc.newPhaseTimer("TEST_OP")
@@ -814,7 +817,7 @@ func (o *observerStub) LaneReleased() {}
 
 func TestServiceExecuteOpReportsRejectionBeforeAdmission(t *testing.T) {
 	obs := &observerStub{}
-	svc := NewWithLaneSet(newLaneSetStub(), 0, testFrameVersion)
+	svc := NewWithLaneSet(newLaneSetStub(), 0, testFrameVersion, testProtocolVersion)
 	svc.SetObserver(obs)
 
 	_, err := svc.ExecuteOp(shmpb.OperationType_OPERATION_TYPE_DECODE, nil)
@@ -835,7 +838,7 @@ func TestServiceExecuteOpReportsRejectionBeforeAdmission(t *testing.T) {
 
 func TestPhaseTimerFailWithBlamesCauseNotPhase(t *testing.T) {
 	obs := &observerStub{}
-	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion)
+	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion, testProtocolVersion)
 	svc.SetObserver(obs)
 
 	timer := svc.newPhaseTimer("TEST_OP")
@@ -855,7 +858,7 @@ func TestPhaseTimerResumeExcludesCallerObserverCost(t *testing.T) {
 	const observerCost = 50 * time.Millisecond
 
 	obs := &observerStub{cost: observerCost}
-	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion)
+	svc := NewWithLaneSet(newLaneSetStub(), 1, testFrameVersion, testProtocolVersion)
 	svc.SetObserver(obs)
 
 	timer := svc.newPhaseTimer("TEST_OP")
@@ -905,7 +908,7 @@ func TestServiceExecuteMessage(t *testing.T) {
 			ls := newLaneSetStub(func(ls *laneSetStub) {
 				ls.getMemFn = func(_ int) (*libshm.Mem, error) { return mem, nil }
 			})
-			svc := NewWithLaneSet(ls, 1, testFrameVersion)
+			svc := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion)
 
 			op := shmpb.OperationType_OPERATION_TYPE_SHARD
 			workerDone := startWorkerWithOpOutput(
@@ -945,11 +948,34 @@ func TestServiceVerifyServer(t *testing.T) {
 			name: "compatible server",
 			output: &shmpb.OpOutput{
 				Response: mustMarshal(t, &shmpb.ServerInfoResponse{
-					FrameVersion:  testFrameVersion,
-					ServerVersion: "v0.12.0",
+					FrameVersion:    testFrameVersion,
+					ServerVersion:   "v0.13.0",
+					ProtocolVersion: testProtocolVersion,
 				}),
 			},
-			wantVersion: "v0.12.0",
+			wantVersion: "v0.13.0",
+		},
+		{
+			name: "newer protocol version",
+			output: &shmpb.OpOutput{
+				Response: mustMarshal(t, &shmpb.ServerInfoResponse{
+					FrameVersion:    testFrameVersion,
+					ServerVersion:   "v0.14.0",
+					ProtocolVersion: testProtocolVersion + 1,
+				}),
+			},
+			wantVersion: "v0.14.0",
+		},
+		{
+			name: "server predates protocol versioning",
+			output: &shmpb.OpOutput{
+				Response: mustMarshal(t, &shmpb.ServerInfoResponse{
+					FrameVersion:  testFrameVersion,
+					ServerVersion: "v0.12.1",
+				}),
+			},
+			wantVersion: "v0.12.1",
+			wantErr:     ErrIncompatibleServer,
 		},
 		{
 			name: "server predates frame versioning",
@@ -962,8 +988,9 @@ func TestServiceVerifyServer(t *testing.T) {
 			name: "different frame version",
 			output: &shmpb.OpOutput{
 				Response: mustMarshal(t, &shmpb.ServerInfoResponse{
-					FrameVersion:  testFrameVersion + 1,
-					ServerVersion: "v9.0.0",
+					FrameVersion:    testFrameVersion + 1,
+					ServerVersion:   "v9.0.0",
+					ProtocolVersion: testProtocolVersion,
 				}),
 			},
 			wantVersion: "v9.0.0",
@@ -977,7 +1004,7 @@ func TestServiceVerifyServer(t *testing.T) {
 			ls := newLaneSetStub(func(ls *laneSetStub) {
 				ls.getMemFn = func(_ int) (*libshm.Mem, error) { return mem, nil }
 			})
-			svc := NewWithLaneSet(ls, 1, testFrameVersion)
+			svc := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion)
 
 			op := shmpb.OperationType_OPERATION_TYPE_SERVER_INFO
 			workerDone := startWorkerWithOpOutput(

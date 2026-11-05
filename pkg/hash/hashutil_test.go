@@ -35,20 +35,6 @@ func TestHashSHA256(t *testing.T) {
 	}
 }
 
-func BenchmarkHashXXHash(b *testing.B) {
-	data := []byte("Hello, World!")
-	for i := 0; i < b.N; i++ {
-		hash.XXHash(data)
-	}
-}
-
-func BenchmarkHashSHA256String(b *testing.B) {
-	data := []byte("Hello, World!")
-	for i := 0; i < b.N; i++ {
-		hash.SHA256String(data)
-	}
-}
-
 func TestHashBytes(t *testing.T) {
 	testCases := []struct {
 		name     string

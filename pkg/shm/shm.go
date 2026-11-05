@@ -18,7 +18,8 @@ import (
 	"github.com/getoptimum/shm/pkg/shm"
 )
 
-// shmWaitTimeout is the maximum duration to wait for a lane to process an operation and produce an output frame.
+// shmWaitTimeout is the maximum duration to wait for a lane to process an
+// operation and produce an output frame.
 const shmWaitTimeout = 2 * time.Second
 
 // Field numbers of the OpInput and OpOutput envelopes, which this package
@@ -39,7 +40,8 @@ var (
 	errFrameTooLarge = errors.New("op input frame exceeds lane input region")
 
 	// ErrIncompatibleServer reports an rlnc-server that predates frame
-	// versioning or uses a different frame layout.
+	// versioning, uses a different frame layout, or supports an older protocol
+	// version than the caller requires.
 	ErrIncompatibleServer = errors.New("incompatible rlnc-server")
 )
 
@@ -50,6 +52,7 @@ type (
 		lanes    int
 		ls       LaneSet
 		nextLane atomic.Uint64
+
 		// slots bounds local callers to the number of physical lanes. Without this
 		// admission gate, transient local contention was reported as a hard "no
 		// idle lanes" operation failure instead of applying back-pressure.
@@ -59,6 +62,10 @@ type (
 		// produce and accept. Every OpInput carries it, so a server on another
 		// layout rejects each operation.
 		frameVersion uint32
+
+		// minProtocolVersion is the oldest set of operations the caller can use.
+		// VerifyServer rejects a server that reports an older protocol version.
+		minProtocolVersion uint32
 
 		// observer is an optional metric sink.
 		observer Observer
@@ -87,33 +94,37 @@ type (
 
 // NewWithLaneSet returns a Service over an existing lane set. Callers are
 // admitted up to lanes at a time. Tests use it to inject a stub LaneSet. See
-// New for frameVersion.
-func NewWithLaneSet(ls LaneSet, lanes int, frameVersion uint32) *Service {
+// New for frameVersion and minProtocolVersion.
+func NewWithLaneSet(ls LaneSet, lanes int, frameVersion, minProtocolVersion uint32) *Service {
 	return &Service{
-		ls:           ls,
-		lanes:        lanes,
-		slots:        make(chan struct{}, max(0, lanes)),
-		frameVersion: frameVersion,
+		ls:                 ls,
+		lanes:              lanes,
+		slots:              make(chan struct{}, max(0, lanes)),
+		frameVersion:       frameVersion,
+		minProtocolVersion: minProtocolVersion,
 	}
 }
 
 // New attaches to the lanes an rlnc-server published under name. The server
 // must already be running with a matching name and lane count. frameVersion is
 // the RLNC frame layout the caller expects, normally RLNC's types.FrameVersion.
-// It is stamped on every operation and checked by VerifyServer.
-func New(lanes int, name string, frameVersion uint32) (*Service, error) {
+// It is stamped on every operation and checked by VerifyServer. minProtocolVersion
+// is the oldest server protocol version whose operations the caller uses. VerifyServer
+// checks it in addition to the frame version.
+func New(lanes int, name string, frameVersion, minProtocolVersion uint32) (*Service, error) {
 	ls, err := shm.AttachLaneSet(lanes, name)
 	if err != nil {
 		return nil, fmt.Errorf("attach lane set: %w", err)
 	}
 
-	return NewWithLaneSet(ls, lanes, frameVersion), nil
+	return NewWithLaneSet(ls, lanes, frameVersion, minProtocolVersion), nil
 }
 
-// VerifyServer asks rlnc-server for its frame version and returns its build
-// version. Servers that predate frame versioning reject the operation as
-// unsupported. Either case, or a different frame version, wraps
-// ErrIncompatibleServer.
+// VerifyServer asks rlnc-server for its frame and protocol versions and returns
+// its build version. Servers that predate frame versioning reject the operation
+// as unsupported, and servers that predate protocol versioning report 0. Either
+// case, a different frame version, or a protocol version below the minimum
+// wraps ErrIncompatibleServer.
 func (s *Service) VerifyServer() (serverVersion string, err error) {
 	var resp shmpb.ServerInfoResponse
 	err = s.ExecuteMessage(shmpb.OperationType_OPERATION_TYPE_SERVER_INFO, &shmpb.ServerInfoRequest{}, &resp)
@@ -131,6 +142,15 @@ func (s *Service) VerifyServer() (serverVersion string, err error) {
 			ErrIncompatibleServer,
 			resp.GetFrameVersion(),
 			s.frameVersion,
+		)
+	}
+
+	if resp.GetProtocolVersion() < s.minProtocolVersion {
+		return resp.GetServerVersion(), fmt.Errorf(
+			"%w: protocol version %d, expected at least %d",
+			ErrIncompatibleServer,
+			resp.GetProtocolVersion(),
+			s.minProtocolVersion,
 		)
 	}
 

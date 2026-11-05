@@ -46,24 +46,27 @@ const (
 	// OPERATION_TYPE_REASSEMBLE defines an operation to execute the Reassemble API.
 	OperationType_OPERATION_TYPE_REASSEMBLE OperationType = 8
 	// OPERATION_TYPE_SERVER_INFO defines an operation that returns the frame
-	// version and build version of the server. Servers that predate it answer
-	// with OP_ERROR_CODE_UNSUPPORTED_OPERATION.
+	// version, protocol version and build version of the server. Servers that predate
+	// it answer with OP_ERROR_CODE_UNSUPPORTED_OPERATION.
 	OperationType_OPERATION_TYPE_SERVER_INFO OperationType = 9
+	// OPERATION_TYPE_IDENTIFY defines an operation to execute the Identify API.
+	OperationType_OPERATION_TYPE_IDENTIFY OperationType = 10
 )
 
 // Enum value maps for OperationType.
 var (
 	OperationType_name = map[int32]string{
-		0: "OPERATION_TYPE_UNSPECIFIED",
-		1: "OPERATION_TYPE_LEGACY_ENCODE_INTO_SHARDS",
-		2: "OPERATION_TYPE_LEGACY_DECODE_FROM_SHARDS",
-		3: "OPERATION_TYPE_LEGACY_RECODE_FROM_SHARDS",
-		4: "OPERATION_TYPE_SHARD",
-		5: "OPERATION_TYPE_PREPARE_SYMBOLS",
-		6: "OPERATION_TYPE_CODE",
-		7: "OPERATION_TYPE_DECODE",
-		8: "OPERATION_TYPE_REASSEMBLE",
-		9: "OPERATION_TYPE_SERVER_INFO",
+		0:  "OPERATION_TYPE_UNSPECIFIED",
+		1:  "OPERATION_TYPE_LEGACY_ENCODE_INTO_SHARDS",
+		2:  "OPERATION_TYPE_LEGACY_DECODE_FROM_SHARDS",
+		3:  "OPERATION_TYPE_LEGACY_RECODE_FROM_SHARDS",
+		4:  "OPERATION_TYPE_SHARD",
+		5:  "OPERATION_TYPE_PREPARE_SYMBOLS",
+		6:  "OPERATION_TYPE_CODE",
+		7:  "OPERATION_TYPE_DECODE",
+		8:  "OPERATION_TYPE_REASSEMBLE",
+		9:  "OPERATION_TYPE_SERVER_INFO",
+		10: "OPERATION_TYPE_IDENTIFY",
 	}
 	OperationType_value = map[string]int32{
 		"OPERATION_TYPE_UNSPECIFIED":               0,
@@ -76,6 +79,7 @@ var (
 		"OPERATION_TYPE_DECODE":                    7,
 		"OPERATION_TYPE_REASSEMBLE":                8,
 		"OPERATION_TYPE_SERVER_INFO":               9,
+		"OPERATION_TYPE_IDENTIFY":                  10,
 	}
 )
 
@@ -417,8 +421,12 @@ type ServerInfoResponse struct {
 	FrameVersion uint32 `protobuf:"varint,1,opt,name=frame_version,json=frameVersion,proto3" json:"frame_version,omitempty"`
 	// server_version is the build version of the server.
 	ServerVersion string `protobuf:"bytes,2,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// protocol_version is the version of the operations the server supports,
+	// separate from the frame layout. Servers that predate it report 0.
+	// Version 1 adds commitments to SHARD and DECODE, and OPERATION_TYPE_IDENTIFY.
+	ProtocolVersion uint32 `protobuf:"varint,3,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ServerInfoResponse) Reset() {
@@ -465,6 +473,13 @@ func (x *ServerInfoResponse) GetServerVersion() string {
 	return ""
 }
 
+func (x *ServerInfoResponse) GetProtocolVersion() uint32 {
+	if x != nil {
+		return x.ProtocolVersion
+	}
+	return 0
+}
+
 var File_getoptimum_rlnc_types_v1_smh_proto protoreflect.FileDescriptor
 
 const file_getoptimum_rlnc_types_v1_smh_proto_rawDesc = "" +
@@ -480,10 +495,11 @@ const file_getoptimum_rlnc_types_v1_smh_proto_rawDesc = "" +
 	"\bOpOutput\x12\x1a\n" +
 	"\bresponse\x18\x01 \x01(\fR\bresponse\x125\n" +
 	"\x05error\x18\x02 \x01(\v2\x1f.getoptimum.rlnc.shm.v1.OpErrorR\x05error\"\x13\n" +
-	"\x11ServerInfoRequest\"`\n" +
+	"\x11ServerInfoRequest\"\x8b\x01\n" +
 	"\x12ServerInfoResponse\x12#\n" +
 	"\rframe_version\x18\x01 \x01(\rR\fframeVersion\x12%\n" +
-	"\x0eserver_version\x18\x02 \x01(\tR\rserverVersion*\xea\x02\n" +
+	"\x0eserver_version\x18\x02 \x01(\tR\rserverVersion\x12)\n" +
+	"\x10protocol_version\x18\x03 \x01(\rR\x0fprotocolVersion*\x87\x03\n" +
 	"\rOperationType\x12\x1e\n" +
 	"\x1aOPERATION_TYPE_UNSPECIFIED\x10\x00\x12,\n" +
 	"(OPERATION_TYPE_LEGACY_ENCODE_INTO_SHARDS\x10\x01\x12,\n" +
@@ -494,7 +510,9 @@ const file_getoptimum_rlnc_types_v1_smh_proto_rawDesc = "" +
 	"\x13OPERATION_TYPE_CODE\x10\x06\x12\x19\n" +
 	"\x15OPERATION_TYPE_DECODE\x10\a\x12\x1d\n" +
 	"\x19OPERATION_TYPE_REASSEMBLE\x10\b\x12\x1e\n" +
-	"\x1aOPERATION_TYPE_SERVER_INFO\x10\t*\xb5\x02\n" +
+	"\x1aOPERATION_TYPE_SERVER_INFO\x10\t\x12\x1b\n" +
+	"\x17OPERATION_TYPE_IDENTIFY\x10\n" +
+	"*\xb5\x02\n" +
 	"\vOpErrorCode\x12\x1d\n" +
 	"\x19OP_ERROR_CODE_UNSPECIFIED\x10\x00\x12'\n" +
 	"#OP_ERROR_CODE_UNSUPPORTED_OPERATION\x10\x01\x12 \n" +
