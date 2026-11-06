@@ -3,6 +3,11 @@ package rlnc
 // GFMultiply multiplies two elements of the RLNC encoder's GF(256) field, which uses
 // the primitive polynomial 0x11d.
 func GFMultiply(left, right byte) byte {
+	return mulTable[left][right]
+}
+
+// multiply is the bitwise GF(256) product that mulTable is built from.
+func multiply(left, right byte) byte {
 	var product byte
 	for right != 0 {
 		if right&1 != 0 {
@@ -45,16 +50,27 @@ func GFInverse(value byte) byte {
 
 // Scale multiplies every element of row by factor in place.
 func Scale(row []byte, factor byte) {
-	for index := range row {
-		row[index] = GFMultiply(factor, row[index])
+	if factor == 1 {
+		return
+	}
+
+	products := &mulTable[factor]
+	for index, value := range row {
+		row[index] = products[value]
 	}
 }
 
 // XorScaled adds factor*src to dst in place. Addition in GF(256) is XOR. src
-// must be at least as long as dst.
+// must be at least as long as dst. dst and src may overlap, and are then
+// processed in index order.
 func XorScaled(dst, src []byte, factor byte) {
+	if factor == 0 {
+		return
+	}
+
+	products := &mulTable[factor]
 	for index := range dst {
-		dst[index] ^= GFMultiply(factor, src[index])
+		dst[index] ^= products[src[index]]
 	}
 }
 
@@ -70,12 +86,12 @@ func LeadingColumn(row []byte) int {
 	return -1
 }
 
-// mulTable holds every GF(256) product, so AuditSymbol costs one lookup per
-// coefficient and data byte instead of a bitwise multiply.
+// mulTable holds every GF(256) product, so a multiply is one lookup instead of
+// a bitwise loop. It is 64 KiB, and a row for one factor fits in L1.
 var mulTable = func() (table [256][256]byte) {
 	for left := range 256 {
 		for right := range 256 {
-			table[left][right] = GFMultiply(byte(left), byte(right))
+			table[left][right] = multiply(byte(left), byte(right))
 		}
 	}
 
