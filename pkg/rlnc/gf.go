@@ -1,7 +1,5 @@
 package rlnc
 
-import "crypto/subtle"
-
 // GFMultiply multiplies two elements of the RLNC encoder's GF(256) field, which uses
 // the primitive polynomial 0x11d.
 func GFMultiply(left, right byte) byte {
@@ -63,17 +61,16 @@ func Scale(row []byte, factor byte) {
 }
 
 // XorScaled adds factor*src to dst in place. Addition in GF(256) is XOR. src
-// must be at least as long as dst.
+// must be at least as long as dst. dst and src may overlap, and are then
+// processed in index order.
 func XorScaled(dst, src []byte, factor byte) {
-	switch factor {
-	case 0:
-	case 1:
-		subtle.XORBytes(dst, dst, src[:len(dst)])
-	default:
-		products := &mulTable[factor]
-		for index := range dst {
-			dst[index] ^= products[src[index]]
-		}
+	if factor == 0 {
+		return
+	}
+
+	products := &mulTable[factor]
+	for index := range dst {
+		dst[index] ^= products[src[index]]
 	}
 }
 

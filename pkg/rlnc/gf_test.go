@@ -1,6 +1,7 @@
 package rlnc_test
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"testing"
 
@@ -77,6 +78,40 @@ func TestXorScaledReadsOnlyLenDst(t *testing.T) {
 		dst := []byte{1, 2}
 		rlnc.XorScaled(dst, []byte{1, 1, 0xff}, factor)
 		require.Len(t, dst, 2)
+	}
+}
+
+// TestXorScaledOverlap pins the in-order semantics of the original bitwise
+// loop when dst and src share a backing array, for every factor path.
+func TestXorScaledOverlap(t *testing.T) {
+	reference := func(dst, src []byte, factor byte) {
+		for index := range dst {
+			dst[index] ^= rlnc.GFMultiply(factor, src[index])
+		}
+	}
+
+	testCases := []struct {
+		name             string
+		dstStart, dstEnd int
+		srcStart, srcEnd int
+	}{
+		{name: "src ahead of dst", dstStart: 0, dstEnd: 3, srcStart: 1, srcEnd: 4},
+		{name: "dst ahead of src", dstStart: 1, dstEnd: 4, srcStart: 0, srcEnd: 3},
+		{name: "exact", dstStart: 0, dstEnd: 4, srcStart: 0, srcEnd: 4},
+	}
+
+	for _, tc := range testCases {
+		for _, factor := range []byte{0, 1, 2, 0x53} {
+			t.Run(fmt.Sprintf("%s/factor=%d", tc.name, factor), func(t *testing.T) {
+				got := []byte{1, 2, 3, 4}
+				want := []byte{1, 2, 3, 4}
+
+				rlnc.XorScaled(got[tc.dstStart:tc.dstEnd], got[tc.srcStart:tc.srcEnd], factor)
+				reference(want[tc.dstStart:tc.dstEnd], want[tc.srcStart:tc.srcEnd], factor)
+
+				require.Equal(t, want, got)
+			})
+		}
 	}
 }
 
