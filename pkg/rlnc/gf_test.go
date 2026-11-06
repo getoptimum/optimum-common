@@ -1,6 +1,7 @@
 package rlnc_test
 
 import (
+	"math/rand/v2"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -47,6 +48,36 @@ func TestXorScaled(t *testing.T) {
 	dst := []byte{1, 2, 3}
 	rlnc.XorScaled(dst, []byte{1, 1, 0x80}, 2)
 	require.Equal(t, []byte{3, 0, 3 ^ 0x1d}, dst)
+}
+
+// TestScaledMatchesMultiply checks the table-driven row operations against
+// GFMultiply for every factor, including the 0 and 1 shortcuts.
+func TestScaledMatchesMultiply(t *testing.T) {
+	rng := rand.New(rand.NewPCG(1, 2))
+	src := randomBytes(rng, 300)
+	base := randomBytes(rng, len(src))
+
+	for factor := range 256 {
+		scaled := append([]byte(nil), src...)
+		rlnc.Scale(scaled, byte(factor))
+
+		sum := append([]byte(nil), base...)
+		rlnc.XorScaled(sum, src, byte(factor))
+
+		for index, value := range src {
+			product := rlnc.GFMultiply(byte(factor), value)
+			require.Equal(t, product, scaled[index], "Scale factor %d index %d", factor, index)
+			require.Equal(t, base[index]^product, sum[index], "XorScaled factor %d index %d", factor, index)
+		}
+	}
+}
+
+func TestXorScaledReadsOnlyLenDst(t *testing.T) {
+	for _, factor := range []byte{0, 1, 2} {
+		dst := []byte{1, 2}
+		rlnc.XorScaled(dst, []byte{1, 1, 0xff}, factor)
+		require.Len(t, dst, 2)
+	}
 }
 
 func TestLeadingColumn(t *testing.T) {

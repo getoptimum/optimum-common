@@ -1,9 +1,6 @@
 package rlnc
 
-import (
-	"bytes"
-	"crypto/subtle"
-)
+import "bytes"
 
 // auditBlockSize is how many data bytes AuditSymbol checks at a time. A block
 // fits on the stack, so the audit allocates nothing, and covers a 4 KiB shard
@@ -26,8 +23,8 @@ func AuditSymbol(coefficients, data []byte, shards [][]byte) (valid bool) {
 	}
 
 	// Accumulating one shard at a time reads every shard sequentially. Zero
-	// coefficients add nothing, and a coefficient of 1 is a plain XOR, so a
-	// source symbol costs one XOR pass.
+	// coefficients are skipped here, not in XorScaled, to save a call per row, so
+	// a source symbol costs one XOR pass.
 	var block [auditBlockSize]byte
 	for start := 0; start < len(data); start += auditBlockSize {
 		end := min(start+auditBlockSize, len(data))
@@ -35,17 +32,8 @@ func AuditSymbol(coefficients, data []byte, shards [][]byte) (valid bool) {
 		clear(acc)
 
 		for row, coefficient := range coefficients {
-			src := shards[row][start:end]
-
-			switch coefficient {
-			case 0:
-			case 1:
-				subtle.XORBytes(acc, acc, src)
-			default:
-				products := &mulTable[coefficient]
-				for index, value := range src {
-					acc[index] ^= products[value]
-				}
+			if coefficient != 0 {
+				XorScaled(acc, shards[row][start:end], coefficient)
 			}
 		}
 
