@@ -3,7 +3,9 @@ package rlnc
 import (
 	"fmt"
 	"math/rand/v2"
+	"os"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -81,6 +83,25 @@ func TestSupportedKernels(t *testing.T) {
 	require.Equal(t, "unknown", kernel(255).String())
 
 	t.Logf("kernels on this CPU: %v", kernels)
+}
+
+// TestRequiredKernels fails when a kernel named in RLNC_REQUIRE_KERNELS, a
+// comma-separated list, is not supported. CI sets it under an emulated CPU, so
+// a detection bug cannot silently skip the kernels the job exists to test.
+func TestRequiredKernels(t *testing.T) {
+	required := os.Getenv("RLNC_REQUIRE_KERNELS")
+	if required == "" {
+		t.Skip("RLNC_REQUIRE_KERNELS is not set")
+	}
+
+	supported := make([]string, 0, len(kernels))
+	for _, k := range kernels {
+		supported = append(supported, k.String())
+	}
+
+	for name := range strings.SplitSeq(required, ",") {
+		require.Contains(t, supported, strings.TrimSpace(name))
+	}
 }
 
 // kernelLengths covers every remainder of the 16, 32 and 64-byte vector steps,
