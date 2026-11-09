@@ -54,10 +54,7 @@ func Scale(row []byte, factor byte) {
 		return
 	}
 
-	products := &mulTable[factor]
-	for index, value := range row {
-		row[index] = products[value]
-	}
+	mulSlice(row, row, factor)
 }
 
 // XorScaled adds factor*src to dst in place. Addition in GF(256) is XOR. src
@@ -68,10 +65,7 @@ func XorScaled(dst, src []byte, factor byte) {
 		return
 	}
 
-	products := &mulTable[factor]
-	for index := range dst {
-		dst[index] ^= products[src[index]]
-	}
+	xorSlice(dst, src[:len(dst)], factor)
 }
 
 // LeadingColumn returns the index of row's first nonzero element, or -1 if row

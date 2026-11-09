@@ -56,6 +56,8 @@ fuzz: ## Run fuzz tests (default 30s per test, override with FUZZ_TIME=10s)
 	@go test -run='^$$' -fuzz=FuzzSafeAddUint64Ptr -fuzztime=$(FUZZ_TIME) ./pkg/math/
 	@echo "Fuzzing FuzzConfigLoad..."
 	@go test -run='^$$' -fuzz=FuzzConfigLoad -fuzztime=$(FUZZ_TIME) ./pkg/config/
+	@echo "Fuzzing FuzzKernels..."
+	@go test -run='^$$' -fuzz=FuzzKernels -fuzztime=$(FUZZ_TIME) ./pkg/rlnc/
 	@echo "Fuzz tests completed."
 
 lint: ## Run golangci-lint
