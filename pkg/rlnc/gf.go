@@ -54,24 +54,21 @@ func Scale(row []byte, factor byte) {
 		return
 	}
 
-	products := &mulTable[factor]
-	for index, value := range row {
-		row[index] = products[value]
-	}
+	mulSlice(row, row, factor)
 }
 
 // XorScaled adds factor*src to dst in place. Addition in GF(256) is XOR. src
 // must be at least as long as dst. dst and src may overlap, and are then
 // processed in index order.
 func XorScaled(dst, src []byte, factor byte) {
-	if factor == 0 {
+	if factor == 0 || len(dst) == 0 {
 		return
 	}
 
-	products := &mulTable[factor]
-	for index := range dst {
-		dst[index] ^= products[src[index]]
-	}
+	// Indexing first keeps the panic for a src shorter than dst. Reslicing alone
+	// would succeed into spare capacity and read bytes past the end of src.
+	_ = src[len(dst)-1]
+	xorSlice(dst, src[:len(dst)], factor)
 }
 
 // LeadingColumn returns the index of row's first nonzero element, or -1 if row

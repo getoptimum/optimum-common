@@ -18,6 +18,7 @@ require (
 	github.com/getoptimum/shm v0.5.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
+	github.com/klauspost/cpuid/v2 v2.3.0
 	github.com/lib/pq v1.12.3
 	github.com/libp2p/go-libp2p/core v0.43.0-rc2
 	github.com/mr-tron/base58 v1.3.0
@@ -357,7 +358,6 @@ require (
 	github.com/kisielk/errcheck v1.20.0 // indirect
 	github.com/kkHAIKE/contextcheck v1.1.6 // indirect
 	github.com/klauspost/compress v1.20.1 // indirect
-	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/kulti/thelper v0.7.1 // indirect
 	github.com/kunwardeep/paralleltest v1.0.15 // indirect

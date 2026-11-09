@@ -65,11 +65,15 @@ jobs:
           # Read exclusions from gosec.yaml and trim whitespace
           EXCLUDED_RULES=$(grep '^\s*- rule:' gosec.yaml | sed 's/.*rule:\s*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '\n' ',' | sed 's/,$//')
 
+          # gosec loads only .go files, so assembly-backed functions in pkg/rlnc
+          # fail its type check as missing bodies (securego/gosec#1116). The
+          # purego tag swaps in their table fallback and changes no other package.
+
           if [ -z "$EXCLUDED_RULES" ]; then
             echo "No excluded rules configured in gosec.yaml"
-            echo "Running go tool gosec -exclude-generated -exclude-dir=scripts -severity high ./..."
-            go tool gosec -exclude-generated -exclude-dir=scripts -severity high ./...
+            echo "Running go tool gosec -tags purego -exclude-generated -exclude-dir=scripts -severity high ./..."
+            go tool gosec -tags purego -exclude-generated -exclude-dir=scripts -severity high ./...
           else
             echo "Running gosec with exclusions: $EXCLUDED_RULES"
-            go tool gosec -exclude-generated -exclude=$EXCLUDED_RULES -exclude-dir=scripts -severity high ./...
+            go tool gosec -tags purego -exclude-generated -exclude=$EXCLUDED_RULES -exclude-dir=scripts -severity high ./...
           fi
