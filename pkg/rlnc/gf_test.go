@@ -121,3 +121,14 @@ func TestLeadingColumn(t *testing.T) {
 	require.Equal(t, 0, rlnc.LeadingColumn([]byte{5, 0}))
 	require.Equal(t, 2, rlnc.LeadingColumn([]byte{0, 0, 7}))
 }
+
+// A src shorter than dst panics, as the original loop did, even when its spare
+// capacity would cover dst. A zero factor reads nothing and returns.
+func TestXorScaledShortSrcPanics(t *testing.T) {
+	backing := make([]byte, 64)
+	src := backing[:16]
+	dst := make([]byte, 32)
+
+	require.Panics(t, func() { rlnc.XorScaled(dst, src, 0x53) })
+	require.NotPanics(t, func() { rlnc.XorScaled(dst, src, 0) })
+}

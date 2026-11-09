@@ -67,8 +67,9 @@ jobs:
 
   sde-kernel-tests:
     name: GF(256) kernels on emulated CPUs
-    # Hosted runners may lack GFNI and AVX-512, so those kernels would never run.
-    # Intel SDE emulates a Sapphire Rapids CPU, which supports every amd64 kernel.
+    # Hosted runners may lack GFNI and AVX-512, and are amd64 only, so those
+    # kernels and NEON would never run. Intel SDE emulates a Sapphire Rapids CPU,
+    # which supports every amd64 kernel, and QEMU runs the arm64 build.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -76,6 +77,8 @@ jobs:
       SDE_SHA256: 94e97d623fec54385686e1e7ba65ebc9941748c05ee451423948334892bf2b50
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -99,3 +102,18 @@ jobs:
         working-directory: pkg/rlnc
         run: |
           "$RUNNER_TEMP/sde/sde64" -spr -- "$RUNNER_TEMP/rlnc.test" -test.v -test.count=1
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user
+
+      - name: Build pkg/rlnc tests for arm64
+        run: GOARCH=arm64 CGO_ENABLED=0 go test -c -o "$RUNNER_TEMP/rlnc-arm64.test" ./pkg/rlnc/
+
+      - name: Run pkg/rlnc tests on an emulated arm64 CPU
+        env:
+          RLNC_REQUIRE_KERNELS: neon,generic
+        working-directory: pkg/rlnc
+        run: |
+          qemu-aarch64 "$RUNNER_TEMP/rlnc-arm64.test" -test.v -test.count=1
