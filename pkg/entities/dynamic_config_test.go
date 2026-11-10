@@ -23,6 +23,11 @@ func TestDynamicConfigValidate(t *testing.T) {
 			MeshDegreeTarget:         6,
 			MeshDegreeMin:            4,
 			MeshDegreeMax:            12,
+			MaxShardSize:             4096,
+			RLNCK:                    16,
+			RedundancyFraction:       1.5,
+			RelayCreditMultiplier:    5,
+			HeartbeatMS:              250,
 		}
 
 		// when, then
@@ -54,6 +59,11 @@ func TestDynamicConfigValidate(t *testing.T) {
 			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 0},
 			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 3, MeshDegreeMin: 4, MeshDegreeMax: 12},
 			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 13, MeshDegreeMin: 4, MeshDegreeMax: 12},
+			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12, MaxShardSize: 8001, RLNCK: 16, RedundancyFraction: 1.5, RelayCreditMultiplier: 5, HeartbeatMS: 250},
+			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12, MaxShardSize: 4096, RLNCK: 1, RedundancyFraction: 1.5, RelayCreditMultiplier: 5, HeartbeatMS: 250},
+			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12, MaxShardSize: 4096, RLNCK: 16, RedundancyFraction: 0.5, RelayCreditMultiplier: 5, HeartbeatMS: 250},
+			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12, MaxShardSize: 4096, RLNCK: 16, RedundancyFraction: 1.5, RelayCreditMultiplier: 11, HeartbeatMS: 250},
+			{ChainID: "default", ServiceVersion: "v0.0.1", RandomMessageSize: 512, ShardFactor: 4, PublisherShardMultiplier: 3, ForwardShardThreshold: 0.75, MeshDegreeTarget: 6, MeshDegreeMin: 4, MeshDegreeMax: 12, MaxShardSize: 4096, RLNCK: 16, RedundancyFraction: 1.5, RelayCreditMultiplier: 5, HeartbeatMS: 99},
 		}
 
 		for _, dc := range invalidConfigs {
@@ -79,6 +89,11 @@ func TestDynamicConfig(t *testing.T) {
 		MeshDegreeTarget:         5,
 		MeshDegreeMin:            6,
 		MeshDegreeMax:            7,
+		MaxShardSize:             4096,
+		RLNCK:                    16,
+		RedundancyFraction:       1.5,
+		RelayCreditMultiplier:    5,
+		HeartbeatMS:              250,
 	}
 
 	// when
@@ -99,14 +114,19 @@ func TestDynamicConfig(t *testing.T) {
 		"mesh_degree_target":         int64(5),
 		"mesh_degree_min":            int64(6),
 		"mesh_degree_max":            int64(7),
+		"max_shard_size":             uint32(4096),
+		"rlnc_k":                     uint32(16),
+		"redundancy_fraction":        float64(1.5),
+		"relay_credit_multiplier":    5,
+		"heartbeat_ms":               250,
 	}, res)
 }
 
 func TestHashRemoteConfig(t *testing.T) {
 	// given
 	table := map[string]*entities.DynamicConfig{
-		"cc2786e1f9910a9d811400edcddaf7075195f7a16b216dcbefba3bc7c4f2ae51": {},
-		"e1600a51a6acec2ea4168f23e112489b40af724b8901ac744c82fe105a1a73d7": {
+		"10cc3c382b13ad9246b74708d03528d294522c558727bd2ed4a242bfb7cf0c3f": {},
+		"3b8cf7a5c4c10bde0f34acc83adb35e6846069352d1259888beb0e4e80d4d061": {
 			RandomMessageSize:        1,
 			ShardFactor:              1,
 			PublisherShardMultiplier: 1,
@@ -115,7 +135,7 @@ func TestHashRemoteConfig(t *testing.T) {
 			MeshDegreeMin:            1,
 			MeshDegreeMax:            1,
 		},
-		"9049b56b4dc78f6fa24106b9e31e9c5dc987c028953440f2eb77b67009398ba0": {
+		"e5cbb441185f89bfd5ed0856fd041ef26d75d9b84945e2c738bd7e6cf89c887b": {
 			RandomMessageSize:        2,
 			ShardFactor:              2,
 			PublisherShardMultiplier: 2,
@@ -124,7 +144,7 @@ func TestHashRemoteConfig(t *testing.T) {
 			MeshDegreeMin:            2,
 			MeshDegreeMax:            2,
 		},
-		"92dcf1a7e3b3bd8193dbf48f250ca6c1bf95954ca6537c699c7b8007c358bad2": {
+		"e540ddb3093bf748ee6f75672dfcc68820ac98876a73e1cc87d0044b8eb6fa4d": {
 			RandomMessageSize:        2,
 			ShardFactor:              2,
 			PublisherShardMultiplier: 2,
@@ -136,7 +156,6 @@ func TestHashRemoteConfig(t *testing.T) {
 		},
 	}
 	for k, v := range table {
-		// when, then
 		require.Equal(t, k, entities.HashRemoteConfig(v))
 	}
 }

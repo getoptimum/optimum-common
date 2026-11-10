@@ -26,6 +26,11 @@ func TestOptimumConfig(t *testing.T) {
 		require.Equal(t, int64(6), cfg.MeshDegreeTarget)
 		require.Equal(t, int64(4), cfg.MeshDegreeMin)
 		require.Equal(t, int64(12), cfg.MeshDegreeMax)
+		require.Equal(t, uint32(4096), cfg.MaxShardSize)
+		require.Equal(t, uint32(16), cfg.RLNCK)
+		require.Equal(t, 1.5, cfg.RedundancyFraction)
+		require.Equal(t, 5, cfg.RelayCreditMultiplier)
+		require.Equal(t, 250, cfg.HeartbeatMS)
 	})
 	t.Run("should apply dynamic config", func(t *testing.T) {
 		dc := &entities.DynamicConfig{
@@ -40,6 +45,11 @@ func TestOptimumConfig(t *testing.T) {
 			MeshDegreeTarget:         32,
 			MeshDegreeMin:            64,
 			MeshDegreeMax:            128,
+			MaxShardSize:             2048,
+			RLNCK:                    8,
+			RedundancyFraction:       2,
+			RelayCreditMultiplier:    3,
+			HeartbeatMS:              400,
 		}
 
 		// when
@@ -53,5 +63,10 @@ func TestOptimumConfig(t *testing.T) {
 		require.Equal(t, int64(32), newCfg.MeshDegreeTarget)
 		require.Equal(t, int64(64), newCfg.MeshDegreeMin)
 		require.Equal(t, int64(128), newCfg.MeshDegreeMax)
+		require.Equal(t, uint32(2048), newCfg.MaxShardSize)
+		require.Equal(t, uint32(8), newCfg.RLNCK)
+		require.Equal(t, float64(2), newCfg.RedundancyFraction)
+		require.Equal(t, 3, newCfg.RelayCreditMultiplier)
+		require.Equal(t, 400, newCfg.HeartbeatMS)
 	})
 }

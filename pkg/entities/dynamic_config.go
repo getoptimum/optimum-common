@@ -48,6 +48,13 @@ type DynamicConfig struct {
 	MeshDegreeTarget int64 `db:"mesh_degree_target" yaml:"mesh_degree_target" json:"mesh_degree_target"`
 	MeshDegreeMin    int64 `db:"mesh_degree_min" yaml:"mesh_degree_min" json:"mesh_degree_min"`
 	MeshDegreeMax    int64 `db:"mesh_degree_max" yaml:"mesh_degree_max" json:"mesh_degree_max"`
+
+	// mumP2P v2 coding. Bounds match mump2p-protocol Validate.
+	MaxShardSize          uint32  `db:"max_shard_size" yaml:"max_shard_size" json:"max_shard_size"`
+	RLNCK                 uint32  `db:"rlnc_k" yaml:"rlnc_k" json:"rlnc_k"`
+	RedundancyFraction    float64 `db:"redundancy_fraction" yaml:"redundancy_fraction" json:"redundancy_fraction"`
+	RelayCreditMultiplier int     `db:"relay_credit_multiplier" yaml:"relay_credit_multiplier" json:"relay_credit_multiplier"`
+	HeartbeatMS           int     `db:"heartbeat_ms" yaml:"heartbeat_ms" json:"heartbeat_ms"`
 }
 
 // Normalize trims and normalizes ID fields in-place.
@@ -109,6 +116,21 @@ func (d *DynamicConfig) Validate() error {
 	if d.MeshDegreeTarget < d.MeshDegreeMin || d.MeshDegreeTarget > d.MeshDegreeMax {
 		return errors.New("mesh_degree_target must be between mesh_degree_min and mesh_degree_max")
 	}
+	if d.MaxShardSize == 0 || d.MaxShardSize > 8000 {
+		return errors.New("max_shard_size must be from 1 to 8000")
+	}
+	if d.RLNCK <= 1 || d.RLNCK > 128 {
+		return errors.New("rlnc_k must be from 2 to 128")
+	}
+	if d.RedundancyFraction < 1 || d.RedundancyFraction > 10 {
+		return errors.New("redundancy_fraction must be from 1 to 10")
+	}
+	if d.RelayCreditMultiplier < 1 || d.RelayCreditMultiplier > 10 {
+		return errors.New("relay_credit_multiplier must be from 1 to 10")
+	}
+	if d.HeartbeatMS < 100 {
+		return errors.New("heartbeat_ms must be at least 100")
+	}
 	return nil
 }
 
@@ -131,6 +153,12 @@ func (d *DynamicConfig) ToMap() map[string]any {
 		"mesh_degree_target": d.MeshDegreeTarget,
 		"mesh_degree_min":    d.MeshDegreeMin,
 		"mesh_degree_max":    d.MeshDegreeMax,
+
+		"max_shard_size":          d.MaxShardSize,
+		"rlnc_k":                  d.RLNCK,
+		"redundancy_fraction":     d.RedundancyFraction,
+		"relay_credit_multiplier": d.RelayCreditMultiplier,
+		"heartbeat_ms":            d.HeartbeatMS,
 	}
 }
 
@@ -146,5 +174,10 @@ func HashRemoteConfig(cfg *DynamicConfig) string {
 	hash.WriteInt64(h, cfg.MeshDegreeMin)
 	hash.WriteInt64(h, cfg.MeshDegreeMax)
 	hash.WriteBool(h, cfg.ExcludeSelfMessages)
+	hash.WriteUint32(h, cfg.MaxShardSize)
+	hash.WriteUint32(h, cfg.RLNCK)
+	hash.WriteFloat64(h, cfg.RedundancyFraction)
+	hash.WriteInt64(h, int64(cfg.RelayCreditMultiplier))
+	hash.WriteInt64(h, int64(cfg.HeartbeatMS))
 	return hex.EncodeToString(h.Sum(nil))
 }

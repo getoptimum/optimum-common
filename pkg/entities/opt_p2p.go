@@ -25,6 +25,13 @@ type OptimumConfig struct {
 	MeshDegreeMin    int64 `yaml:"mesh_degree_min" env:"OPTIMUM_MESH_MIN" flag:"mesh_degree_min" default:"4"`
 	MeshDegreeMax    int64 `yaml:"mesh_degree_max" env:"OPTIMUM_MESH_MAX" flag:"mesh_degree_max" default:"12"`
 
+	// mumP2P v2 coding. Applied from dynamic config at process start.
+	MaxShardSize          uint32  `yaml:"max_shard_size" env:"OPTIMUM_MAX_SHARD_SIZE" flag:"max_shard_size" default:"4096"`
+	RLNCK                 uint32  `yaml:"rlnc_k" env:"OPTIMUM_RLNC_K" flag:"rlnc_k" default:"16"`
+	RedundancyFraction    float64 `yaml:"redundancy_fraction" env:"OPTIMUM_REDUNDANCY" flag:"redundancy_fraction" default:"1.5"`
+	RelayCreditMultiplier int     `yaml:"relay_credit_multiplier" env:"OPTIMUM_RELAY_CREDIT" flag:"relay_credit_multiplier" default:"5"`
+	HeartbeatMS           int     `yaml:"heartbeat_ms" env:"OPTIMUM_HEARTBEAT_MS" flag:"heartbeat_ms" default:"250"`
+
 	BootstrapPeers []string `yaml:"bootstrap_peers" env:"BOOTSTRAP_PEERS" flag:"bootstrap_peers"`
 }
 
@@ -54,6 +61,11 @@ func (cfg *OptimumConfig) ApplyDynamicConfig(dcCfg *DynamicConfig) *OptimumConfi
 	newCfg.MeshDegreeTarget = dcCfg.MeshDegreeTarget
 	newCfg.MeshDegreeMin = dcCfg.MeshDegreeMin
 	newCfg.MeshDegreeMax = dcCfg.MeshDegreeMax
+	newCfg.MaxShardSize = dcCfg.MaxShardSize
+	newCfg.RLNCK = dcCfg.RLNCK
+	newCfg.RedundancyFraction = dcCfg.RedundancyFraction
+	newCfg.RelayCreditMultiplier = dcCfg.RelayCreditMultiplier
+	newCfg.HeartbeatMS = dcCfg.HeartbeatMS
 	return newCfg
 }
 
