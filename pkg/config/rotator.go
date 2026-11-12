@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -30,6 +31,12 @@ func WithServiceVersion(v string) RotatorOption {
 	return func(r *Rotator) { r.serviceVersion = v }
 }
 
+// WithGatewayID sends gateway_id on the config poll when id is set.
+// An empty id leaves the query unchanged.
+func WithGatewayID(id string) RotatorOption {
+	return func(r *Rotator) { r.gatewayID = strings.TrimSpace(id) }
+}
+
 // WithBootstrapBaseURL overrides the default production bootstrap endpoint.
 func WithBootstrapBaseURL(baseURL string) RotatorOption {
 	return func(r *Rotator) { r.bootstrapBaseURL = endpoints.BootstrapBaseURLOrDefault(baseURL) }
@@ -42,6 +49,7 @@ type Rotator struct {
 	bootstrapBaseURL string
 	renewInterval    time.Duration
 	serviceVersion   string
+	gatewayID        string
 	lastHash         string
 	currentOptConfig atomic.Pointer[entities.OptimumConfig]
 	updater          func(config *entities.DynamicConfig)
@@ -52,6 +60,7 @@ type Rotator struct {
 // The rotator starts a background goroutine that fetches config at the specified interval.
 // If chainID or clusterID is empty, fetching is disabled.
 // If WithServiceVersion is provided, it is sent as the service_version query parameter.
+// If WithGatewayID is provided, it is sent as the gateway_id query parameter.
 // The updater function is called whenever a new config is successfully fetched and applied.
 func NewConfigRotator(
 	ctx context.Context,
@@ -79,7 +88,7 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 	if chainID == "" || clusterID == "" {
 		return // do not fetch if chainID or clusterID is empty
 	}
-	configURL := endpoints.BootstrapConfigURL(r.bootstrapBaseURL, chainID, clusterID, r.serviceVersion)
+	configURL := endpoints.BootstrapConfigURL(r.bootstrapBaseURL, chainID, clusterID, r.serviceVersion, r.gatewayID)
 	config, err := fetchRemoteConfig(ctx, configURL)
 	if err == nil { // if init failed, we not panic, use default one, just try later fetch it again
 		r.RenewConfig(config)

@@ -17,7 +17,12 @@ func TestBootstrapURLs(t *testing.T) {
 	require.Equal(
 		t,
 		"https://bootstrap.getoptimum.io/api/v1/hoodi/optimum/config?service_version=gateway-v0.0.1-rc11",
-		endpoints.BootstrapConfigURL(endpoints.BootstrapBaseURL, "hoodi", "optimum", "gateway-v0.0.1-rc11"),
+		endpoints.BootstrapConfigURL(endpoints.BootstrapBaseURL, "hoodi", "optimum", "gateway-v0.0.1-rc11", ""),
+	)
+	require.Equal(
+		t,
+		"https://bootstrap.getoptimum.io/api/v1/hoodi/optimum/config?gateway_id=gw-1&service_version=gateway-v0.0.1-rc11",
+		endpoints.BootstrapConfigURL(endpoints.BootstrapBaseURL, "hoodi", "optimum", "gateway-v0.0.1-rc11", "gw-1"),
 	)
 	require.Equal(
 		t,

@@ -21,14 +21,18 @@ func BootstrapBaseURLOrDefault(baseURL string) string {
 	return baseURL
 }
 
-func BootstrapConfigURL(baseURL, chainID, clusterID, serviceVersion string) string {
+func BootstrapConfigURL(baseURL, chainID, clusterID, serviceVersion, gatewayID string) string {
 	configURL := fmt.Sprintf("%s/api/v1/%s/%s/config", BootstrapBaseURLOrDefault(baseURL), chainID, clusterID)
-	if serviceVersion == "" {
+	query := url.Values{}
+	if serviceVersion != "" {
+		query.Set("service_version", serviceVersion)
+	}
+	if gatewayID != "" {
+		query.Set("gateway_id", gatewayID)
+	}
+	if len(query) == 0 {
 		return configURL
 	}
-
-	query := url.Values{}
-	query.Set("service_version", serviceVersion)
 	return configURL + "?" + query.Encode()
 }
 
