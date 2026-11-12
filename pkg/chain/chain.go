@@ -3,6 +3,7 @@ package chain
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -73,6 +74,9 @@ func RegisterChain(name string, id, genesisTime uint64) (Chain, error) {
 		return "", errors.New("chain id must be non-zero")
 	case genesisTime == 0:
 		return "", errors.New("genesis time must be non-zero")
+	case genesisTime > math.MaxInt64:
+		// Consumers convert genesis to time.Unix(int64, 0).
+		return "", errors.New("genesis time exceeds int64 range")
 	}
 	// Numeric names would be ambiguous with chain-id string lookups.
 	if _, err := strconv.ParseUint(s, 10, 64); err == nil {

@@ -1,6 +1,8 @@
 package chain_test
 
 import (
+	"fmt"
+	"math"
 	"testing"
 
 	"github.com/getoptimum/optimum-common/pkg/chain"
@@ -138,10 +140,27 @@ func TestRegisterChain(t *testing.T) {
 		{"123456", 42, 1700000000},
 		{"devnet", 0, 1700000000},
 		{"devnet", 42, 0},
+		{"devnet", 42, math.MaxUint64},
 	} {
 		_, err := chain.RegisterChain(c.name, c.id, c.genesis)
 		require.Error(t, err, "name=%q id=%d genesis=%d", c.name, c.id, c.genesis)
 	}
+
+	// Lookups stay safe while registrations write to the maps (-race enforced).
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for range 200 {
+			_, _ = chain.ChainFromString("mainnet")
+			_, _ = chain.GenesisTime("sepolia")
+			_, _ = chain.ChainFromInt(1)
+		}
+	}()
+	for i := range 200 {
+		_, err := chain.RegisterChain(fmt.Sprintf("race-%d", i), uint64(9_000_000+i), 1700000000)
+		require.NoError(t, err)
+	}
+	<-done
 }
 
 func TestParseChainIDParam(t *testing.T) {
