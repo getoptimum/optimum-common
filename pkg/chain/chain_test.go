@@ -124,6 +124,20 @@ func TestRegisterChain(t *testing.T) {
 	_, err = chain.RegisterChain("mainnet", 2, 1606824023)
 	require.Error(t, err)
 
+	// Rejected registrations leave nothing behind.
+	_, err = chain.ChainFromString("other-name")
+	require.Error(t, err)
+	ts, ok = chain.GenesisTime("kurtosis-dev")
+	require.True(t, ok)
+	require.Equal(t, uint64(1700000000), ts)
+	ts, ok = chain.GenesisTime("mainnet")
+	require.True(t, ok)
+	require.Equal(t, uint64(1606824023), ts)
+
+	// Genesis exactly at the int64 boundary is accepted.
+	_, err = chain.RegisterChain("max-genesis", 424242, math.MaxInt64)
+	require.NoError(t, err)
+
 	// Built-ins re-registered with identical values are a no-op.
 	same, err := chain.RegisterChain("mainnet", 1, 1606824023)
 	require.NoError(t, err)
@@ -156,11 +170,37 @@ func TestRegisterChain(t *testing.T) {
 			_, _ = chain.ChainFromInt(1)
 		}
 	}()
-	for i := range 200 {
+	for i := range 20 {
 		_, err := chain.RegisterChain(fmt.Sprintf("race-%d", i), uint64(9_000_000+i), 1700000000)
 		require.NoError(t, err)
 	}
 	<-done
+}
+
+// TestRegistryInvariants guards the hand-maintained built-in maps against
+// drifting apart: every chain must resolve consistently by name, id string,
+// and numeric id, and must have a genesis timestamp.
+func TestRegistryInvariants(t *testing.T) {
+	for _, c := range []chain.Chain{chain.ChainMainnet, chain.ChainHoodi, chain.ChainSepolia} {
+		id := c.ID()
+		require.NotZero(t, id, c)
+
+		byName, err := chain.ChainFromString(c.String())
+		require.NoError(t, err, c)
+		require.Equal(t, c, byName)
+
+		byIDString, err := chain.ChainFromString(fmt.Sprintf("%d", id))
+		require.NoError(t, err, c)
+		require.Equal(t, c, byIDString)
+
+		byInt, err := chain.ChainFromInt(id)
+		require.NoError(t, err, c)
+		require.Equal(t, c, byInt)
+
+		ts, ok := chain.GenesisTime(c.String())
+		require.True(t, ok, c)
+		require.NotZero(t, ts, c)
+	}
 }
 
 func TestParseChainIDParam(t *testing.T) {

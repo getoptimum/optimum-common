@@ -21,6 +21,7 @@ func (c Chain) String() string {
 	return string(c)
 }
 
+// ID returns the numeric chain id, or 0 when the chain is not registered.
 func (c Chain) ID() uint64 {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
@@ -65,13 +66,13 @@ var (
 // Kurtosis, or a public testnet like Platåberget) so the package-level lookups
 // resolve it. Registering an identical triple again is a no-op; a name or id
 // that is already mapped to different values is rejected. Safe for concurrent use.
-func RegisterChain(name string, id, genesisTime uint64) (Chain, error) {
+func RegisterChain(name string, chainID, genesisTime uint64) (Chain, error) {
 	s := strings.TrimSpace(strings.ToLower(name))
 	switch {
 	case s == "":
 		return "", errors.New("empty chain name")
-	case id == 0:
-		return "", errors.New("chain id must be non-zero")
+	case chainID == 0:
+		return "", errors.New("chain ID must be non-zero")
 	case genesisTime == 0:
 		return "", errors.New("genesis time must be non-zero")
 	case genesisTime > math.MaxInt64:
@@ -89,19 +90,19 @@ func RegisterChain(name string, id, genesisTime uint64) (Chain, error) {
 	defer registryMu.Unlock()
 
 	if existingID, ok := defaultChainMappingID[c]; ok {
-		if existingID == id && genesisTimestamps[c] == genesisTime {
+		if existingID == chainID && genesisTimestamps[c] == genesisTime {
 			return c, nil
 		}
 		return "", fmt.Errorf("chain %q is already registered with different parameters", s)
 	}
-	if existing, ok := defaultChainIDMapping[id]; ok {
-		return "", fmt.Errorf("chain id %d is already registered as %q", id, existing)
+	if existing, ok := defaultChainIDMapping[chainID]; ok {
+		return "", fmt.Errorf("chain ID %d is already registered as %q", chainID, existing)
 	}
 
 	defaultChainMapping[s] = c
-	defaultChainMapping[strconv.FormatUint(id, 10)] = c
-	defaultChainIDMapping[id] = c
-	defaultChainMappingID[c] = id
+	defaultChainMapping[strconv.FormatUint(chainID, 10)] = c
+	defaultChainIDMapping[chainID] = c
+	defaultChainMappingID[c] = chainID
 	genesisTimestamps[c] = genesisTime
 	return c, nil
 }
