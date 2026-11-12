@@ -152,6 +152,7 @@ func TestRegisterChain(t *testing.T) {
 		{"", 42, 1700000000},
 		{"   ", 42, 1700000000},
 		{"123456", 42, 1700000000},
+		{"18446744073709551616", 42, 1700000000}, // numeric beyond uint64 is still numeric
 		{"devnet", 0, 1700000000},
 		{"devnet", 42, 0},
 		{"devnet", 42, math.MaxUint64},
@@ -175,6 +176,9 @@ func TestRegisterChain(t *testing.T) {
 		require.NoError(t, err)
 	}
 	<-done
+	got, err := chain.ChainFromInt(9_000_019)
+	require.NoError(t, err)
+	require.Equal(t, chain.Chain("race-19"), got)
 }
 
 // TestRegistryInvariants guards the hand-maintained built-in maps against

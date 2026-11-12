@@ -62,10 +62,8 @@ var (
 	}
 )
 
-// RegisterChain adds a chain supplied via service config (a devnet such as
-// Kurtosis, or a public testnet like Platåberget) so the package-level lookups
-// resolve it. Registering an identical triple again is a no-op; a name or id
-// that is already mapped to different values is rejected. Safe for concurrent use.
+// RegisterChain adds a config-supplied chain (devnet/testnet) to the lookups.
+// Identical re-registration is a no-op; a conflicting name or id is rejected.
 func RegisterChain(name string, chainID, genesisTime uint64) (Chain, error) {
 	s := strings.TrimSpace(strings.ToLower(name))
 	switch {
@@ -80,7 +78,7 @@ func RegisterChain(name string, chainID, genesisTime uint64) (Chain, error) {
 		return "", errors.New("genesis time exceeds int64 range")
 	}
 	// Numeric names would be ambiguous with chain-id string lookups.
-	if _, err := strconv.ParseUint(s, 10, 64); err == nil {
+	if strings.IndexFunc(s, func(r rune) bool { return r < '0' || r > '9' }) == -1 {
 		return "", fmt.Errorf("chain name %q must not be numeric", name)
 	}
 
