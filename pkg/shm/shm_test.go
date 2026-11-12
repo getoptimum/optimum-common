@@ -63,7 +63,7 @@ func TestServiceClaimLane(t *testing.T) {
 			}
 		})
 		svc := NewWithLaneSet(ls, 2, testFrameVersion, testProtocolVersion)
-		claimed, err := svc.claimLane()
+		claimed, err := svc.claimLane(context.Background())
 		require.NoError(t, err)
 		require.Equal(t, 0, claimed.lane)
 		require.True(t, claimed.mem.ReleaseClaim(claimed.generation))
@@ -83,7 +83,7 @@ func TestServiceClaimLane(t *testing.T) {
 		})
 		svc := NewWithLaneSet(ls, 2, testFrameVersion, testProtocolVersion)
 
-		claimed, err := svc.claimLane()
+		claimed, err := svc.claimLane(context.Background())
 		require.NoError(t, err)
 		require.Equal(t, 1, claimed.lane)
 		require.NoError(t, ls.UnlockLane(claimed.lane))
@@ -97,7 +97,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			NewWithLaneSet(nil, 1, testFrameVersion, testProtocolVersion),
 			NewWithLaneSet(newLaneSetStub(), 0, testFrameVersion, testProtocolVersion),
 		} {
-			_, err := svc.claimLane()
+			_, err := svc.claimLane(context.Background())
 			require.ErrorContains(t, err, "lane set is closed")
 		}
 	})
@@ -109,7 +109,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			}
 		})
 
-		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane(context.Background())
 		require.ErrorContains(t, err, "get lane 0 memory: lookup failed")
 	})
 
@@ -120,7 +120,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			ls.tryLockLaneFn = func(_ int) (bool, error) { return false, errors.New("lock failed") }
 		})
 
-		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane(context.Background())
 		require.ErrorContains(t, err, "try lock lane 0: lock failed")
 		require.Equal(t, 1, ls.tryLockCalled)
 	})
@@ -132,7 +132,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			ls.tryLockLaneFn = func(_ int) (bool, error) { return false, nil }
 		})
 
-		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane(endedContext())
 		require.ErrorContains(t, err, "no idle lanes available")
 		require.Equal(t, 1, ls.tryLockCalled)
 		require.Zero(t, ls.unlockCalled)
@@ -156,7 +156,7 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			}
 		})
 
-		claimed, err := NewWithLaneSet(ls, 2, testFrameVersion, testProtocolVersion).claimLane()
+		claimed, err := NewWithLaneSet(ls, 2, testFrameVersion, testProtocolVersion).claimLane(context.Background())
 		require.NoError(t, err)
 		require.Equal(t, 1, claimed.lane)
 		require.Equal(t, 1, ls.unlockCalled)
@@ -175,9 +175,67 @@ func TestServiceClaimLaneFailures(t *testing.T) {
 			ls.unlockLaneFn = func(_ int) error { return errors.New("unlock failed") }
 		})
 
-		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane()
+		_, err := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion).claimLane(context.Background())
 		require.ErrorContains(t, err, "unlock lane 0: unlock failed")
 	})
+}
+
+// TestServiceClaimLaneRescansStaleScan reproduces issue 226: a lane skipped as
+// busy frees up while the caller is still scanning, and the lane it was about to
+// try is taken. A single scan would fail with "no idle lanes available"; the
+// rescan must pick up the lane that freed.
+func TestServiceClaimLaneRescansStaleScan(t *testing.T) {
+	freed := newTestMem(t)
+	freed.StoreState(libshm.StateInputReady)
+	taken := newTestMem(t)
+	taken.StoreState(libshm.StateInputReady)
+
+	ls := newLaneSetStub(func(ls *laneSetStub) {
+		ls.getMemFn = func(lane int) (*libshm.Mem, error) {
+			if lane == 0 {
+				return freed, nil
+			}
+
+			// By the time the first scan reaches lane 1, lane 0's owner has
+			// finished. Lane 1 stays taken by another caller.
+			freed.StoreState(libshm.StateIdle)
+
+			return taken, nil
+		}
+	})
+
+	claimed, err := NewWithLaneSet(ls, 2, testFrameVersion, testProtocolVersion).claimLane(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 0, claimed.lane)
+	require.NoError(t, ls.UnlockLane(claimed.lane))
+	require.True(t, claimed.mem.ReleaseClaim(claimed.generation))
+}
+
+// TestServiceClaimLaneStopsWhenContextEnds asserts the rescan is bounded: when
+// no lane frees up, claimLane gives up once ctx ends and reports why.
+func TestServiceClaimLaneStopsWhenContextEnds(t *testing.T) {
+	busy := newTestMem(t)
+	busy.StoreState(libshm.StateInputReady)
+
+	ls := newLaneSetStub(func(ls *laneSetStub) {
+		ls.getMemFn = func(_ int) (*libshm.Mem, error) { return busy, nil }
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	_, err := NewWithLaneSet(ls, 2, testFrameVersion, testProtocolVersion).claimLane(ctx)
+	require.ErrorContains(t, err, "no idle lanes available")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+// endedContext returns a context that has already been canceled, so claimLane
+// makes exactly one scan.
+func endedContext() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	return ctx
 }
 
 func TestServiceNextLaneIndexWraps(t *testing.T) {
