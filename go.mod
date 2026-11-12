@@ -2,6 +2,8 @@ module github.com/getoptimum/optimum-common
 
 go 1.27.3
 
+toolchain go1.27.4
+
 tool (
 	github.com/bufbuild/buf/cmd/buf
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
