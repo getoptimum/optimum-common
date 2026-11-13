@@ -423,7 +423,10 @@ type ServerInfoResponse struct {
 	ServerVersion string `protobuf:"bytes,2,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
 	// protocol_version is the version of the operations the server supports,
 	// separate from the frame layout. Servers that predate it report 0.
-	// Version 1 adds commitments to SHARD and DECODE, and OPERATION_TYPE_IDENTIFY.
+	//
+	// Version:
+	// 1: adds commitments to SHARD and DECODE, and OPERATION_TYPE_IDENTIFY.
+	// 2: returns the verified shards from OPERATION_TYPE_IDENTIFY.
 	ProtocolVersion uint32 `protobuf:"varint,3,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
