@@ -21,18 +21,23 @@ func BootstrapBaseURLOrDefault(baseURL string) string {
 	return baseURL
 }
 
-func BootstrapConfigURL(baseURL, chainID, clusterID, serviceVersion, gatewayID string) string {
-	configURL := fmt.Sprintf("%s/api/v1/%s/%s/config", BootstrapBaseURLOrDefault(baseURL), chainID, clusterID)
-	query := url.Values{}
-	if serviceVersion != "" {
-		query.Set("service_version", serviceVersion)
-	}
-	if gatewayID != "" {
-		query.Set("gateway_id", gatewayID)
-	}
-	if len(query) == 0 {
+func BootstrapConfigURL(baseURL, chainID, clusterID, serviceVersion string) string {
+	return bootstrapConfigURL(baseURL, "v1", chainID, clusterID, serviceVersion)
+}
+
+// BootstrapAuthenticatedConfigURL is the config route that reads the gateway
+// identity from the services JWT. The URL carries no gateway id.
+func BootstrapAuthenticatedConfigURL(baseURL, chainID, clusterID, serviceVersion string) string {
+	return bootstrapConfigURL(baseURL, "v2", chainID, clusterID, serviceVersion)
+}
+
+func bootstrapConfigURL(baseURL, version, chainID, clusterID, serviceVersion string) string {
+	configURL := fmt.Sprintf("%s/api/%s/%s/%s/config", BootstrapBaseURLOrDefault(baseURL), version, chainID, clusterID)
+	if serviceVersion == "" {
 		return configURL
 	}
+	query := url.Values{}
+	query.Set("service_version", serviceVersion)
 	return configURL + "?" + query.Encode()
 }
 
