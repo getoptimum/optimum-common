@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -30,6 +31,15 @@ func WithServiceVersion(v string) RotatorOption {
 	return func(r *Rotator) { r.serviceVersion = v }
 }
 
+// WithAuthToken supplies the services JWT on each config poll. Tokens are
+// re-minted, so the function is called every poll rather than stored.
+// A non-empty token is sent as Authorization: Bearer to the authenticated
+// config route. An empty token polls the fleet route with no header. An
+// error skips that poll and leaves the current config in place.
+func WithAuthToken(fn func(context.Context) (string, error)) RotatorOption {
+	return func(r *Rotator) { r.authToken = fn }
+}
+
 // WithBootstrapBaseURL overrides the default production bootstrap endpoint.
 func WithBootstrapBaseURL(baseURL string) RotatorOption {
 	return func(r *Rotator) { r.bootstrapBaseURL = endpoints.BootstrapBaseURLOrDefault(baseURL) }
@@ -42,6 +52,7 @@ type Rotator struct {
 	bootstrapBaseURL string
 	renewInterval    time.Duration
 	serviceVersion   string
+	authToken        func(context.Context) (string, error)
 	lastHash         string
 	currentOptConfig atomic.Pointer[entities.OptimumConfig]
 	updater          func(config *entities.DynamicConfig)
@@ -52,6 +63,7 @@ type Rotator struct {
 // The rotator starts a background goroutine that fetches config at the specified interval.
 // If chainID or clusterID is empty, fetching is disabled.
 // If WithServiceVersion is provided, it is sent as the service_version query parameter.
+// If WithAuthToken is provided, a non-empty token selects the authenticated config route.
 // The updater function is called whenever a new config is successfully fetched and applied.
 func NewConfigRotator(
 	ctx context.Context,
@@ -79,8 +91,7 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 	if chainID == "" || clusterID == "" {
 		return // do not fetch if chainID or clusterID is empty
 	}
-	configURL := endpoints.BootstrapConfigURL(r.bootstrapBaseURL, chainID, clusterID, r.serviceVersion)
-	config, err := fetchRemoteConfig(ctx, configURL)
+	config, err := r.fetchConfig(ctx, chainID, clusterID)
 	if err == nil { // if init failed, we not panic, use default one, just try later fetch it again
 		r.RenewConfig(config)
 		if r.updater != nil {
@@ -100,7 +111,7 @@ func (r *Rotator) bgFetchConfig(ctx context.Context, chainID, clusterID string) 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			config, err = fetchRemoteConfig(ctx, configURL)
+			config, err = r.fetchConfig(ctx, chainID, clusterID)
 			if err != nil {
 				continue
 			}
@@ -135,8 +146,24 @@ func (r *Rotator) Get() *entities.OptimumConfig {
 	return r.currentOptConfig.Load()
 }
 
-func fetchRemoteConfig(ctx context.Context, url string) (*entities.DynamicConfig, error) {
-	res, code, err := netpkg.GetCurl[entities.DynamicConfig](ctx, url, nil)
+func (r *Rotator) fetchConfig(ctx context.Context, chainID, clusterID string) (*entities.DynamicConfig, error) {
+	configURL := endpoints.BootstrapConfigURL(r.bootstrapBaseURL, chainID, clusterID, r.serviceVersion)
+	var headers map[string]string
+	if r.authToken != nil {
+		tok, err := r.authToken(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if tok = strings.TrimSpace(tok); tok != "" {
+			configURL = endpoints.BootstrapAuthenticatedConfigURL(r.bootstrapBaseURL, chainID, clusterID, r.serviceVersion)
+			headers = map[string]string{"Authorization": "Bearer " + tok}
+		}
+	}
+	return fetchRemoteConfig(ctx, configURL, headers)
+}
+
+func fetchRemoteConfig(ctx context.Context, url string, headers map[string]string) (*entities.DynamicConfig, error) {
+	res, code, err := netpkg.GetCurl[entities.DynamicConfig](ctx, url, headers)
 	if code == http.StatusOK && res != nil {
 		return res, nil
 	}
