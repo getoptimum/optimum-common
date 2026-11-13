@@ -746,7 +746,11 @@ type ShardRequest struct {
 	// Providing a k greater than 1 can be useful when the caller wants to produce
 	// multiple m/k 'chunks' of shards, in cases where the input is very large but
 	// the max_shard_size is small, e.g. UDP packet contraints.
-	K             *uint32 `protobuf:"varint,3,opt,name=k,proto3,oneof" json:"k,omitempty"`
+	K *uint32 `protobuf:"varint,3,opt,name=k,proto3,oneof" json:"k,omitempty"`
+	// hash_strategy, when set, makes Shard write the payload hash into the
+	// reserved hash region before it builds the commitment, so the commitment
+	// covers the hash. When unset, the reserved hash region stays zero.
+	HashStrategy  *HashStrategy `protobuf:"varint,4,opt,name=hash_strategy,json=hashStrategy,proto3,enum=getoptimum.rlnc.types.v1.HashStrategy,oneof" json:"hash_strategy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -800,6 +804,13 @@ func (x *ShardRequest) GetK() uint32 {
 		return *x.K
 	}
 	return 0
+}
+
+func (x *ShardRequest) GetHashStrategy() HashStrategy {
+	if x != nil && x.HashStrategy != nil {
+		return *x.HashStrategy
+	}
+	return HashStrategy_HASH_STRATEGY_UNSPECIFIED
 }
 
 // ShardResponse defines the response message for the Shard method, which contains
@@ -874,6 +885,11 @@ func (x *ShardResponse) GetMsgId() []byte {
 // CreateHashRequest defines the request message for the CreateHash method, which
 // takes in a set of sharded data slices and produces a hash based on the specified
 // hashing strategy.
+//
+// Deprecated: set ShardRequest.hash_strategy instead. Shard writes the hash
+// before it builds the commitment, so the commitment covers it.
+//
+// Deprecated: Marked as deprecated in getoptimum/rlnc/types/v1/rlnc.proto.
 type CreateHashRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// shards is a collection of m sharded data slices for which the hash is to be
@@ -933,6 +949,10 @@ func (x *CreateHashRequest) GetHashStrategy() HashStrategy {
 // CreateHashResponse defines the response message for the CreateHash method, which
 // contains the computed hash of the input sharded data slices based on the specified
 // hashing strategy.
+//
+// Deprecated: set ShardRequest.hash_strategy instead.
+//
+// Deprecated: Marked as deprecated in getoptimum/rlnc/types/v1/rlnc.proto.
 type CreateHashResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// hash is the computed hash of the input sharded data slices, based on the
@@ -1307,8 +1327,12 @@ type IdentifyResponse struct {
 	// invalid_commitment indicates that the commitment failed to parse, does not
 	// hash to msg_id, or does not match the candidates, chunk_id or total_chunks.
 	InvalidCommitment bool `protobuf:"varint,4,opt,name=invalid_commitment,json=invalidCommitment,proto3" json:"invalid_commitment,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// shards are the k verified shards of the generation, in order, each as long
+	// as the committed shard size. They are set only when identified is true,
+	// otherwise empty.
+	Shards        [][]byte `protobuf:"bytes,5,rep,name=shards,proto3" json:"shards,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *IdentifyResponse) Reset() {
@@ -1367,6 +1391,13 @@ func (x *IdentifyResponse) GetInvalidCommitment() bool {
 		return x.InvalidCommitment
 	}
 	return false
+}
+
+func (x *IdentifyResponse) GetShards() [][]byte {
+	if x != nil {
+		return x.Shards
+	}
+	return nil
 }
 
 // ReassembleRequest defines the request message for the Reassemble method, which
@@ -1635,24 +1666,26 @@ const file_getoptimum_rlnc_types_v1_rlnc_proto_rawDesc = "" +
 	"\x06offset\x18\x05 \x01(\rH\x00R\x06offset\x88\x01\x01B\t\n" +
 	"\a_offset\"K\n" +
 	"\fCodeResponse\x12;\n" +
-	"\x06result\x18\x01 \x01(\v2#.getoptimum.rlnc.types.v1.SymbolSetR\x06result\"a\n" +
+	"\x06result\x18\x01 \x01(\v2#.getoptimum.rlnc.types.v1.SymbolSetR\x06result\"\xc5\x01\n" +
 	"\fShardRequest\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\x12$\n" +
 	"\x0emax_shard_size\x18\x02 \x01(\rR\fmaxShardSize\x12\x11\n" +
-	"\x01k\x18\x03 \x01(\rH\x00R\x01k\x88\x01\x01B\x04\n" +
-	"\x02_k\"^\n" +
+	"\x01k\x18\x03 \x01(\rH\x00R\x01k\x88\x01\x01\x12P\n" +
+	"\rhash_strategy\x18\x04 \x01(\x0e2&.getoptimum.rlnc.types.v1.HashStrategyH\x01R\fhashStrategy\x88\x01\x01B\x04\n" +
+	"\x02_kB\x10\n" +
+	"\x0e_hash_strategy\"^\n" +
 	"\rShardResponse\x12\x16\n" +
 	"\x06shards\x18\x01 \x03(\fR\x06shards\x12\x1e\n" +
 	"\n" +
 	"commitment\x18\x02 \x01(\fR\n" +
 	"commitment\x12\x15\n" +
-	"\x06msg_id\x18\x03 \x01(\fR\x05msgId\"x\n" +
+	"\x06msg_id\x18\x03 \x01(\fR\x05msgId\"|\n" +
 	"\x11CreateHashRequest\x12\x16\n" +
 	"\x06shards\x18\x01 \x03(\fR\x06shards\x12K\n" +
-	"\rhash_strategy\x18\x02 \x01(\x0e2&.getoptimum.rlnc.types.v1.HashStrategyR\fhashStrategy\"@\n" +
+	"\rhash_strategy\x18\x02 \x01(\x0e2&.getoptimum.rlnc.types.v1.HashStrategyR\fhashStrategy:\x02\x18\x01\"D\n" +
 	"\x12CreateHashResponse\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\rR\x04hash\x12\x16\n" +
-	"\x06shards\x18\x02 \x03(\fR\x06shards\"\x99\x02\n" +
+	"\x06shards\x18\x02 \x03(\fR\x06shards:\x02\x18\x01\"\x99\x02\n" +
 	"\rDecodeRequest\x12I\n" +
 	"\x0freceived_symbol\x18\x01 \x01(\v2 .getoptimum.rlnc.types.v1.SymbolR\x0ereceivedSymbol\x12H\n" +
 	"\rlocal_symbols\x18\x02 \x01(\v2#.getoptimum.rlnc.types.v1.SymbolSetR\flocalSymbols\x12\x1e\n" +
@@ -1682,14 +1715,15 @@ const file_getoptimum_rlnc_types_v1_rlnc_proto_rawDesc = "" +
 	"candidates\x18\x05 \x03(\v2 .getoptimum.rlnc.types.v1.SymbolR\n" +
 	"candidates\x12\x18\n" +
 	"\asources\x18\x06 \x03(\rR\asources\x12\x16\n" +
-	"\x06budget\x18\a \x01(\rR\x06budget\"\xb7\x01\n" +
+	"\x06budget\x18\a \x01(\rR\x06budget\"\xcf\x01\n" +
 	"\x10IdentifyResponse\x12\x1e\n" +
 	"\n" +
 	"identified\x18\x01 \x01(\bR\n" +
 	"identified\x12)\n" +
 	"\x10polluted_indices\x18\x02 \x03(\rR\x0fpollutedIndices\x12)\n" +
 	"\x10polluted_sources\x18\x03 \x03(\rR\x0fpollutedSources\x12-\n" +
-	"\x12invalid_commitment\x18\x04 \x01(\bR\x11invalidCommitment\"+\n" +
+	"\x12invalid_commitment\x18\x04 \x01(\bR\x11invalidCommitment\x12\x16\n" +
+	"\x06shards\x18\x05 \x03(\fR\x06shards\"+\n" +
 	"\x11ReassembleRequest\x12\x16\n" +
 	"\x06shards\x18\x01 \x03(\fR\x06shards\"(\n" +
 	"\x12ReassembleResponse\x12\x12\n" +
@@ -1765,17 +1799,18 @@ var file_getoptimum_rlnc_types_v1_rlnc_proto_depIdxs = []int32{
 	4,  // 4: getoptimum.rlnc.types.v1.CodeRequest.symbols:type_name -> getoptimum.rlnc.types.v1.SymbolSet
 	0,  // 5: getoptimum.rlnc.types.v1.CodeRequest.coding_type:type_name -> getoptimum.rlnc.types.v1.CodingType
 	4,  // 6: getoptimum.rlnc.types.v1.CodeResponse.result:type_name -> getoptimum.rlnc.types.v1.SymbolSet
-	2,  // 7: getoptimum.rlnc.types.v1.CreateHashRequest.hash_strategy:type_name -> getoptimum.rlnc.types.v1.HashStrategy
-	3,  // 8: getoptimum.rlnc.types.v1.DecodeRequest.received_symbol:type_name -> getoptimum.rlnc.types.v1.Symbol
-	4,  // 9: getoptimum.rlnc.types.v1.DecodeRequest.local_symbols:type_name -> getoptimum.rlnc.types.v1.SymbolSet
-	4,  // 10: getoptimum.rlnc.types.v1.DecodeResponse.symbols:type_name -> getoptimum.rlnc.types.v1.SymbolSet
-	3,  // 11: getoptimum.rlnc.types.v1.IdentifyRequest.candidates:type_name -> getoptimum.rlnc.types.v1.Symbol
-	2,  // 12: getoptimum.rlnc.types.v1.VerifyShardsRequest.hash_strategy:type_name -> getoptimum.rlnc.types.v1.HashStrategy
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	2,  // 7: getoptimum.rlnc.types.v1.ShardRequest.hash_strategy:type_name -> getoptimum.rlnc.types.v1.HashStrategy
+	2,  // 8: getoptimum.rlnc.types.v1.CreateHashRequest.hash_strategy:type_name -> getoptimum.rlnc.types.v1.HashStrategy
+	3,  // 9: getoptimum.rlnc.types.v1.DecodeRequest.received_symbol:type_name -> getoptimum.rlnc.types.v1.Symbol
+	4,  // 10: getoptimum.rlnc.types.v1.DecodeRequest.local_symbols:type_name -> getoptimum.rlnc.types.v1.SymbolSet
+	4,  // 11: getoptimum.rlnc.types.v1.DecodeResponse.symbols:type_name -> getoptimum.rlnc.types.v1.SymbolSet
+	3,  // 12: getoptimum.rlnc.types.v1.IdentifyRequest.candidates:type_name -> getoptimum.rlnc.types.v1.Symbol
+	2,  // 13: getoptimum.rlnc.types.v1.VerifyShardsRequest.hash_strategy:type_name -> getoptimum.rlnc.types.v1.HashStrategy
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_getoptimum_rlnc_types_v1_rlnc_proto_init() }
