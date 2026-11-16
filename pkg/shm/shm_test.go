@@ -937,6 +937,42 @@ func TestServiceExecuteMessage(t *testing.T) {
 	}
 }
 
+func TestServiceExecuteMessageIdentifyShards(t *testing.T) {
+	req := &rlncpbtypes.IdentifyRequest{Commitment: []byte("commitment"), Budget: 4}
+	reqBz, err := proto.Marshal(req)
+	require.NoError(t, err)
+
+	want := &rlncpbtypes.IdentifyResponse{
+		Identified:      true,
+		PollutedIndices: []uint32{1},
+		PollutedSources: []uint32{2},
+		Shards:          [][]byte{{1, 2, 3}, {4, 5, 6}},
+	}
+
+	mem := newTestMem(t)
+	ls := newLaneSetStub(func(ls *laneSetStub) {
+		ls.getMemFn = func(_ int) (*libshm.Mem, error) { return mem, nil }
+	})
+	svc := NewWithLaneSet(ls, 1, testFrameVersion, testProtocolVersion)
+
+	op := shmpb.OperationType_OPERATION_TYPE_IDENTIFY
+	workerDone := startWorkerWithOpOutput(
+		func(_ *shmpb.OpInput, _ shmpb.OperationType, _ []byte) *shmpb.OpOutput {
+			return &shmpb.OpOutput{Response: mustMarshal(t, want)}
+		},
+	)(t, mem, op, reqBz)
+
+	var resp rlncpbtypes.IdentifyResponse
+	err = svc.ExecuteMessage(op, req, &resp)
+
+	result := <-workerDone
+	require.NoError(t, result.err)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(want, &resp))
+	require.Equal(t, want.GetShards(), resp.GetShards())
+	require.Equal(t, libshm.StateIdle, mem.LoadState())
+}
+
 func TestServiceVerifyServer(t *testing.T) {
 	tests := []struct {
 		name        string
