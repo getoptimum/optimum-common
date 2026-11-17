@@ -12,9 +12,10 @@ import (
 type Chain string
 
 const (
-	ChainMainnet Chain = "mainnet"
-	ChainHoodi   Chain = "hoodi"
-	ChainSepolia Chain = "sepolia"
+	ChainMainnet     Chain = "mainnet"
+	ChainHoodi       Chain = "hoodi"
+	ChainSepolia     Chain = "sepolia"
+	ChainPlataberget Chain = "plataberget" // glamsterdam-devnet-8 (Gloas/ePBS)
 )
 
 func (c Chain) String() string {
@@ -37,28 +38,33 @@ var (
 	registryMu sync.RWMutex
 
 	defaultChainMapping = map[string]Chain{
-		"1":        ChainMainnet,
-		"mainnet":  ChainMainnet,
-		"560048":   ChainHoodi,
-		"hoodi":    ChainHoodi,
-		"11155111": ChainSepolia,
-		"sepolia":  ChainSepolia,
+		"1":           ChainMainnet,
+		"mainnet":     ChainMainnet,
+		"560048":      ChainHoodi,
+		"hoodi":       ChainHoodi,
+		"11155111":    ChainSepolia,
+		"sepolia":     ChainSepolia,
+		"7091047534":  ChainPlataberget,
+		"plataberget": ChainPlataberget,
 	}
 	defaultChainIDMapping = map[uint64]Chain{
-		1:        ChainMainnet,
-		560048:   ChainHoodi,
-		11155111: ChainSepolia,
+		1:          ChainMainnet,
+		560048:     ChainHoodi,
+		11155111:   ChainSepolia,
+		7091047534: ChainPlataberget,
 	}
 	defaultChainMappingID = map[Chain]uint64{
-		ChainMainnet: 1,
-		ChainHoodi:   560048,
-		ChainSepolia: 11155111,
+		ChainMainnet:     1,
+		ChainHoodi:       560048,
+		ChainSepolia:     11155111,
+		ChainPlataberget: 7091047534,
 	}
 	// Beacon chain genesis timestamps (unix seconds) per canonical chain ID.
 	genesisTimestamps = map[Chain]uint64{
-		ChainMainnet: 1606824023, // Dec 1, 2020 12:00:23 UTC
-		ChainHoodi:   1742213400, // Mar 17, 2025 12:10:00 UTC
-		ChainSepolia: 1655733600, // Jun 20, 2022 14:00:00 UTC
+		ChainMainnet:     1606824023, // Dec 1, 2020 12:00:23 UTC
+		ChainHoodi:       1742213400, // Mar 17, 2025 12:10:00 UTC
+		ChainSepolia:     1655733600, // Jun 20, 2022 14:00:00 UTC
+		ChainPlataberget: 1786622400, // Platåberget glamsterdam-devnet-8, verified live
 	}
 )
 

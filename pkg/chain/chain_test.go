@@ -21,6 +21,9 @@ func TestChainFromString(t *testing.T) {
 		"sepolia":     chain.ChainSepolia,
 		"SEPOLIA":     chain.ChainSepolia,
 		"11155111":    chain.ChainSepolia,
+		"plataberget": chain.ChainPlataberget,
+		"PLATABERGET": chain.ChainPlataberget,
+		"7091047534":  chain.ChainPlataberget,
 	}
 	for k, v := range table {
 		canon, err := chain.ChainFromString(k)
@@ -56,6 +59,11 @@ func TestChainFromInt(t *testing.T) {
 	require.Equal(t, chain.ChainSepolia, canon)
 	require.Equal(t, uint64(11155111), canon.ID())
 
+	canon, err = chain.ChainFromInt(7091047534)
+	require.NoError(t, err)
+	require.Equal(t, chain.ChainPlataberget, canon)
+	require.Equal(t, uint64(7091047534), canon.ID())
+
 	canon, err = chain.ChainFromInt(999999)
 	require.Error(t, err)
 	require.Equal(t, "", canon.String())
@@ -64,14 +72,16 @@ func TestChainFromInt(t *testing.T) {
 
 func TestGenesisTime(t *testing.T) {
 	table := map[string]uint64{
-		"mainnet":  1606824023,
-		"1":        1606824023,
-		" MAINNET": 1606824023, //nolint:gocritic // it ok
-		"hoodi":    1742213400,
-		"HOODI":    1742213400,
-		"560048":   1742213400,
-		"sepolia":  1655733600,
-		"11155111": 1655733600,
+		"mainnet":     1606824023,
+		"1":           1606824023,
+		" MAINNET":    1606824023, //nolint:gocritic // it ok
+		"hoodi":       1742213400,
+		"HOODI":       1742213400,
+		"560048":      1742213400,
+		"sepolia":     1655733600,
+		"11155111":    1655733600,
+		"plataberget": 1786622400,
+		"7091047534":  1786622400,
 	}
 	for k, v := range table {
 		ts, ok := chain.GenesisTime(k)
@@ -185,7 +195,7 @@ func TestRegisterChain(t *testing.T) {
 // drifting apart: every chain must resolve consistently by name, id string,
 // and numeric id, and must have a genesis timestamp.
 func TestRegistryInvariants(t *testing.T) {
-	for _, c := range []chain.Chain{chain.ChainMainnet, chain.ChainHoodi, chain.ChainSepolia} {
+	for _, c := range []chain.Chain{chain.ChainMainnet, chain.ChainHoodi, chain.ChainSepolia, chain.ChainPlataberget} {
 		id := c.ID()
 		require.NotZero(t, id, c)
 
