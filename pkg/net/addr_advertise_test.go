@@ -40,6 +40,21 @@ func TestBuildAdvertisedAddresses(t *testing.T) {
 		// then
 		require.Contains(t, res, mustMA(t, "/ip4/1.2.3.4/tcp/4001"))
 	})
+	t.Run("should work with empty ipv4", func(t *testing.T) {
+		// GetExternalIPs returns an empty IPv4 on an IPv6-only host
+		res, err := net.BuildAdvertisedAddresses(l, "", "2001:db8::1", 4001)
+		require.NoError(t, err)
+		require.Contains(t, res, mustMA(t, "/ip6/2001:db8::1/tcp/4001"))
+	})
+	t.Run("should return err without any public ip", func(t *testing.T) {
+		res, err := net.BuildAdvertisedAddresses(l, "", "", 4001)
+		require.Error(t, err)
+		require.Empty(t, res)
+
+		res, err = net.BuildAdvertisedAddresses(l, "", "not-an-ip", 4001)
+		require.Error(t, err)
+		require.Empty(t, res)
+	})
 	t.Run("should return err on invalid port", func(t *testing.T) {
 		// when, then
 		res, err := net.BuildAdvertisedAddresses(l, "1.2.3.4", "2001:db8::1", 0)
