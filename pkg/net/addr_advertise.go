@@ -98,9 +98,7 @@ func BuildAdvertisedQUICAddresses(
 	return slices.UniqueSlice(result), nil
 }
 
-// publicAddresses builds the public addresses for transport (e.g. "tcp/4001").
-// GetExternalIPs leaves publicIPV4 empty on an IPv6-only host, so either
-// family alone is enough, but the one that is set must be valid.
+// GetExternalIPs leaves publicIPV4 empty on IPv6-only hosts, so either family alone is enough.
 func publicAddresses(log logger.AppLogger, publicIPV4, publicIPV6, transport string) ([]multiaddr.Multiaddr, error) {
 	if publicIPV4 == "" && publicIPV6 == "" {
 		return nil, errors.New("no public IP address to advertise")
