@@ -6,7 +6,6 @@ import (
 	stdnet "net"
 
 	"github.com/libp2p/go-libp2p/core/peer"
-	b58 "github.com/mr-tron/base58/base58"
 	"github.com/multiformats/go-multiaddr"
 )
 
@@ -59,12 +58,12 @@ func AddressInfoFromString(s string) (peer.AddrInfo, error) {
 	if err := json.Unmarshal([]byte(s), &res); err != nil {
 		return peer.AddrInfo{}, err
 	}
-	pID, err := b58.Decode(res.ID)
+	pID, err := peer.Decode(res.ID)
 	if err != nil {
 		return peer.AddrInfo{}, fmt.Errorf("failed to parse peer ID %q: %w", res.ID, err)
 	}
 	return peer.AddrInfo{
-		ID:    peer.ID(pID),
+		ID:    pID,
 		Addrs: res.Addrs,
 	}, nil
 }
