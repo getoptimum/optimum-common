@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -21,6 +22,25 @@ import (
 // shmWaitTimeout is the maximum duration to wait for a lane to process an
 // operation and produce an output frame.
 const shmWaitTimeout = 2 * time.Second
+
+// claimTimeout bounds how long an admitted caller keeps rescanning for an idle
+// lane. It is separate from shmWaitTimeout so a slow claim never shortens the
+// server's processing budget: a wait that times out after submit leaves its lane
+// stuck, which would make the next claims slower still.
+//
+// A stale scan resolves within microseconds, but when a lane is stuck the
+// remaining callers wait for a healthy lane to be released, so this should stay
+// above a typical operation's duration.
+const claimTimeout = 20 * time.Millisecond
+
+// claimYieldPasses is the number of rescans that only yield the processor before
+// claimLane starts sleeping claimBackoff between passes. A stale scan normally
+// resolves within a pass or two; the backoff keeps a caller facing genuinely
+// unavailable lanes from spinning a core until claimTimeout.
+const (
+	claimYieldPasses = 3
+	claimBackoff     = 50 * time.Microsecond
+)
 
 // Field numbers of the OpInput and OpOutput envelopes, which this package
 // encodes and parses by hand. See the package documentation before changing
@@ -230,7 +250,10 @@ func (s *Service) execute(
 
 	timer.markAdmission()
 
-	claimed, err := s.claimLane()
+	claimCtx, cancelClaim := context.WithTimeout(context.Background(), claimTimeout)
+	claimed, err := s.claimLane(claimCtx)
+	cancelClaim()
+
 	if err != nil {
 		timer.fail(PhaseClaim)
 		return err
@@ -467,32 +490,58 @@ func parseOpOutput(frame []byte) (response []byte, opErr *shmpb.OpError, err err
 	return nil, opErr, nil
 }
 
-// claimLane will attempt to claim an idle lane from the lane set. It returns a
-// claimedLane struct containing the shared memory region, lane index, and
-// generation number if successful. If no idle lanes are available or if the
-// lane set is closed, it returns an error.
+// claimLane claims an idle lane from the lane set, rescanning until a claim
+// succeeds or ctx ends. It returns the claimed lane's shared memory region,
+// index, and generation number. At least one full scan runs even if ctx has
+// already ended.
 //
-// We perform a round-robin lane selection to ensure that all lanes are utilized
-// evenly. We evaluate each lane's state and attempt to lock it for exclusive
-// access. If the lane is idle, we claim it and return the claimedLane struct.
-// If the lane is NOT idle or if we FAIL to lock it, then we consider this to be
-// an invariant failure and we return an error:
-//
-// - GetMem(lane) can only fail if the lane-set is invalid/closed or the calculated
-// lane index is invalid. Continuing would hide that fault and eventually report
-// the misleading “no idle lanes available.”
-//
-// - TryLockLane(lane) returns (false, nil) when another local goroutine owns the
-// lock—that is the normal case, and claimLane does continue. A non-nil error
-// likewise means an invalid lane-set/index.
-//
-// A single scan can go stale and fail while another lane is idle.
+// A single scan is not enough: the admission gate bounds how many callers are in
+// flight, but a scan can still go stale. A caller may skip a busy lane that then
+// frees up while another, later-admitted caller takes the lane it was about to
+// try, leaving it with an admission slot and no lane. Rescanning lets it pick up
+// the lane that freed.
 // Ref: https://github.com/getoptimum/optimum-common/issues/226
-func (s *Service) claimLane() (*claimedLane, error) {
+//
+// If lanes stay unavailable until ctx ends (for example a lane still owned by
+// the server after an earlier operation timed out), it returns "no idle lanes
+// available" wrapping ctx's error.
+func (s *Service) claimLane(ctx context.Context) (*claimedLane, error) {
 	if s.ls == nil || s.lanes == 0 {
 		return nil, fmt.Errorf("lane set is closed")
 	}
 
+	for pass := 0; ; pass++ {
+		claimed, err := s.scanLanes()
+		if err != nil || claimed != nil {
+			return claimed, err
+		}
+
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("no idle lanes available: %w", err)
+		}
+
+		if pass < claimYieldPasses {
+			runtime.Gosched()
+		} else {
+			time.Sleep(claimBackoff)
+		}
+	}
+}
+
+// scanLanes makes one round-robin pass over the lanes, so that all lanes are
+// used evenly, and claims the first idle lane it can lock. It returns a nil
+// claimedLane and nil error if no lane could be claimed on this pass.
+//
+// A lane that is not idle, is locked by another local goroutine
+// (TryLockLane returns false, nil), or whose claim is lost to a race is
+// skipped. Any other failure is an invariant failure and is returned:
+//
+// - GetMem(lane) can only fail if the lane set is invalid/closed or the lane
+// index is invalid. Continuing would hide that fault and eventually report the
+// misleading "no idle lanes available."
+//
+// - A non-nil error from TryLockLane likewise means an invalid lane set/index.
+func (s *Service) scanLanes() (*claimedLane, error) {
 	start := s.nextLaneIndex()
 	for offset := range s.lanes {
 		lane := (start + offset) % s.lanes
@@ -525,7 +574,7 @@ func (s *Service) claimLane() (*claimedLane, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("no idle lanes available")
+	return nil, nil
 }
 
 // nextLaneIndex returns the next round-robin lane index and keeps nextLane
