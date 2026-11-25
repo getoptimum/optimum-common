@@ -21,6 +21,8 @@ type RotatingFileWriter struct {
 	current      *os.File
 	bytesWritten int64
 	mu           sync.Mutex
+	closed       bool
+	shifted      bool // Backups were already shifted for the pending rotation.
 }
 
 // NewRotatingFileWriter creates a new RotatingFileWriter
@@ -66,13 +68,17 @@ func (r *RotatingFileWriter) Write(p []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.current == nil {
+	if r.closed {
 		return 0, fmt.Errorf("file writer is closed")
 	}
 
 	// Check if we need to rotate before writing
 	if r.bytesWritten >= r.maxSize {
-		if err := r.rotate(); err != nil {
+		// A failed rotation is retried on the next write. While a file is still open,
+		// keep appending to it instead of dropping the log line. The size cap is not
+		// enforced while rotation keeps failing, so the live file grows until a
+		// rotation succeeds.
+		if err := r.rotate(); err != nil && r.current == nil {
 			return 0, fmt.Errorf("failed rotate log file: %w", err)
 		}
 	}
@@ -98,27 +104,40 @@ func (r *RotatingFileWriter) rotate() error {
 	// Close current file
 	if r.current != nil {
 		_ = r.current.Close()
+		r.current = nil
 	}
 
-	// Rotate existing files: file.log -> file.log.1 -> file.log.2, etc.
-	// Remove the oldest file if it exists
-	oldestPath := fmt.Sprintf("%s.%d", r.filePath, MaxRotatedFiles)
-	if _, err := os.Stat(oldestPath); err == nil {
-		_ = os.Remove(oldestPath)
-	}
-
-	// Shift rotated files
-	for i := MaxRotatedFiles - 1; i >= 1; i-- {
-		oldPath := fmt.Sprintf("%s.%d", r.filePath, i)
-		newPath := fmt.Sprintf("%s.%d", r.filePath, i+1)
-		if _, err := os.Stat(oldPath); err == nil {
-			_ = os.Rename(oldPath, newPath)
+	// Shift the backups only once per rotation. A retry after a failed live-file
+	// step must not delete or reorder them again.
+	if !r.shifted {
+		// Rotate existing files: file.log -> file.log.1 -> file.log.2, etc.
+		// Remove the oldest file if it exists
+		oldestPath := fmt.Sprintf("%s.%d", r.filePath, MaxRotatedFiles)
+		if _, err := os.Stat(oldestPath); err == nil {
+			_ = os.Remove(oldestPath)
 		}
+
+		// Shift rotated files
+		for i := MaxRotatedFiles - 1; i >= 1; i-- {
+			oldPath := fmt.Sprintf("%s.%d", r.filePath, i)
+			newPath := fmt.Sprintf("%s.%d", r.filePath, i+1)
+			if _, err := os.Stat(oldPath); err == nil {
+				_ = os.Rename(oldPath, newPath)
+			}
+		}
+
+		r.shifted = true
 	}
 
 	// Move current file to .1
 	if _, err := os.Stat(r.filePath); err == nil {
-		_ = os.Rename(r.filePath, fmt.Sprintf("%s.1", r.filePath))
+		if err := os.Rename(r.filePath, fmt.Sprintf("%s.1", r.filePath)); err != nil {
+			// Do not truncate the live log: reopen it in append mode and report the error.
+			if f, openErr := os.OpenFile(r.filePath, os.O_WRONLY|os.O_APPEND, 0644); openErr == nil { //nolint:gosec // log file permissions
+				r.current = f
+			}
+			return fmt.Errorf("failed move log file: %w", err)
+		}
 	}
 
 	// Create new file
@@ -129,6 +148,7 @@ func (r *RotatingFileWriter) rotate() error {
 
 	r.current = f
 	r.bytesWritten = 0
+	r.shifted = false
 	return nil
 }
 
@@ -136,6 +156,8 @@ func (r *RotatingFileWriter) rotate() error {
 func (r *RotatingFileWriter) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	r.closed = true
 
 	if r.current != nil {
 		err := r.current.Close()
