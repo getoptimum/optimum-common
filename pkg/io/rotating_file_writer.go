@@ -21,6 +21,7 @@ type RotatingFileWriter struct {
 	current      *os.File
 	bytesWritten int64
 	mu           sync.Mutex
+	closed       bool
 }
 
 // NewRotatingFileWriter creates a new RotatingFileWriter
@@ -66,14 +67,14 @@ func (r *RotatingFileWriter) Write(p []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.current == nil {
+	if r.closed {
 		return 0, fmt.Errorf("file writer is closed")
 	}
 
 	// Check if we need to rotate before writing
 	if r.bytesWritten >= r.maxSize {
-		// A failed rotation keeps the live file open, so keep writing to it rather
-		// than dropping the log line.
+		// A failed rotation is retried on the next write. While a file is still open,
+		// keep appending to it instead of dropping the log line.
 		if err := r.rotate(); err != nil && r.current == nil {
 			return 0, fmt.Errorf("failed rotate log file: %w", err)
 		}
@@ -145,6 +146,8 @@ func (r *RotatingFileWriter) rotate() error {
 func (r *RotatingFileWriter) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	r.closed = true
 
 	if r.current != nil {
 		err := r.current.Close()

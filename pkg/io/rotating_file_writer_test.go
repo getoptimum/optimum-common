@@ -239,4 +239,45 @@ func TestRotatingFileWriter_KeepsLogWhenRenameFails(t *testing.T) {
 	data, err := os.ReadFile(filePath)
 	require.NoError(t, err)
 	require.Equal(t, string(payload), string(data))
+
+	// When another write follows while rotation is still blocked.
+	second := []byte("DEF")
+	n, err := writer.Write(second)
+
+	// Then the write succeeds and is appended to the live log.
+	require.NoError(t, err)
+	require.Equal(t, len(second), n)
+	data, err = os.ReadFile(filePath)
+	require.NoError(t, err)
+	require.Equal(t, string(payload)+string(second), string(data))
+}
+
+func TestRotatingFileWriter_RecoversAfterFailedReplacement(t *testing.T) {
+	t.Parallel()
+	filePath := filepath.Join(t.TempDir(), "test.log")
+
+	writer, err := NewRotatingFileWriter(filePath, 10)
+	require.NoError(t, err)
+
+	// Given a rotation that moved the log but could not create the replacement.
+	writer.mu.Lock()
+	require.NoError(t, writer.current.Close())
+	writer.current = nil
+	writer.bytesWritten = writer.maxSize
+	writer.mu.Unlock()
+
+	// When the next write arrives after the filesystem has recovered.
+	n, err := writer.Write([]byte("after"))
+
+	// Then the rotation is retried and the write succeeds.
+	require.NoError(t, err)
+	require.Equal(t, 5, n)
+	data, err := os.ReadFile(filePath)
+	require.NoError(t, err)
+	require.Equal(t, "after", string(data))
+
+	// And an explicit close still rejects later writes.
+	require.NoError(t, writer.Close())
+	_, err = writer.Write([]byte("x"))
+	require.Error(t, err)
 }
