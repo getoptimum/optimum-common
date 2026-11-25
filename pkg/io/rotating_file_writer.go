@@ -22,6 +22,7 @@ type RotatingFileWriter struct {
 	bytesWritten int64
 	mu           sync.Mutex
 	closed       bool
+	shifted      bool // Backups were already shifted for the pending rotation.
 }
 
 // NewRotatingFileWriter creates a new RotatingFileWriter
@@ -74,7 +75,9 @@ func (r *RotatingFileWriter) Write(p []byte) (n int, err error) {
 	// Check if we need to rotate before writing
 	if r.bytesWritten >= r.maxSize {
 		// A failed rotation is retried on the next write. While a file is still open,
-		// keep appending to it instead of dropping the log line.
+		// keep appending to it instead of dropping the log line. The size cap is not
+		// enforced while rotation keeps failing, so the live file grows until a
+		// rotation succeeds.
 		if err := r.rotate(); err != nil && r.current == nil {
 			return 0, fmt.Errorf("failed rotate log file: %w", err)
 		}
@@ -104,20 +107,26 @@ func (r *RotatingFileWriter) rotate() error {
 		r.current = nil
 	}
 
-	// Rotate existing files: file.log -> file.log.1 -> file.log.2, etc.
-	// Remove the oldest file if it exists
-	oldestPath := fmt.Sprintf("%s.%d", r.filePath, MaxRotatedFiles)
-	if _, err := os.Stat(oldestPath); err == nil {
-		_ = os.Remove(oldestPath)
-	}
-
-	// Shift rotated files
-	for i := MaxRotatedFiles - 1; i >= 1; i-- {
-		oldPath := fmt.Sprintf("%s.%d", r.filePath, i)
-		newPath := fmt.Sprintf("%s.%d", r.filePath, i+1)
-		if _, err := os.Stat(oldPath); err == nil {
-			_ = os.Rename(oldPath, newPath)
+	// Shift the backups only once per rotation. A retry after a failed live-file
+	// step must not delete or reorder them again.
+	if !r.shifted {
+		// Rotate existing files: file.log -> file.log.1 -> file.log.2, etc.
+		// Remove the oldest file if it exists
+		oldestPath := fmt.Sprintf("%s.%d", r.filePath, MaxRotatedFiles)
+		if _, err := os.Stat(oldestPath); err == nil {
+			_ = os.Remove(oldestPath)
 		}
+
+		// Shift rotated files
+		for i := MaxRotatedFiles - 1; i >= 1; i-- {
+			oldPath := fmt.Sprintf("%s.%d", r.filePath, i)
+			newPath := fmt.Sprintf("%s.%d", r.filePath, i+1)
+			if _, err := os.Stat(oldPath); err == nil {
+				_ = os.Rename(oldPath, newPath)
+			}
+		}
+
+		r.shifted = true
 	}
 
 	// Move current file to .1
@@ -139,6 +148,7 @@ func (r *RotatingFileWriter) rotate() error {
 
 	r.current = f
 	r.bytesWritten = 0
+	r.shifted = false
 	return nil
 }
 
