@@ -215,3 +215,28 @@ func TestRotatingFileWriter_Close(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func TestRotatingFileWriter_KeepsLogWhenRenameFails(t *testing.T) {
+	t.Parallel()
+	filePath := filepath.Join(t.TempDir(), "test.log")
+
+	// Given every rotation slot is a non-empty directory, so each rename fails.
+	for i := 1; i <= MaxRotatedFiles; i++ {
+		slot := fmt.Sprintf("%s.%d", filePath, i)
+		require.NoError(t, os.MkdirAll(filepath.Join(slot, "keep"), 0o755))
+	}
+
+	writer, err := NewRotatingFileWriter(filePath, 10)
+	require.NoError(t, err)
+	defer writer.Close() //nolint:errcheck
+
+	// When a write crosses the size limit.
+	payload := []byte("0123456789ABC")
+	_, err = writer.Write(payload)
+	require.NoError(t, err)
+
+	// Then the live log is not truncated just because it could not be rotated.
+	data, err := os.ReadFile(filePath)
+	require.NoError(t, err)
+	require.Equal(t, string(payload), string(data))
+}

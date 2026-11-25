@@ -72,7 +72,9 @@ func (r *RotatingFileWriter) Write(p []byte) (n int, err error) {
 
 	// Check if we need to rotate before writing
 	if r.bytesWritten >= r.maxSize {
-		if err := r.rotate(); err != nil {
+		// A failed rotation keeps the live file open, so keep writing to it rather
+		// than dropping the log line.
+		if err := r.rotate(); err != nil && r.current == nil {
 			return 0, fmt.Errorf("failed rotate log file: %w", err)
 		}
 	}
@@ -98,6 +100,7 @@ func (r *RotatingFileWriter) rotate() error {
 	// Close current file
 	if r.current != nil {
 		_ = r.current.Close()
+		r.current = nil
 	}
 
 	// Rotate existing files: file.log -> file.log.1 -> file.log.2, etc.
@@ -118,7 +121,13 @@ func (r *RotatingFileWriter) rotate() error {
 
 	// Move current file to .1
 	if _, err := os.Stat(r.filePath); err == nil {
-		_ = os.Rename(r.filePath, fmt.Sprintf("%s.1", r.filePath))
+		if err := os.Rename(r.filePath, fmt.Sprintf("%s.1", r.filePath)); err != nil {
+			// Do not truncate the live log: reopen it in append mode and report the error.
+			if f, openErr := os.OpenFile(r.filePath, os.O_WRONLY|os.O_APPEND, 0644); openErr == nil { //nolint:gosec // log file permissions
+				r.current = f
+			}
+			return fmt.Errorf("failed move log file: %w", err)
+		}
 	}
 
 	// Create new file
